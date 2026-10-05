@@ -1,0 +1,58 @@
+.shell-content-files { padding: 48px; }
+.workspace-files { max-width: 944px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.files-workspace-label { align-self: flex-start; background: var(--secondary-ink); color: var(--panel-text); font: 400 13px var(--mono-font); padding: 3px 6px; }
+.workspace-files h1 { margin: 0; font: 400 96px/.92 var(--display-font); letter-spacing: -.035em; }
+.files-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 10px 0 4px; font: 400 12px var(--mono-font); }
+.files-breadcrumb > span { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.files-breadcrumb button { border: 0; padding: 3px 6px; overflow-wrap: anywhere; text-align: left; }
+.files-breadcrumb [aria-current=location] { background: var(--deep-ink); color: var(--surface); }
+.files-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.files-toolbar label { display: flex; align-items: center; gap: 8px; min-width: 0; font: 400 12px var(--mono-font); }
+.files-toolbar select { min-width: 0; max-width: 220px; padding: 5px 8px; color: var(--ink); background: var(--input-fill); border: 1px solid var(--soft-line); border-radius: 0; }
+.files-toolbar button { border: 0; background: transparent; padding: 5px 8px; font-size: 13px; }
+.files-refresh-note { margin: 0 0 4px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.files-table { width: 100%; table-layout: fixed; border: 1px solid var(--soft-line); border-collapse: collapse; font-size: 15px; }
+.files-table caption { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.files-table th, .files-table td { padding: 11px 12px; text-align: left; vertical-align: top; border: 1px solid var(--soft-line); overflow-wrap: anywhere; }
+.files-table thead { background: rgba(35,32,27,.07); }
+.files-table thead th { padding: 10px 12px; font-weight: 600; }
+.files-table th:last-child { width: 100px; }
+.files-table tbody th { padding: 0; font-weight: 400; }
+.files-table button { width: 100%; border: 0; background: transparent; padding: 11px 12px; text-align: left; overflow-wrap: anywhere; }
+.files-table button:hover { background: var(--input-fill); }
+.files-table button:focus-visible { outline-offset: -3px; }
+.files-table button[aria-pressed=true] { font-weight: 600; }
+.files-table td { font: 400 12px/1.6 var(--mono-font); }
+.files-table tr[data-selected=true] { background: rgba(255,252,245,.3); }
+.files-empty { padding: 20px 12px; margin: 0; border: 1px solid var(--soft-line); border-top: 0; font-size: 14px; color: var(--muted); }
+.files-upload { margin-top: 14px; padding: 28px; border: 1px dashed var(--ink); display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.files-upload > label { font: 400 13px var(--mono-font); }
+.files-upload p { margin: 0; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; max-width: 100%; }
+.files-upload input { max-width: 100%; min-width: 0; font: 400 12px var(--body-font); }
+.files-upload input::file-selector-button { margin-right: 8px; border: 0; border-radius: 0; padding: 6px 10px; background: var(--deep-ink); color: var(--surface); font: inherit; cursor: pointer; }
+.files-upload input:focus-visible { outline: 2px solid var(--approval); outline-offset: 3px; }
+.files-upload code { font-family: var(--mono-font); }
+.file-inspector, .shell-inspector .file-inspector { display: flex; flex-direction: column; gap: 12px; }
+.file-inspector h2 { margin: 0; font: 400 10px var(--mono-font); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.file-inspector .file-selected-name { margin: 0; font-size: 24px; font-weight: 500; letter-spacing: -.03em; line-height: 1.1; overflow-wrap: anywhere; }
+.file-preview { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.file-preview h3 { margin: 0; font: 400 10px var(--mono-font); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.file-preview pre { margin: 0; padding: 14px; max-height: 50dvh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; background: var(--deep-ink); color: var(--panel-text); font: 400 11.5px/1.65 var(--mono-font); }
+.file-preview pre:focus-visible { outline: 2px solid var(--approval); outline-offset: 3px; }
+.file-preview p { margin: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.file-path { background: var(--deep-ink); color: var(--panel-text); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.file-path span { font: 400 10px var(--mono-font); text-transform: uppercase; letter-spacing: .06em; }
+.file-path code { font: 400 11.5px/1.65 var(--mono-font); overflow-wrap: anywhere; user-select: all; }
+.file-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.file-actions a, .file-actions button { border: 0; padding: 4px 8px; font-size: 13px; text-decoration: none; }
+.file-actions a { background: var(--deep-ink); color: var(--surface); }
+.file-inspector > p { margin: 0; font-size: 14px; line-height: 1.45; }
+.file-inspector small { font: 400 11px/1.6 var(--mono-font); color: var(--muted); }
+.files-inline-inspector { display: none; }
+@media (max-width: 999px) { .shell-content-files { padding: 28px; } .files-inline-inspector { display: block; margin-top: 14px; } }
+@media (max-width: 699px) {
+  .shell-content-files { padding: 20px; }
+  .workspace-files h1 { font-size: 72px; }
+  .files-upload { padding: 20px 12px; }
+  .files-table th:last-child { width: 76px; }
+}

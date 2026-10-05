@@ -1,0 +1,51 @@
+{
+  "name": "camenae",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A self-hosted personal assistant with persistent conversations and a shared workspace",
+  "type": "module",
+  "packageManager": "bun@1.4.2",
+  "scripts": {
+    "lint": "oxlint .",
+    "typecheck": "tsc --noEmit",
+    "build:ui": "bun build src/ui/chat.tsx --outdir public --target browser --minify",
+    "dev": "bun scripts/dev-ui.ts",
+    "start": "bun src/main.ts",
+    "dev:init": "bun scripts/dev-init.ts",
+    "auth:init": "bun scripts/auth-init.ts",
+    "sdk:stage": "sh scripts/stage-sdk.sh",
+    "check:docs": "python3 scripts/check-docs.py",
+    "export:source": "python3 scripts/export-source.py",
+    "test:dev-ui": "bun tests/dev-ui.ts",
+    "test:provisioning": "bun tests/provisioning.ts",
+    "check:runtime": "bun src/main.ts check-runtime",
+    "smoke:foundation": "sh scripts/smoke-foundation.sh",
+    "smoke:mcp": "sh scripts/smoke-mcp.sh",
+    "smoke:chat:live": "sh scripts/smoke-chat-live.sh",
+    "probe:build": "docker build -f docker/runtime-probe.Dockerfile -t camenae-runtime-probe:local .",
+    "probe:bun": "docker run --rm --init --network none --cap-drop ALL --security-opt no-new-privileges camenae-runtime-probe:local bun scripts/runtime-probe.ts",
+    "probe:node": "docker run --rm --init --network none --cap-drop ALL --security-opt no-new-privileges camenae-runtime-probe:local node --experimental-strip-types scripts/runtime-probe.ts"
+  },
+  "dependencies": {
+    "@assistant-ui/react": "0.15.22",
+    "@assistant-ui/react-markdown": "0.14.18",
+    "@effect/platform-bun": "4.0.0-rc.118",
+    "@effect/sql-pg": "4.0.0-rc.118",
+    "@camenae/bob": "file:.cache/sdk/camenae-bob-0.5.0-managed-modes-fce9502efaf7.tgz",
+    "effect": "4.0.0-rc.118",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "remark-gfm": "4.0.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "1.86.0",
+    "@types/bun": "1.4.2",
+    "@types/node": "26.6.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "oxlint": "1.86.0",
+    "typescript": "5.9.3"
+  },
+  "trustedDependencies": ["@officecli/officecli"]
+}

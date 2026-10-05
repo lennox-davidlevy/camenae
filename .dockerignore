@@ -1,0 +1,15 @@
+*
+!package.json
+!bun.lock
+!tsconfig.json
+!src/
+!src/**
+!tests/
+!tests/**
+!docker/
+!docker/**
+!scripts/
+!scripts/**
+!.cache/
+!.cache/sdk/
+!.cache/sdk/camenae-bob-0.5.0-managed-modes-fce9502efaf7.tgz

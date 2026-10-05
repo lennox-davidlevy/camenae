@@ -1,0 +1,7 @@
+@font-face { font-family: Gloock; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/gloock.ttf') format('truetype'); }
+@font-face { font-family: Geist; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/geist.ttf') format('truetype'); }
+@font-face { font-family: Geist; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/geist-medium.ttf') format('truetype'); }
+@font-face { font-family: Geist; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/geist-semibold.ttf') format('truetype'); }
+@font-face { font-family: Geist; font-style: italic; font-weight: 400; font-display: swap; src: url('/fonts/geist-italic.ttf') format('truetype'); }
+@font-face { font-family: 'Geist Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/geist-mono.ttf') format('truetype'); }
+@font-face { font-family: 'Geist Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/geist-mono-medium.ttf') format('truetype'); }

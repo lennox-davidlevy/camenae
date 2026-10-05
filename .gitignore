@@ -1,0 +1,12 @@
+.cache/
+node_modules/
+public/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+.opencode
+.agents/
+skills-lock.json
+.DS_Store

@@ -1,0 +1,3 @@
+services:
+  worker:
+    command: [bun, tests/worker-lifecycle.ts]

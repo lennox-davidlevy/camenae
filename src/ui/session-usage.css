@@ -1,0 +1,20 @@
+.session-usage { display: flex; flex-direction: column; gap: 22px; }
+.session-usage section { display: flex; flex-direction: column; gap: 8px; }
+.session-usage h2 { margin: 0; font: 400 10px var(--mono-font); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.session-context-value { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.session-usage small { font: 400 11px/1.6 var(--mono-font); color: var(--muted); }
+.session-usage progress { display: block; width: 100%; height: 8px; border: 1px solid var(--ink); background: transparent; appearance: none; }
+.session-usage progress::-webkit-progress-bar { background: transparent; }
+.session-usage progress::-webkit-progress-value { background: var(--ink); }
+.session-usage progress::-moz-progress-bar { background: var(--ink); }
+.session-usage summary { cursor: pointer; font: 400 11px var(--mono-font); }
+.session-usage dl, .session-usage p { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.session-usage dd { margin: 0 0 10px; }
+.session-usage dt { color: var(--muted); }
+.session-usage p + p { margin-top: 10px; }
+.chat-usage-inline { display: none; }
+@media (max-width: 999px) {
+  .chat-usage-inline { display: block; flex: none; max-height: 40vh; overflow: auto; padding: 12px; border-bottom: 1px solid var(--rule); }
+  .chat-usage-inline > summary { cursor: pointer; font: 400 11px var(--mono-font); }
+  .chat-usage-inline .session-usage { margin-top: 16px; }
+}
