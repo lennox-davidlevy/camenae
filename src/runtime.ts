@@ -8,6 +8,7 @@ import { Identity } from "./identity.js";
 import { Workspace } from "./workspace.js";
 import { Chat } from "./chat.js";
 import { McpPermissions } from "./mcp-permissions.js";
+import { OpenCodeRuntime } from "./opencode-runtime.js";
 
 const WorkspaceLive = Workspace.layer;
 
@@ -18,7 +19,7 @@ const InstallationLive = Installation.layer.pipe(
 const HarnessRuntimeLive = HarnessRuntime.layer.pipe(Layer.provide(WorkspaceLive));
 
 export const FoundationLive = Layer.mergeAll(
-  Configuration.layer, WorkspaceLive, InstallationLive, HarnessRuntimeLive,
+  Configuration.layer, WorkspaceLive, InstallationLive, HarnessRuntimeLive, OpenCodeRuntime.layer,
 );
 
 export const IdentityLive = Identity.layer.pipe(

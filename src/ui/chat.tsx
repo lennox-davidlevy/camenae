@@ -15,7 +15,7 @@ import { ActiveChat, ActiveChatInspector } from "./active-chat.js";
 import { SessionUsagePanel } from "./session-usage.js";
 import { exampleSkills, SkillsInspector, SkillsPreview } from "./skills.js";
 
-const Bootstrap = z.object({ csrf: z.string(), stored: z.boolean(), conversations: z.array(Conversation) });
+const Bootstrap = z.object({ csrf: z.string(), stored: z.boolean(), readiness: z.object({ bob: z.boolean(), opencode: z.boolean() }), harness: z.enum(["bob", "opencode"]).default("bob"), conversations: z.array(Conversation) });
 
 type ChatRequest = { csrf: string; prompt?: string; turnId?: string; permissionId?: string; optionId?: string | null; decision?: "allow" | "deny" };
 
@@ -40,6 +40,7 @@ function App() {
   const [bootstrap, setBootstrap] = useState<z.infer<typeof Bootstrap>>();
   const files = useWorkspaceFiles(screen === "Files" && Boolean(bootstrap), bootstrap?.csrf);
   const [conversation, setConversation] = useState<string>();
+  const [conversationHarness, setConversationHarness] = useState<ChatView["harness"]>();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [usage, setUsage] = useState<ChatView["usage"]>(null);
   const [mcp, setMcp] = useState<ChatView["mcp"]>({ decisions: [], pending: [], incomplete: false });
@@ -58,11 +59,12 @@ function App() {
     source.current?.close();
     setError("");
     setConversation(id);
+    setConversationHarness(undefined);
     setTurns([]);
     setUsage(null);
     setMcp({ decisions: [], pending: [], incomplete: false });
     setReadyConversation(undefined);
-    setPreparing(state.stored);
+    setPreparing(true);
     window.history.replaceState(null, "", `/chat#${id}`);
 
     try {
@@ -70,6 +72,7 @@ function App() {
 
       if (generation.current !== epoch) return;
 
+      setConversationHarness(snapshot.harness);
       setTurns(snapshot.turns);
       setUsage(snapshot.usage);
       setMcp(snapshot.mcp);
@@ -104,7 +107,7 @@ function App() {
         };
       }
 
-      if (state.stored) {
+      if (state.readiness[snapshot.harness]) {
         await request(`/api/chat/${id}/prepare`, { csrf: state.csrf });
 
         if (generation.current === epoch) setReadyConversation(id);
@@ -141,6 +144,7 @@ function App() {
   };
 
   const current = turns.find((turn) => turn.status === "running");
+  const selectedStored = conversationHarness ? bootstrap?.readiness[conversationHarness] : bootstrap?.stored;
   const isNewChat = turns.length === 0 && mcp.pending.length === 0 && mcp.decisions.length === 0 && !mcp.incomplete;
 
   const messages: ThreadMessageLike[] = turns.flatMap((turn) => [
@@ -155,7 +159,7 @@ function App() {
   const runtime = useExternalStoreRuntime({
     adapters: { threadList: { threadId: conversation } },
     messages, convertMessage: (message) => message, isRunning: Boolean(current),
-    isDisabled: pending || !bootstrap?.stored || !conversation || readyConversation !== conversation,
+    isDisabled: pending || !conversation || readyConversation !== conversation,
     onNew: async (message) => perform(async () => {
       if (!bootstrap || !conversation) return;
 
@@ -201,21 +205,22 @@ function App() {
     /> : screen === "Chat" ? <ActiveChatInspector key={conversation} usage={usage} turn={turns.at(-1)} approvals={turns.filter((turn) => turn.permission).length + mcp.pending.length} onSettings={() => setScreen("Settings")} /> : screen === "Skills" ? <SkillsInspector key={selectedSkill.name} skill={selectedSkill} /> : screen === "Files" ? <FileInspector key={files.selected ?? "none"} path={files.selected} preview={files.preview} /> : <SettingsInspector />}>
     <div className={`shell-content${screen === "Chat" ? isNewChat ? " shell-content-new" : " shell-content-active" : ""}${screen === "Skills" ? " shell-content-skills" : ""}${screen === "Files" ? " shell-content-files" : ""}${screen === "Settings" ? " shell-content-settings" : ""}`}>
       {error && <p role="alert">{error}</p>}
+      {bootstrap?.harness === "opencode" && <p role="status">New conversations use OpenCode. Existing conversations keep their original harness. Bob approval preferences and Context7 settings apply only to Bob; OpenCode requests one-time native approvals.</p>}
       {(current?.permission || mcp.pending.length > 0) && screen !== "Chat" && <p role="status">An approval is waiting in Chat. <button onClick={() => setScreen("Chat")}>Review approval</button></p>}
       <div className={isNewChat ? undefined : "chat-screen-active"} hidden={screen !== "Chat"}>
       <details className="chat-usage-inline"><summary>Context &amp; session usage</summary><SessionUsagePanel usage={usage} /></details>
       <AssistantRuntimeProvider runtime={runtime}>
         <ThreadPrimitive.Root className={isNewChat ? "thread" : "active-chat"}>
-          {isNewChat ? <NewChat key={conversation ?? "welcome"} status={(!bootstrap?.stored || !conversation || preparing || readyConversation !== conversation) && <>
+          {isNewChat ? <NewChat key={conversation ?? "welcome"} status={(!selectedStored || !conversation || preparing || readyConversation !== conversation) && <>
             {!bootstrap && <p>Loading your connection…</p>}
-            {bootstrap && !bootstrap.stored && <p><a href="/">Connect a harness</a> to start chatting.</p>}
-            {bootstrap?.stored && !conversation && <p>Select New Chat above to prepare a conversation.</p>}
+            {bootstrap && !selectedStored && <p><a href="/">Connect a harness</a> to start chatting.</p>}
+            {selectedStored && !conversation && <p>Select New Chat above to prepare a conversation.</p>}
             {preparing && <p>Preparing conversation…</p>}
-            {conversation && bootstrap?.stored && !preparing && readyConversation !== conversation && <p>Conversation is not ready. <button disabled={pending} onClick={() => void perform(() => load(conversation, bootstrap))}>Reconnect</button></p>}
+            {conversation && bootstrap && selectedStored && !preparing && readyConversation !== conversation && <p>Conversation is not ready. <button disabled={pending} onClick={() => void perform(() => load(conversation, bootstrap))}>Reconnect</button></p>}
           </>} /> : <ActiveChat
             title={bootstrap?.conversations.find((item) => item.id === conversation)?.title ?? "Conversation"}
             mcp={mcp} pending={pending} onScreen={setScreen}
-            status={<>{preparing ? "Preparing conversation…" : current ? "Working" : readyConversation ? "Camenae is ready." : "Conversation not ready."}{!bootstrap?.stored && <> <a href="/">Connect a harness</a></>}</>}
+            status={<>{preparing ? "Preparing conversation…" : current ? "Working" : readyConversation ? "Camenae is ready." : "Conversation not ready."}{!selectedStored && <> <a href="/">Connect a harness</a></>}</>}
             reconnect={conversation && bootstrap && <button disabled={pending || preparing} onClick={() => void perform(() => load(conversation, bootstrap))}>Reconnect / refresh</button>}
             onNativeApprove={(turn, optionId) => void perform(async () => {
               if (!bootstrap || !turn.permission) return;
@@ -235,7 +240,7 @@ function App() {
       <SettingsPage>
       {bootstrap && <ApprovalPreferences csrf={bootstrap.csrf} running={Boolean(current)} preparing={preparing} />}
       {bootstrap && <McpToolSettings csrf={bootstrap.csrf} running={Boolean(current)} preparing={preparing} pending={pending} onApplyingChange={setApplyingToolSettings}
-        onApply={conversation && bootstrap.stored ? () => load(conversation, bootstrap) : undefined} />}
+        onApply={conversation && conversationHarness === "bob" && bootstrap.readiness.bob ? () => load(conversation, bootstrap) : undefined} />}
       </SettingsPage>
       </div>
     </div>

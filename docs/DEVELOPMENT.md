@@ -2,6 +2,11 @@
 
 ## Fresh checkout
 
+The experimental [OpenCode path](OPENCODE.md) additionally requires its exact SDK
+archive. Stage both archives before installing dependencies or building images.
+`bun run smoke:opencode` uses a disposable project and a local synthetic provider;
+it does not change the running installation or use paid inference.
+
 Use Bun **1.4.2**, Python **3.10+** (documentation/export tools), POSIX shell,
 `sha256sum`, `curl`, Linux Docker Engine (28.4+ isolation baseline), and Compose v2.
 Node 22 is supplied in images for native-runtime comparison and workspace tools;
@@ -10,7 +15,8 @@ no globally installed TypeScript/Oxlint is required.
 Obtain the exact [SDK delivery](BOB-OPERATIONS.md#sdk-dependency), then:
 
 ```sh
-bun run sdk:stage /path/to/approved-sdk.tgz
+bun run sdk:stage /path/to/approved-bob-sdk.tgz
+bun run sdk:stage /path/to/camenae-opencode-0.1.0-b24e73923802.tgz
 bun install --frozen-lockfile
 bun run lint
 bun run typecheck
@@ -78,6 +84,14 @@ exercise displayed usage without any provider. Check sign-in, Chat, Settings,
 file upload/preview/download, reload persistence, and narrow-screen layout. Stop
 and remove only that disposable project afterwards. Never present fixture-backed
 browser behavior as proof of live model behavior.
+
+For mixed-harness regression checks, add `-e CAMENAE_HARNESS=opencode` to the
+disposable `compose run` command and pass `--mixed-harness --serve` to the fixture.
+It leaves OpenCode unconfigured, creates Bob conversations plus 100 newer rows,
+and prints an older Bob deep link outside the sidebar. Verify that its composer
+is enabled, while New Chat remains disabled; select the visible Bob conversation
+and save a Context7 change in Settings, then reload to verify persistence. Selecting
+an unavailable OpenCode conversation must disable both its composer and Bob Apply.
 
 ## Optional paid/live checks
 

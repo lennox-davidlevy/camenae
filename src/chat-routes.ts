@@ -50,7 +50,7 @@ export const ChatRoutes = HttpRouter.use(Effect.fn("Chat.routes")(function* (rou
   const bootstrap = Effect.gen(function* () {
     const session = yield* token;
 
-    return json({ csrf: yield* identity.session(session), stored: yield* identity.status(session), conversations: yield* chat.list(session) });
+    return json({ csrf: yield* identity.session(session), ...yield* chat.connectionStatus(session), conversations: yield* chat.list(session) });
   });
 
   const create = Effect.gen(function* () {

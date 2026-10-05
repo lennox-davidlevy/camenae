@@ -7,9 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     && rm -rf /var/lib/apt/lists/*
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
-COPY package.json bun.lock ./
+COPY package.json bun.lock bunfig.toml ./
 COPY .cache/sdk/camenae-bob-0.5.0-managed-modes-fce9502efaf7.tgz .cache/sdk/camenae-bob-0.5.0-managed-modes-fce9502efaf7.tgz
 RUN echo 'fce9502efaf7314d48bc67af86728e0cb51f174af2b78a115adebef3f11eb4d2  .cache/sdk/camenae-bob-0.5.0-managed-modes-fce9502efaf7.tgz' | sha256sum -c -
+COPY .cache/sdk/camenae-opencode-0.1.0-b24e73923802.tgz .cache/sdk/camenae-opencode-0.1.0-b24e73923802.tgz
+RUN echo 'b24e7392380263b72f1db9cdcb266b677dbd3ceddcc9bfe35dafc1d8f7839e22  .cache/sdk/camenae-opencode-0.1.0-b24e73923802.tgz' | sha256sum -c -
 RUN bun install --frozen-lockfile
 COPY scripts/ scripts/
 COPY src/ src/

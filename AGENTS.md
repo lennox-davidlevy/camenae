@@ -2,8 +2,9 @@
 
 ## Product and ownership
 
-Camenae is a single-user assistant application, not a harness SDK. Bob is the only
-implemented harness. Use Camenae branding and neutral application wording; retain
+Camenae is a single-user assistant application, not a harness SDK. Bob is the default
+harness; the experimental OpenCode path is documented in `docs/OPENCODE.md`.
+Use Camenae branding and neutral application wording; retain
 Bob names for actual credentials, native SDK types, metrics, and integration contracts.
 Do not claim planned integrations or preview UI controls work.
 
@@ -26,7 +27,7 @@ Preserve persisted identifiers, migrations, native IDs, `bob-gateway/usage`,
 `BOB_GATEWAY_*`, encryption context, ownership markers, credential paths, and the
 Compose identity `bob-camenae`. Cosmetic naming is not a data migration.
 
-Workers serve one connection. The entrypoint must exit after `serveOnce()` settles;
+Bob workers serve one connection. The entrypoint must exit after `serveOnce()` settles;
 Docker owns whole-worker teardown before reuse. Disconnect/EOF or an old healthy
 status is not cleanup proof: require a new lifetime and healthy readiness.
 Never silently adopt, delete, or overwrite conflicting managed native files.

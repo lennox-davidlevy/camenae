@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import type { BobRemoteClient } from "@camenae/bob";
-import { camenaeMode } from "./assistant-mode.js";
+import { bobExecution, type ExecutionClient, type Harness } from "./execution-client.js";
+import { OpenCodeRuntime } from "./opencode-runtime.js";
 import { Context, Effect, Exit, Fiber, Layer, Redacted, Schedule, Schema, Scope, Semaphore } from "effect";
 import { SqlClient } from "effect/sql";
 import { z } from "zod";
 import { HarnessRuntime } from "./harness-runtime.js";
 import { AccessDenied, Identity, IdentityError } from "./identity.js";
-import { ChatView, Conversation, SessionUsage, type Turn } from "./chat-contract.js";
+import { ChatView, Conversation, type SessionUsage, type Turn, type Permission } from "./chat-contract.js";
 import { DisabledTools, McpPolicies, type McpSettings } from "./mcp-contract.js";
 import { McpPermissions } from "./mcp-permissions.js";
 import { ApprovalPolicy, type ApprovalSettings } from "./approval-contract.js";
@@ -29,11 +29,12 @@ interface ActiveTurn extends SessionOwner {
   cancelled: boolean;
   dirty: boolean;
   persistenceFailed: boolean;
+  permissions: Permission[];
 }
 
 interface LiveConnection {
   scope: Scope.Closeable;
-  client: BobRemoteClient;
+  client: ExecutionClient;
   token: string;
   csrf: string;
   key: Redacted.Redacted<string>;
@@ -46,6 +47,7 @@ interface LiveConnection {
 }
 
 interface Initialization {
+  harness: Harness;
   owner: SessionOwner;
   fiber: Fiber.Fiber<unknown, unknown>;
   token: string;
@@ -55,6 +57,7 @@ interface Initialization {
 
 export class Chat extends Context.Service<Chat, {
   readonly list: (token: string) => Effect.Effect<z.infer<typeof Conversation>[], ChatFailure>;
+  readonly connectionStatus: (token: string) => Effect.Effect<{ harness: Harness; stored: boolean; readiness: { bob: boolean; opencode: boolean } }, ChatFailure>;
   readonly create: (token: string, csrf: string) => Effect.Effect<string, ChatFailure>;
   readonly prepare: (token: string, csrf: string, id: string) => Effect.Effect<void, ChatFailure>;
   readonly view: (token: string, id: string) => Effect.Effect<ChatView, ChatFailure>;
@@ -71,12 +74,37 @@ export class Chat extends Context.Service<Chat, {
     const sql = yield* SqlClient.SqlClient;
     const identity = yield* Identity;
     const runtime = yield* HarnessRuntime;
+    const openCode = yield* OpenCodeRuntime;
     const mcp = yield* McpPermissions;
     const scope = yield* Scope.Scope;
     let active: ActiveTurn | undefined;
     let live: LiveConnection | undefined;
     let initializing: Initialization | undefined;
     const lifecycle = yield* Semaphore.make(1);
+
+    const connectionStatus = Effect.fn("Chat.connectionStatus")(function* (token: string) {
+      yield* identity.session(token);
+
+      const readiness = { bob: yield* identity.status(token), opencode: openCode.configured };
+
+      return { harness: openCode.harness, stored: readiness[openCode.harness], readiness };
+    });
+
+    const credentialFor = Effect.fn("Chat.credentialFor")(function* (harness: Harness, token: string, csrf: string) {
+      yield* identity.authorize(token, csrf);
+
+      if (harness === "bob") return yield* identity.key(token, csrf);
+
+      if (!openCode.configured) return yield* new IdentityError();
+
+      return openCode.credential;
+    });
+
+    const conversationHarness = Effect.fn("Chat.conversationHarness")(function* (id: string) {
+      const rows = yield* sql`SELECT harness FROM conversation WHERE id = ${id}`;
+
+      return yield* Effect.try(() => z.array(z.object({ harness: z.enum(["bob", "opencode"]) })).length(1).parse(rows)[0].harness);
+    }, Effect.mapError(() => new ChatError()));
 
     const desiredTools = Effect.fn("Chat.desiredTools")(function* () {
       const rows = yield* sql`SELECT disabled_tools, permissions FROM mcp_settings WHERE singleton = true`;
@@ -90,8 +118,8 @@ export class Chat extends Context.Service<Chat, {
       const saved = yield* desiredTools();
 
       return { disabledTools: saved.disabled_tools, permissions: saved.permissions,
-        activeDisabledTools: live?.healthy && live.session ? live.disabledTools : null,
-        activePermissions: live?.healthy && live.session ? live.mcpPolicies : null };
+        activeDisabledTools: live?.healthy && live.session && live.client.harness === "bob" ? live.disabledTools : null,
+        activePermissions: live?.healthy && live.session && live.client.harness === "bob" ? live.mcpPolicies : null };
     });
 
     const saveMcpSettings = Effect.fn("Chat.saveMcpSettings")(function* (token: string, csrf: string, input: DisabledTools, permissions?: McpPolicies) {
@@ -126,11 +154,11 @@ export class Chat extends Context.Service<Chat, {
       yield* identity.session(token);
       const saved = yield* desiredPolicy();
 
-      return { saved, active: live?.healthy && live.token === token ? live.approvalPolicy : null };
+      return { saved, active: live?.healthy && live.token === token && live.client.harness === "bob" ? live.approvalPolicy : null };
     });
 
     const installPolicy = Effect.fn("Chat.installPolicy")(function* (connection: LiveConnection, policy: ApprovalPolicy) {
-      yield* Effect.try(() => connection.client.setApprovalPolicy(policy)).pipe(Effect.mapError(() => new ChatError()));
+      yield* Effect.try(() => connection.client.setBobApprovalPolicy(policy)).pipe(Effect.mapError(() => new ChatError()));
       connection.approvalPolicy = policy;
     });
 
@@ -142,7 +170,7 @@ export class Chat extends Context.Service<Chat, {
       // Commit desired preferences first; a failed setter leaves them saved and
       // the previous active policy visible. Pending manual requests stay manual.
 
-      if (live?.healthy && live.token === token && live.csrf === csrf) yield* installPolicy(live, policy);
+      if (live?.healthy && live.token === token && live.csrf === csrf && live.client.harness === "bob") yield* installPolicy(live, policy);
     }, lifecycle.withPermit, Effect.uninterruptible);
 
     const retire = Effect.fn("Chat.retire")(function* (connection: LiveConnection) {
@@ -161,13 +189,20 @@ export class Chat extends Context.Service<Chat, {
     const connect = Effect.fn("Chat.connect")(function* (
       owner: SessionOwner, token: string, csrf: string, key: Redacted.Redacted<string>, disabledTools: DisabledTools, approvalPolicy: ApprovalPolicy,
       conversation: string, mcpPolicies: McpPolicies,
+      harness: Harness,
     ) {
-      if (!live || !live.healthy || live.token !== token || live.csrf !== csrf ||
-        Redacted.value(live.key) !== Redacted.value(key) || JSON.stringify(live.disabledTools) !== JSON.stringify(disabledTools) ||
-        JSON.stringify(live.mcpPolicies) !== JSON.stringify(mcpPolicies) || live.session?.conversation !== conversation) {
+      if (!live || !live.healthy || live.client.harness !== harness || live.token !== token || live.csrf !== csrf ||
+        Redacted.value(live.key) !== Redacted.value(key) || (harness === "bob" && (JSON.stringify(live.disabledTools) !== JSON.stringify(disabledTools) ||
+        JSON.stringify(live.mcpPolicies) !== JSON.stringify(mcpPolicies) || live.session?.conversation !== conversation))) {
         const connectionScope = yield* Scope.make();
 
         const client = yield* Effect.gen(function* () {
+          if (harness === "opencode") {
+            if (live) yield* retire(live);
+
+            return yield* openCode.connect();
+          }
+
           const binding = yield* mcp.open(conversation, disabledTools, mcpPolicies);
           // Publish fresh gate configuration BEFORE retiring the old worker.
           // Docker replacement must never reuse a one-session gate/token.
@@ -175,7 +210,7 @@ export class Chat extends Context.Service<Chat, {
 
           if (live) yield* retire(live);
 
-          return yield* runtime.connect(key, binding.servers, approvalPolicy);
+          return bobExecution(yield* runtime.connect(key, binding.servers, approvalPolicy));
         }).pipe(Scope.provide(connectionScope),
           Effect.onError(() => Scope.close(connectionScope, Exit.void)));
 
@@ -185,21 +220,19 @@ export class Chat extends Context.Service<Chat, {
         const unsubscribe = client.subscribe((event) => {
           if (live !== connection || !connection.healthy) return;
 
-          if (event.type === "connection_error" || event.type === "exit") connection.healthy = false;
+          if (event.type === "unavailable") connection.healthy = false;
 
-          if (event.type !== "session_update") return;
-          const { sessionId, update } = event.notification;
+          if (event.type !== "usage") return;
 
-          if (connection.session && connection.session.id !== sessionId) return;
-          const usage = SessionUsage.safeParse(update._meta?.["bob-gateway/usage"]);
+          if (connection.session && connection.session.id !== event.session) return;
 
           // Initialization can notify before the response supplies the native ID.
           // Keep native attribution until loadSession binds it to a conversation.
-          if (usage.success) connection.usage.set(sessionId, usage.data);
+          connection.usage.set(event.session, event.usage);
         });
 
         yield* Scope.addFinalizer(connectionScope, Effect.sync(unsubscribe));
-      } else if (JSON.stringify(live.approvalPolicy) !== JSON.stringify(approvalPolicy)) {
+      } else if (harness === "bob" && JSON.stringify(live.approvalPolicy) !== JSON.stringify(approvalPolicy)) {
         yield* installPolicy(live, approvalPolicy);
       }
 
@@ -217,7 +250,9 @@ export class Chat extends Context.Service<Chat, {
 
       if (!authority) return;
 
-      const authorized = yield* identity.key(authority.token, authority.csrf).pipe(
+      const harness = pending?.harness ?? current?.client.harness ?? "bob";
+
+      const authorized = yield* credentialFor(harness, authority.token, authority.csrf).pipe(
         Effect.map((key) => Redacted.value(key) === Redacted.value(authority.key)),
         Effect.catch(() => Effect.succeed(false)),
       );
@@ -262,7 +297,7 @@ export class Chat extends Context.Service<Chat, {
     const list = Effect.fn("Chat.list")(function* (token: string) {
       yield* identity.session(token);
 
-      const rows = yield* sql`SELECT id, title FROM conversation ORDER BY created_at DESC LIMIT 100`
+      const rows = yield* sql`SELECT id, title, harness FROM conversation ORDER BY created_at DESC LIMIT 100`
         .pipe(Effect.mapError(() => new ChatError()));
 
       return yield* Effect.try(() => z.array(Conversation).parse(rows)).pipe(Effect.mapError(() => new ChatError()));
@@ -271,13 +306,14 @@ export class Chat extends Context.Service<Chat, {
     const create = Effect.fn("Chat.create")(function* (token: string, csrf: string) {
       yield* identity.authorize(token, csrf);
       const id = randomUUID();
-      yield* sql`INSERT INTO conversation (id, title) VALUES (${id}, 'New conversation')`;
+      yield* sql`INSERT INTO conversation (id, title, harness) VALUES (${id}, 'New conversation', ${openCode.harness})`;
 
       return id;
     }, sql.withTransaction, Effect.mapError(() => new ChatError()));
 
     const view = Effect.fn("Chat.view")(function* (token: string, id: string) {
       yield* identity.session(token);
+      const harness = yield* conversationHarness(id);
       yield* reconcile();
 
       const turns = yield* sql`SELECT id, ordinal, prompt, answer, activity, permission, approval_decisions, status, stop_reason
@@ -289,7 +325,7 @@ export class Chat extends Context.Service<Chat, {
       const usage = live?.healthy && live.token === token && live.session?.conversation === id
         ? live.usage.get(live.session.id) ?? null : null;
 
-      return yield* Effect.try(() => ChatView.parse({ turns, mcp: mcpHistory, usage })).pipe(Effect.mapError(() => new ChatError()));
+      return yield* Effect.try(() => ChatView.parse({ harness, turns, mcp: mcpHistory, usage })).pipe(Effect.mapError(() => new ChatError()));
     });
 
     const loadSession = Effect.fn("Chat.loadSession")(function* (
@@ -303,34 +339,28 @@ export class Chat extends Context.Service<Chat, {
         const nativeId = parsed[0].native_id;
         // Read authority inside the lifecycle permit, after any queued work or
         // database wait, rather than retaining the key from HTTP admission.
-        const key = yield* identity.key(token, csrf);
+        const harness = yield* conversationHarness(conversation);
+        const key = yield* credentialFor(harness, token, csrf);
         const mcpSettings = yield* desiredTools();
         const approvalPolicy = yield* desiredPolicy();
         const fiber = yield* Effect.fiber;
-        initializing = { owner, fiber, token, csrf, key };
-        const connection = yield* connect(owner, token, csrf, key, mcpSettings.disabled_tools, approvalPolicy, conversation, mcpSettings.permissions);
+        initializing = { owner, fiber, token, csrf, key, harness };
+        const connection = yield* connect(owner, token, csrf, key, mcpSettings.disabled_tools, approvalPolicy, conversation, mcpSettings.permissions, harness);
         const client = connection.client;
         let sessionId = connection.session?.conversation === conversation ? connection.session.id : null;
 
         if (!sessionId) {
           const previous = connection.session;
 
-          if (previous) yield* Effect.tryPromise(() => client.closeSession(previous.id));
+          if (previous) yield* Effect.tryPromise(() => client.releaseSession(previous.id));
           connection.session = undefined;
 
-          if (nativeId) {
-            yield* Effect.tryPromise(() => client.resumeSession(nativeId, { mcpServers: [] }));
-            sessionId = nativeId;
-          } else {
-            sessionId = (yield* Effect.tryPromise(() => client.newSession({ mcpServers: [] }))).sessionId;
+          sessionId = yield* Effect.tryPromise(() => client.openSession(nativeId ?? undefined));
+
+          if (!nativeId) {
             yield* sql`UPDATE conversation SET native_id = ${sessionId} WHERE id = ${conversation}`;
           }
 
-          // Camenae currently has one application-owned persona and no user mode
-          // selector. Apply it on both new and restored native sessions, including
-          // conversations created before the custom mode was introduced.
-          const selectedSessionId = sessionId;
-          yield* Effect.tryPromise(() => client.setMode(selectedSessionId, camenaeMode.slug));
           connection.session = { conversation, id: sessionId };
 
           for (const id of connection.usage.keys()) {
@@ -371,53 +401,50 @@ export class Chat extends Context.Service<Chat, {
         const client = connection.client;
 
         const unsubscribe = client.subscribe((event) => {
-          if (event.type === "permission_auto_decision") {
-            if (event.sessionId !== promptSessionId) return;
+          if (event.type === "decision") {
+            if (event.session !== promptSessionId) return;
 
             // A turn never reconnects/replays: its UUID scopes client-local
             // permission IDs. Several requests may share an opaque tool-call ID.
-            if (turn.approval_decisions.some((decision) => decision.permissionId === event.permissionId)) return;
+            if (turn.approval_decisions.some((decision) => decision.permissionId === event.decision.permissionId)) return;
 
             if (turn.approval_decisions.length < 100) {
-              const { permissionId, toolCallId, match, kind, decision } = event;
-
-              turn.approval_decisions.push(match === "category"
-                ? { permissionId, toolCallId, match, kind, decision }
-                : { permissionId, toolCallId, match, kind, decision });
+              turn.approval_decisions.push(event.decision);
             } else overflow = true;
             task.dirty = true;
 
             return;
           }
 
-          if (event.type === "permission_request") {
-            if (event.request.sessionId !== promptSessionId) return;
-            turn.permission = { id: event.permissionId, title: event.request.toolCall.title ?? "Tool permission",
-              kind: event.request.toolCall.kind ?? "unknown",
-              // Native Always choices bypass future SDK requests. Lasting
-              // approval decisions belong exclusively to persisted preferences.
-              options: event.request.options.filter((option) => option.kind === "allow_once" || option.kind === "reject_once")
-                .map(({ optionId, name, kind }) => ({ optionId, name, kind })) };
+          if (event.type === "unavailable" || event.session !== promptSessionId) return;
+
+          if (event.type === "permission") {
+            if (task.permissions.length >= 100) overflow = true;
+            else task.permissions.push(event.permission);
+            turn.permission = task.permissions[0] ?? null;
             task.dirty = true;
           }
 
-          if (event.type !== "session_update" || event.notification.sessionId !== promptSessionId) return;
-          const update = event.notification.update;
-
-          if (update.sessionUpdate === "agent_message_chunk" && update.content.type === "text") {
-            if (Buffer.byteLength(turn.answer) + Buffer.byteLength(update.content.text) > 256 * 1024) overflow = true;
-            else turn.answer += update.content.text;
+          if (event.type === "permission-settled") {
+            task.permissions = task.permissions.filter((permission) => permission.id !== event.id);
+            turn.permission = task.permissions[0] ?? null;
             task.dirty = true;
           }
 
-          if (update.sessionUpdate === "tool_call" || update.sessionUpdate === "tool_call_update") {
-            const previous = turn.activity.find((item) => item.id === update.toolCallId);
+          if (event.type === "text") {
+            if (Buffer.byteLength(turn.answer) + Buffer.byteLength(event.text) > 256 * 1024) overflow = true;
+            else turn.answer += event.text;
+            task.dirty = true;
+          }
+
+          if (event.type === "activity") {
+            const previous = turn.activity.find((item) => item.id === event.id);
 
             if (previous) {
-              previous.title = update.title ?? previous.title;
-              previous.status = update.status ?? previous.status;
+              previous.title = event.title ?? previous.title;
+              previous.status = event.status ?? previous.status;
             } else if (turn.activity.length < 100) {
-              turn.activity.push({ id: update.toolCallId, title: update.title ?? "Tool", status: update.status ?? "pending" });
+              turn.activity.push({ id: event.id, title: event.title ?? "Tool", status: event.status ?? "pending" });
             } else overflow = true;
             task.dirty = true;
           }
@@ -437,12 +464,12 @@ export class Chat extends Context.Service<Chat, {
         const result = yield* Effect.tryPromise(() => {
           task.sessionId = promptSessionId;
 
-          return client.prompt(promptSessionId, [{ type: "text", text: turn.prompt }]);
+          return client.run(promptSessionId, turn.prompt);
         })
           .pipe(Effect.raceFirst(monitor), Effect.timeout("10 minutes"));
 
-        turn.stop_reason = result.stopReason;
-        turn.status = result.stopReason === "cancelled" ? "cancelled" : "completed";
+        turn.stop_reason = result;
+        turn.status = result === "cancelled" ? "cancelled" : "completed";
       })).pipe(Effect.onExit((exit) => Exit.isFailure(exit) && task.connection ? disconnect(task.connection) : Effect.void));
 
       yield* work.pipe(
@@ -467,14 +494,14 @@ export class Chat extends Context.Service<Chat, {
 
       if (active) return yield* new ChatBusy();
 
-      const task: ActiveTurn = { conversation: id, cancelled: false, dirty: false, persistenceFailed: false, turn: {
+      const task: ActiveTurn = { conversation: id, cancelled: false, dirty: false, persistenceFailed: false, permissions: [], turn: {
         id: randomUUID(), ordinal: 0, prompt, answer: "", activity: [], approval_decisions: [], permission: null, status: "running", stop_reason: null,
       } };
 
       active = task;
 
       const admission = sql.withTransaction(Effect.gen(function* () {
-        yield* identity.key(token, csrf);
+        yield* credentialFor(yield* conversationHarness(id), token, csrf);
         const counts = yield* sql`SELECT count(*)::int AS count FROM turn WHERE conversation_id = ${id}`;
         const count = yield* Effect.try(() => z.array(z.object({ count: z.number().int().max(49) })).length(1).parse(counts));
         task.turn.ordinal = count[0].count + 1;
@@ -484,7 +511,7 @@ export class Chat extends Context.Service<Chat, {
 
       }));
 
-      yield* admission.pipe(Effect.tapError(() => Effect.sync(() => { active = undefined; })),
+      yield* admission.pipe(Effect.onExit((exit) => Exit.isFailure(exit) ? Effect.sync(() => { active = undefined; }) : Effect.void),
         Effect.mapError(() => new ChatError()));
 
       task.fiber = yield* execute(task, token, csrf, id).pipe(Effect.interruptible, Effect.forkIn(scope));
@@ -524,11 +551,15 @@ export class Chat extends Context.Service<Chat, {
 
       if (!client || task?.turn.id !== id || permission?.id !== permissionId ||
         (optionId !== null && !permission.options.some((option) => option.optionId === optionId))) return yield* new ChatError();
-      yield* Effect.try(() => client.respondToPermission(permissionId, optionId)).pipe(Effect.mapError(() => new ChatError()));
-      task.turn.permission = null;
+      const sessionId = task.sessionId;
+
+      if (!sessionId) return yield* new ChatError();
+      yield* Effect.tryPromise(() => client.approve(sessionId, permissionId, optionId)).pipe(Effect.mapError(() => new ChatError()));
+      task.permissions = task.permissions.filter((permission) => permission.id !== permissionId);
+      task.turn.permission = task.permissions[0] ?? null;
       task.dirty = true;
     });
 
-    return Chat.of({ list, create, prepare, view, start, cancel, approve, approveMcp, mcpSettings, saveMcpSettings, approvalSettings, saveApprovalSettings });
+    return Chat.of({ list, connectionStatus, create, prepare, view, start, cancel, approve, approveMcp, mcpSettings, saveMcpSettings, approvalSettings, saveApprovalSettings });
   }).pipe(Effect.mapError(() => new ChatError())));
 }

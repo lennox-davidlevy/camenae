@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import type { BobEvent, BobRemoteClient } from "@camenae/bob";
 import { Config, Effect, Layer, Match } from "effect";
+import { SqlClient } from "effect/sql";
 import { renderToStaticMarkup } from "react-dom/server";
 import { z } from "zod";
 import { HarnessRuntime } from "../src/harness-runtime.js";
+import { OpenCodeRuntime } from "../src/opencode-runtime.js";
 import { Chat } from "../src/chat.js";
 import { ChatView, type SessionUsage } from "../src/chat-contract.js";
 import { DatabaseLive } from "../src/database.js";
@@ -19,6 +21,8 @@ import { SessionUsagePanel } from "../src/ui/session-usage.js";
 // Run tests/mcp-upstream.ts alongside it and set CAMENAE_CONTEXT7_URL to that
 // loopback fixture. stdin is the disposable account's login.txt.
 const password = (await Bun.stdin.text()).trim();
+
+const mixedHarness = process.argv.includes("--mixed-harness");
 
 const reported: SessionUsage = { version: 1, contextTokens: 53000, contextWindow: 200000,
   maxOutputTokens: 16000, compactionThreshold: 0.9, autoCompact: true, bobcoins: 12.34 };
@@ -92,7 +96,7 @@ const fixtureRuntime = Layer.succeed(HarnessRuntime, HarnessRuntime.of({
   }), (client) => Effect.promise(() => client.disconnect())),
 }));
 
-const chatLayer = Chat.layer.pipe(Layer.provide(fixtureRuntime), Layer.provide(McpPermissions.layer),
+const chatLayer = Chat.layer.pipe(Layer.provide(fixtureRuntime), Layer.provide(OpenCodeRuntime.layer), Layer.provide(McpPermissions.layer),
   Layer.provide(IdentityLive), Layer.provide(DatabaseLive));
 
 const server = ServerLive.pipe(Layer.provide(chatLayer), Layer.provide(IdentityLive), Layer.provide(FoundationLive));
@@ -120,13 +124,27 @@ await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       body: new URLSearchParams({ csrf, key: "synthetic-usage-fixture-never-sent-to-a-provider" }) });
 
     assert.equal(saved.status, 303);
-    const create = async () => z.object({ id: z.uuid() }).parse(await (await request("/api/chat", { csrf })).json()).id;
+
+    const create = async () => {
+      if (!mixedHarness) return z.object({ id: z.uuid() }).parse(await (await request("/api/chat", { csrf })).json()).id;
+
+      // Existing Bob rows must stay usable when the deployment default changes.
+      return Effect.runPromise(Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const id = crypto.randomUUID();
+        yield* sql`INSERT INTO conversation (id, title, harness) VALUES (${id}, 'Existing Bob conversation', 'bob')`;
+
+        return id;
+      }).pipe(Effect.provide(DatabaseLive)));
+    };
+
     const prepare = async (id: string) => { assert.equal((await request(`/api/chat/${id}/prepare`, { csrf })).status, 200); };
 
     const view = async (id: string) => ChatView.parse(await (await request(`/api/chat/${id}`)).json());
     const first = await create();
     assert.equal((await fetch(`${base}/api/chat/${first}`)).status, 401);
     assert.equal((await view(first)).usage, null);
+    assert.equal((await view(first)).harness, "bob");
 
     // Open before preparation: the same idle stream must deliver async usage,
     // rather than closing because the conversation has no running turn.
@@ -157,7 +175,7 @@ await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
     original.emit({ ...reported, contextTokens: 40000, bobcoins: 13, futureField: true }, undefined, true);
     let streamed = await next();
 
-    while (streamed.usage?.bobcoins !== 13) streamed = await next();
+    while (!streamed.usage || !("bobcoins" in streamed.usage) || streamed.usage.bobcoins !== 13) streamed = await next();
     assert.deepEqual(streamed.usage, { ...reported, contextTokens: 40000, bobcoins: 13 });
     await reader.cancel();
 
@@ -207,6 +225,28 @@ await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
     assert.ok(zero.includes('aria-valuetext="Unknown"'));
     assert.ok(zero.includes("<strong>0</strong>"));
     current.emit(reported);
+
+    if (mixedHarness) {
+      // Keep one Bob row visible, while pushing the bookmarked row out of the sidebar.
+      for (let index = 0; index < 100; index++) {
+        assert.equal((await request("/api/chat", { csrf })).status, 200);
+      }
+
+      await Effect.runPromise(Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        yield* sql`UPDATE conversation SET created_at = NOW() WHERE id = ${second}`;
+      }).pipe(Effect.provide(DatabaseLive)));
+
+      const bootstrap = z.object({ stored: z.literal(false), harness: z.literal("opencode"),
+        readiness: z.object({ bob: z.literal(true), opencode: z.literal(false) }), conversations: z.array(z.object({ id: z.uuid() })) })
+        .parse(await (await request("/api/chat")).json());
+
+      assert.equal(bootstrap.conversations.some((item) => item.id === first), false);
+      assert.equal(bootstrap.conversations.some((item) => item.id === second), true);
+      assert.equal((await view(first)).harness, "bob", "Deep-link harness must come from persistence, not the sidebar/default");
+      console.log(`Mixed-harness browser fixture: /chat#${first}`);
+    }
+
     await writeFile("/data/tmp/usage-session.json", JSON.stringify({ cookie, csrf, first, second }));
     console.log("Session usage passed: actual HTTP/SSE to UI, early/late initialization, both subtypes, validation, replacement, isolation, resume, retired callbacks, null/decreasing/changing limits, and formatting.");
   });

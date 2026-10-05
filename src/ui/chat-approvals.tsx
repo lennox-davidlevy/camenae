@@ -20,6 +20,8 @@ export function NativeApproval({ turn, pending, onApprove }: {
 
   return <ApprovalCard title={permission.title} label={`Permission request for turn ${turn.ordinal}`}>
     <p>The assistant is requesting permission. Reported category: <strong>{permission.kind ?? "unknown"}</strong>.</p>
+    {permission.resources?.map((resource, index) => <pre key={index}>{resource}</pre>)}
+    {permission.detailsTruncated && <p>Authorization details exceed the display limit. This request can only be rejected; no undisclosed operations can be approved here.</p>}
     <p className="approval-explanation">This decision applies once. Persistent preferences are managed in Settings. No separate file diff or command preview is provided.</p>
     <div className="approval-actions">
       {permission.options.map((option) => <button key={option.optionId} className={option.kind === "allow_once" ? "approval-primary" : undefined} disabled={pending} onClick={() => onApprove(turn, option.optionId)}>{option.name}</button>)}

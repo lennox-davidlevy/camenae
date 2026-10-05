@@ -57,5 +57,7 @@ dc stop app
 dc run --rm --no-deps -T app bun tests/approval-observability.ts < "$auth_directory/state.json"
 dc run --rm --no-deps -T app bun tests/mcp-permissions.ts
 dc run --rm --no-deps -T app bun tests/mcp-native.ts < "$auth_directory/state.json"
-dc run --rm --no-deps -T app bun tests/session-usage.tsx < "$auth_directory/login.txt"
+# The usage consumer also owns the mixed-harness deep-link fixture; run its Bob
+# assertions with an unavailable OpenCode default instead of duplicating them.
+dc run --rm --no-deps -T -e CAMENAE_HARNESS=opencode app bun tests/session-usage.tsx --mixed-harness < "$auth_directory/login.txt"
 printf 'MCP settings passed: authorization, persistence, replacement/resume, unmanaged-file refusal, pending failure status, recovery and re-enablement.\n'

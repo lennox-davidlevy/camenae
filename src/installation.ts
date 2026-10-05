@@ -9,6 +9,7 @@ import mcpSettingsMigration from "./migrations/004-mcp-settings.js";
 import approvalSettingsMigration from "./migrations/005-approval-settings.js";
 import approvalDecisionsMigration from "./migrations/006-approval-decisions.js";
 import mcpPermissionsMigration from "./migrations/007-mcp-permissions.js";
+import harnessMigration from "./migrations/008-harness.js";
 
 export class DatabaseError extends Schema.TaggedError<DatabaseError>()("DatabaseError", {}) {}
 
@@ -28,6 +29,7 @@ export class Installation extends Context.Service<Installation, {
       "005_approval_settings": approvalSettingsMigration,
       "006_approval_decisions": approvalDecisionsMigration,
       "007_mcp_permissions": mcpPermissionsMigration,
+      "008_harness": harnessMigration,
     }) });
     const parsed = InstallationRows.safeParse(yield* sql`SELECT id FROM installation WHERE singleton = true`);
     const row = parsed.success ? parsed.data[0] : undefined;
