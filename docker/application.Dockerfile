@@ -14,6 +14,7 @@ COPY docker/opencode-runtime/package.json docker/opencode-runtime/bun.lock docke
 RUN cd docker/opencode-runtime && bun install --frozen-lockfile
 COPY src/opencode-worker.ts docker/opencode-runtime/
 COPY src/opencode-plugin.ts docker/opencode-runtime/plugin/index.ts
+COPY docker/opencode-runtime/console-free.json docker/opencode-runtime/
 COPY src/ src/
 COPY scripts/ scripts/
 COPY tests/ tests/

@@ -18,6 +18,8 @@ const proxy = process.env.HTTPS_PROXY;
 
 const apiKey = process.env.CAMENAE_MODEL_API_KEY;
 
+const consoleFree = process.env.CAMENAE_OPENCODE_CONSOLE_FREE === "true";
+
 process.env = {
   PATH: "/usr/local/bin:/usr/bin:/bin", HOME: `${root}/home`,
   XDG_CONFIG_HOME: `${root}/config`, XDG_DATA_HOME: `${root}/data`,
@@ -28,6 +30,8 @@ process.env = {
 if (proxy) process.env.HTTPS_PROXY = proxy;
 
 if (apiKey) process.env.CAMENAE_MODEL_API_KEY = apiKey;
+
+if (consoleFree) process.env.CAMENAE_OPENCODE_GATE_TOKEN = password;
 
 for (const name of ["home", "config", "data", "cache", "state"]) await mkdir(`${root}/${name}`, { recursive: true, mode: 0o700 });
 

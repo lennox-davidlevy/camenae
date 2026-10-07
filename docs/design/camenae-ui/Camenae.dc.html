@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Geist:ital,wght@0,400;0,500;0,600;1,400&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+html,body{margin:0;height:100%;background:#e6dfd2;color:#23201b;font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#23201b;text-decoration:underline;text-underline-offset:3px}
+a:hover{color:#9a3524}
+::selection{background:#b4412c;color:#fbf8f2}
+textarea::placeholder{color:#7a7062}
+*{scrollbar-width:thin;scrollbar-color:#23201b transparent}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:linear-gradient(90deg,transparent 5px,rgba(35,32,27,.22) 5px 6px,transparent 6px)}
+::-webkit-scrollbar-track:horizontal{background:linear-gradient(0deg,transparent 5px,rgba(35,32,27,.22) 5px 6px,transparent 6px)}
+::-webkit-scrollbar-thumb{background:#23201b;border:4px solid transparent;background-clip:padding-box;border-radius:0;min-height:40px}
+::-webkit-scrollbar-thumb:hover,::-webkit-scrollbar-thumb:active{background-color:#b4412c;border-width:3px}
+::-webkit-scrollbar-corner,::-webkit-scrollbar-button{display:none;background:transparent}
+</style>
+</helmet>
+<div style="height:100vh;display:flex;flex-direction:column;min-width:0">
+  <!-- Masthead -->
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:stretch;height:46px;flex:none;border-bottom:1px solid #23201b;position:relative;z-index:5">
+    <div style="display:flex;align-items:center;gap:12px;padding:0 16px;min-width:0;overflow:hidden">
+      <span style="font:400 24px/1 'Gloock',serif;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap">Camenae</span>
+      <sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}"><span style="width:5px;height:5px;background:#b4412c;transform:rotate(45deg);flex:none"></span>
+      <span style="font:400 10px 'Geist Mono',monospace;letter-spacing:.1em;color:#6b6255;text-transform:uppercase;white-space:nowrap">Fons · Consilium</span></sc-if>
+    </div>
+    <div style="display:flex;align-items:stretch;border-left:1px solid #23201b">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="4">
+        <div onClick="{{ n.onClick }}" style="display:flex;align-items:center;gap:8px;padding:0 clamp(10px,1.3vw,18px);border-right:1px solid #23201b;background:{{ n.bg }};color:{{ n.fg }};cursor:pointer" style-hover="background:rgba(35,32,27,.06)">
+          <span style="font:400 10px 'Geist Mono',monospace;letter-spacing:.06em;opacity:.7">{{ n.num }}</span>
+          <span style="font-size:16px;letter-spacing:-0.01em">{{ n.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex;justify-content:flex-end;align-items:stretch;min-width:0;overflow:hidden">
+      <div onClick="{{ goHarnessTab }}" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #23201b;cursor:pointer;white-space:nowrap" style-hover="background:rgba(35,32,27,.06)"><sc-if value="{{ midWide }}" hint-placeholder-val="{{ true }}"><span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">Harness</span><span style="width:7px;height:7px;border:1px solid #6b6255"></span></sc-if><span style="font-size:16px">{{ defaultHarness }}</span><span style="font-size:11px;color:#6b6255">▾</span></div>
+      <div onClick="{{ goNew }}" style="display:flex;align-items:center;gap:10px;padding:0 18px;background:#b4412c;color:#f8f3ea;font-size:16px;cursor:pointer;white-space:nowrap" style-hover="background:#9a3524"><span style="font-size:18px;line-height:1">+</span>New Chat</div>
+    </div>
+  </div>
+
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:clamp(200px,18vw,248px) minmax(0,1fr) {{ inspectorCol }}">
+    <!-- Left sidebar -->
+    <div style="display:flex;flex-direction:column;min-height:0;padding:22px 0 0 0">
+      <div style="padding:0 16px 0 10px;font:400 11px 'Geist Mono',monospace;color:#6b6255;display:flex;gap:6px;align-items:center"><span>⁚</span><span>Threads</span></div>
+      <div style="flex:1;overflow:auto;padding:14px 16px 16px 10px;display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;flex-direction:column;gap:2px;border-left:1px solid #23201b;padding-left:10px">
+          <div style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255;padding:2px 0 6px">Today</div>
+          <sc-for list="{{ threadsToday }}" as="t" hint-placeholder-count="3">
+            <div onClick="{{ t.onClick }}" style="display:flex;flex-direction:column;gap:2px;padding:6px 7px;margin-left:-7px;background:{{ t.bg }};color:{{ t.fg }};cursor:pointer">
+              <span style="font-size:14px;line-height:1.25">{{ t.title }}</span>
+              <span style="font:400 10px 'Geist Mono',monospace;opacity:.7">{{ t.meta }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;border-left:1px dashed #23201b;padding-left:10px">
+          <div style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255;padding:2px 0 6px">Last week</div>
+          <sc-for list="{{ threadsOlder }}" as="t" hint-placeholder-count="4">
+            <div onClick="{{ t.onClick }}" style="display:flex;flex-direction:column;gap:2px;padding:6px 7px;margin-left:-7px;cursor:pointer" style-hover="background:rgba(255,252,245,.35)">
+              <span style="font-size:14px;line-height:1.25">{{ t.title }}</span>
+              <span style="font:400 10px 'Geist Mono',monospace;opacity:.7">{{ t.meta }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;padding:10px">
+        <div style="background:#1f1c18;color:#fbf8f2;padding:3px 7px;font-size:13px">Docs</div>
+        <div style="background:#1f1c18;color:#fbf8f2;padding:3px 7px;font-size:13px">Shortcuts</div>
+        <div style="background:#1f1c18;color:#fbf8f2;padding:3px 7px;font-size:13px">⌘K</div>
+      </div>
+    </div>
+
+    <!-- Center -->
+    <div style="min-height:0;overflow:auto;border-left:1px solid rgba(35,32,27,.35);border-right:1px solid rgba(35,32,27,.35)">
+
+      <!-- NEW CHAT -->
+      <sc-if value="{{ isNew }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:48px 48px 64px;display:flex;flex-direction:column;align-items:center">
+          <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ true }}">
+            <div style="width:100%;max-width:980px;height:190px;display:flex;align-items:flex-end;gap:0;border-bottom:1px solid #23201b">
+              <div style="width:clamp(150px,19%,184px);height:190px;flex:none;background:#1f1c18;border-radius:92px 92px 0 0;position:relative;overflow:hidden">
+                <img src="assets/camenae-coin.png" alt="Aegeria" style="position:absolute;left:50%;top:14px;width:160px;height:164px;transform:translateX(-50%);filter:invert(1);mix-blend-mode:screen;opacity:.94"></img>
+              </div>
+              <div style="flex:1;min-width:0;height:150px;background:#b4412c;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding:14px 20px 14px">
+                <img src="assets/camenae-coin.png" alt="" style="position:absolute;right:-60px;top:-70px;width:280px;height:286px;mix-blend-mode:multiply;opacity:.14"></img>
+                <div style="position:relative;display:flex;justify-content:space-between;align-items:center;gap:12px;font:400 10px 'Geist Mono',monospace;letter-spacing:.1em;color:#f8f3ea;text-transform:uppercase">
+                  <span style="white-space:nowrap">Aegeria · Nº I</span>
+                  <span style="white-space:nowrap">Ex fonte, consilium</span>
+                </div>
+                <div style="position:relative;border-top:1px solid rgba(248,243,234,.5);padding-top:10px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+                  <span style="font:400 clamp(40px,5.6vw,78px)/0.82 'Gloock',serif;letter-spacing:-0.01em;color:#f8f3ea;white-space:nowrap;min-width:0">Camenae</span>
+                </div>
+              </div>
+              <div style="width:clamp(90px,14%,130px);height:190px;flex:none;display:flex;flex-direction:column">
+                <div style="height:14px;background:#23201b"></div>
+                <div style="height:6px;border-bottom:1px solid #23201b"></div>
+                <div style="flex:1;margin:0 10px;background:repeating-linear-gradient(90deg,#e6dfd2 0 8px,#23201b 8px 9px,#d8cfbf 9px 13px,#23201b 13px 14px);border-left:1px solid #23201b;border-right:1px solid #23201b"></div>
+                <div style="height:10px;background:#23201b"></div>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="position:relative;width:100%;max-width:880px;margin-top:56px;padding:22px 30px 34px;display:flex;flex-direction:column;align-items:center;gap:12px">
+            <span style="position:absolute;left:0;top:0;width:9px;height:9px;border-left:1px solid #23201b;border-top:1px solid #23201b"></span>
+            <span style="position:absolute;right:0;top:0;width:9px;height:9px;border-right:1px solid #23201b;border-top:1px solid #23201b"></span>
+            <span style="position:absolute;left:0;bottom:0;width:9px;height:9px;border-left:1px solid #23201b;border-bottom:1px solid #23201b"></span>
+            <span style="position:absolute;right:0;bottom:0;width:9px;height:9px;border-right:1px solid #23201b;border-bottom:1px solid #23201b"></span>
+            <span style="background:#3b362e;color:#f1ebe0;font:400 14px 'Geist Mono',monospace;padding:3px 6px">New Thread</span>
+            <span style="font:400 12px 'Geist Mono',monospace;color:#3b362e">Oct 02, 2026 · 12:52</span>
+            <h1 style="margin:10px 0 0;font-family:'Gloock',serif;font-weight:400;font-size:112px;line-height:.92;letter-spacing:-0.035em;text-align:center;text-wrap:balance">What Are We Working On?</h1>
+          </div>
+
+          <div style="width:100%;max-width:760px;margin-top:40px;border:1px solid #23201b;background:rgba(255,252,245,.28)">
+            <textarea placeholder="Ask anything. Type / for skills, @ for tools, drop files anywhere." style="width:100%;height:96px;resize:none;border:0;outline:0;background:transparent;padding:16px 16px 6px;font:400 17px/1.45 Geist,sans-serif;color:#23201b"></textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 8px 8px 12px">
+              <div style="display:flex;gap:5px;font:400 12px 'Geist Mono',monospace">
+                <span style="background:#fbf8f2;padding:3px 6px">+ File</span>
+                <span style="background:#fbf8f2;padding:3px 6px">/ Skill</span>
+                <span style="background:#fbf8f2;padding:3px 6px">@ Tool</span>
+              </div>
+              <div onClick="{{ goChat }}" style="background:#1f1c18;color:#fbf8f2;padding:5px 9px;font-size:15px;cursor:pointer;display:flex;gap:8px;align-items:center">Send <span style="font:400 11px 'Geist Mono',monospace;opacity:.7">↵</span></div>
+            </div>
+          </div>
+
+          <div style="width:100%;max-width:760px;margin-top:36px;display:flex;flex-direction:column;gap:14px">
+            <sc-for list="{{ suggestions }}" as="s" hint-placeholder-count="4">
+              <div onClick="{{ goChat }}" style="border-left:1px dashed #23201b;padding:10px 0 18px 14px;display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer" style-hover="border-left-style:solid">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <span style="font:400 12px 'Geist Mono',monospace">{{ s.title }}</span>
+                  <span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">{{ s.meta }}</span>
+                </div>
+                <span style="width:19px;height:19px;border:1px solid #23201b;display:flex;align-items:center;justify-content:center;font-size:11px">→</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- CHAT -->
+      <sc-if value="{{ isChat }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:40px 48px 0;display:flex;flex-direction:column;align-items:center;min-height:100%">
+          <div style="width:100%;max-width:780px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:10px;align-items:center">
+              <span style="background:#3b362e;color:#f1ebe0;font:400 13px 'Geist Mono',monospace;padding:3px 6px">Skill: Data Analyst</span>
+              <span style="font:400 12px 'Geist Mono',monospace;color:#3b362e">Oct 02, 2026</span>
+            </div>
+            <h1 style="margin:4px 0 26px;font-family:'Gloock',serif;font-weight:400;font-size:64px;line-height:.95;letter-spacing:-0.03em;text-wrap:balance">Churn Analysis, Q3 Cohorts</h1>
+          </div>
+
+          <div style="width:100%;max-width:780px;border-left:1px solid #23201b;padding:0 0 40px 20px;display:flex;flex-direction:column;gap:22px">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-style:italic;font-size:15px">You</span>
+              <p style="margin:0;font-size:17px;line-height:1.45;text-wrap:pretty">Look at <span style="font:400 14px 'Geist Mono',monospace;background:rgba(255,252,245,.4);padding:1px 4px">cohorts_q3.csv</span> and tell me which signup cohort is churning fastest. Write up the findings as a short report in /reports.</p>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <span style="font:400 11px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.05em;color:#6b6255">Assistant · 3 tool calls · 6.4s</span>
+
+              <div style="border-left:{{ t1Rule }};padding-left:14px">
+                <div onClick="{{ toggleT1 }}" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:6px 0">
+                  <span style="font:400 12px 'Geist Mono',monospace">Read_file · /files/data/cohorts_q3.csv · 214ms</span>
+                  <span style="width:19px;height:19px;border:1px solid #23201b;display:flex;align-items:center;justify-content:center;font-size:10px;transform:{{ t1Rot }}">⌄</span>
+                </div>
+                <sc-if value="{{ t1Open }}" hint-placeholder-val="{{ true }}">
+                  <div style="margin:8px 0 6px;border:1px solid rgba(35,32,27,.18)">
+                    <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;background:rgba(35,32,27,.07);font:600 13px Geist,sans-serif">
+                      <span style="padding:8px 10px">Cohort</span><span style="padding:8px 10px;border-left:1px solid rgba(35,32,27,.12)">Users</span><span style="padding:8px 10px;border-left:1px solid rgba(35,32,27,.12)">30-day churn</span><span style="padding:8px 10px;border-left:1px solid rgba(35,32,27,.12)">90-day churn</span>
+                    </div>
+                    <sc-for list="{{ cohortRows }}" as="r" hint-placeholder-count="4">
+                      <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;border-top:1px solid rgba(35,32,27,.12);font-size:14px">
+                        <span style="padding:7px 10px">{{ r.c }}</span><span style="padding:7px 10px;border-left:1px solid rgba(35,32,27,.12)">{{ r.u }}</span><span style="padding:7px 10px;border-left:1px solid rgba(35,32,27,.12)">{{ r.a }}</span><span style="padding:7px 10px;border-left:1px solid rgba(35,32,27,.12);font-weight:{{ r.w }}">{{ r.b }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+
+              <div style="border-left:{{ t2Rule }};padding-left:14px">
+                <div onClick="{{ toggleT2 }}" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:6px 0">
+                  <span style="font:400 12px 'Geist Mono',monospace">Run_python · retention_curve.py · 3.9s</span>
+                  <span style="width:19px;height:19px;border:1px solid #23201b;display:flex;align-items:center;justify-content:center;font-size:10px;transform:{{ t2Rot }}">⌄</span>
+                </div>
+                <sc-if value="{{ t2Open }}" hint-placeholder-val="{{ false }}">
+                  <pre style="margin:8px 0 6px;background:#1f1c18;color:#e9e1d3;font:400 12px/1.6 'Geist Mono',monospace;padding:14px 16px;overflow:auto">df = pd.read_csv("cohorts_q3.csv")
+curve = df.groupby("cohort")["active"].apply(retention, days=90)
+plot(curve, highlight="Jul-B")</pre>
+                </sc-if>
+              </div>
+
+              <p style="margin:0;font-size:17px;line-height:1.45;text-wrap:pretty"><strong style="font-weight:600">The July paid-ads cohort (Jul-B) is churning fastest.</strong> It loses 41% of users by day 90, against 22% for the rest of Q3. Most of that drop happens in the first two weeks, which points to onboarding rather than pricing.</p>
+
+              <div style="background:#1f1c18;color:#f1ebe0;padding:14px 16px 12px;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline">
+                  <span style="font-weight:600;font-size:13px">90-day retention by cohort</span>
+                  <div style="display:flex;gap:12px;font-size:11px">
+                    <span style="display:flex;gap:5px;align-items:center"><span style="width:8px;height:8px;background:#5f9b86"></span>Jul-B</span>
+                    <span style="display:flex;gap:5px;align-items:center"><span style="width:8px;height:8px;background:#b4412c"></span>Other Q3</span>
+                  </div>
+                </div>
+                <div style="height:150px;display:flex;align-items:flex-end;gap:10px;border-bottom:1px solid #4a443b;background:repeating-linear-gradient(0deg,transparent 0 37px,#34302a 37px 38px)">
+                  <sc-for list="{{ bars }}" as="b" hint-placeholder-count="6">
+                    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;height:100%">
+                      <span style="font:400 10px 'Geist Mono',monospace;color:#cfc6b5">{{ b.v }}</span>
+                      <div style="width:100%;height:{{ b.h }};background:{{ b.c }}"></div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display:flex;gap:10px;font:400 10px 'Geist Mono',monospace;color:#cfc6b5">
+                  <sc-for list="{{ bars }}" as="b" hint-placeholder-count="6"><span style="flex:1;text-align:center">{{ b.l }}</span></sc-for>
+                </div>
+              </div>
+
+              <sc-if value="{{ approvalPending }}" hint-placeholder-val="{{ true }}">
+                <div style="outline:2px solid #2c4a9e;outline-offset:0;border:1px solid #23201b;background:rgba(255,252,245,.22)">
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid rgba(35,32,27,.25)">
+                    <span style="font:400 12px 'Geist Mono',monospace">Approval Required · Write_file</span>
+                    <span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">Waiting on you</span>
+                  </div>
+                  <div style="padding:14px 12px;display:flex;flex-direction:column;gap:12px">
+                    <p style="margin:0;font-size:16px;line-height:1.4">The assistant wants to create <strong style="font-weight:600">/reports/churn_q3.md</strong> (1.8 KB, new file).</p>
+                    <pre style="margin:0;background:#1f1c18;color:#e9e1d3;font:400 12px/1.6 'Geist Mono',monospace;padding:12px 14px;overflow:auto"><span style="color:#b4412c">+ # Q3 churn: Jul-B cohort</span>
+<span style="color:#b4412c">+ 90-day churn 41% vs 22% baseline.</span>
+<span style="color:#b4412c">+ Drop concentrated in days 1–14 …</span></pre>
+                    <div style="display:flex;gap:5px">
+                      <div onClick="{{ allow }}" style="background:#1f1c18;color:#fbf8f2;padding:5px 9px;font-size:15px;cursor:pointer">Allow once</div>
+                      <div onClick="{{ allow }}" style="background:#fbf8f2;padding:5px 9px;font-size:15px;cursor:pointer">Always allow in /reports</div>
+                      <div onClick="{{ deny }}" style="background:#fbf8f2;padding:5px 9px;font-size:15px;cursor:pointer">Deny</div>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ approvalDone }}" hint-placeholder-val="{{ false }}">
+                <div style="border-left:1px dashed #23201b;padding:6px 0 6px 14px;display:flex;justify-content:space-between;align-items:center">
+                  <span style="font:400 12px 'Geist Mono',monospace">{{ approvalText }}</span>
+                  <span onClick="{{ resetApproval }}" style="font:400 11px 'Geist Mono',monospace;text-decoration:underline;cursor:pointer">Undo</span>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+
+          <div style="position:sticky;bottom:0;width:100%;max-width:800px;padding:0 0 22px;background:linear-gradient(transparent,#e6dfd2 30%);padding-top:24px;margin-top:auto">
+            <div style="border:1px solid #23201b;background:#cfc6b5;display:flex;align-items:flex-end">
+              <textarea placeholder="Reply…" style="flex:1;height:52px;resize:none;border:0;outline:0;background:transparent;padding:15px 14px 0;font:400 17px Geist,sans-serif;color:#23201b"></textarea>
+              <div style="display:flex;gap:5px;padding:10px;align-items:center;font:400 12px 'Geist Mono',monospace">
+                <span style="background:#fbf8f2;padding:3px 6px">+</span>
+                <span style="background:#fbf8f2;padding:3px 6px">/</span>
+                <span style="background:#1f1c18;color:#fbf8f2;padding:4px 9px;font:400 15px Geist,sans-serif">Send</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- SKILLS -->
+      <sc-if value="{{ isSkills }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:48px;max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:14px">
+          <span style="align-self:flex-start;background:#3b362e;color:#f1ebe0;font:400 13px 'Geist Mono',monospace;padding:3px 6px">Library</span>
+          <h1 style="margin:0;font-family:'Gloock',serif;font-weight:400;font-size:96px;line-height:.92;letter-spacing:-0.035em">Skills</h1>
+          <p style="margin:6px 0 24px;font-size:17px;line-height:1.45;max-width:620px">Skills are instructions plus tools the assistant loads when a task matches. Turn them off to keep them out of context.</p>
+          <div style="border:1px solid rgba(35,32,27,.18)">
+            <div style="display:grid;grid-template-columns:180px minmax(0,1fr) 200px 80px;background:rgba(35,32,27,.07);font:600 15px Geist,sans-serif">
+              <span style="padding:10px 12px"></span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">What it does</span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">Tools</span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">State</span>
+            </div>
+            <sc-for list="{{ skills }}" as="s" hint-placeholder-count="6">
+              <div onClick="{{ s.onSelect }}" style="display:grid;grid-template-columns:180px minmax(0,1fr) 200px 80px;border-top:1px solid rgba(35,32,27,.12);background:{{ s.rowBg }};cursor:pointer;font-size:15px;line-height:1.35">
+                <span style="padding:12px">{{ s.name }}</span>
+                <span style="padding:12px;border-left:1px solid rgba(35,32,27,.12);text-wrap:pretty">{{ s.desc }}</span>
+                <span style="padding:12px;border-left:1px solid rgba(35,32,27,.12);font:400 12px/1.6 'Geist Mono',monospace">{{ s.tools }}</span>
+                <span style="padding:12px;border-left:1px solid rgba(35,32,27,.12)"><span onClick="{{ s.onToggle }}" style="background:{{ s.chipBg }};color:{{ s.chipFg }};padding:3px 7px;font-size:13px">{{ s.chipLabel }}</span></span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:14px;border-left:1px dashed #23201b;padding:10px 14px 18px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font:400 12px 'Geist Mono',monospace">Create A Skill From This Conversation</span>
+            <span style="width:19px;height:19px;border:1px solid #23201b;display:flex;align-items:center;justify-content:center;font-size:11px">+</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- FILES -->
+      <sc-if value="{{ isFiles }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:48px;max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:14px">
+          <span style="align-self:flex-start;background:#3b362e;color:#f1ebe0;font:400 13px 'Geist Mono',monospace;padding:3px 6px">Workspace</span>
+          <h1 style="margin:0;font-family:'Gloock',serif;font-weight:400;font-size:96px;line-height:.92;letter-spacing:-0.035em">Files</h1>
+          <div style="display:flex;gap:4px;margin:10px 0 18px;font:400 12px 'Geist Mono',monospace;align-items:center">
+            <span style="background:#fbf8f2;padding:3px 6px">/files</span><span>›</span><span style="background:#fbf8f2;padding:3px 6px">data</span><span>›</span><span style="background:#1f1c18;color:#fbf8f2;padding:3px 6px">q3</span>
+          </div>
+          <div style="border:1px solid rgba(35,32,27,.18)">
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 90px 90px 140px 200px;background:rgba(35,32,27,.07);font:600 15px Geist,sans-serif">
+              <span style="padding:10px 12px">Name</span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">Type</span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">Size</span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">Modified</span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">Used in</span>
+            </div>
+            <sc-for list="{{ files }}" as="f" hint-placeholder-count="6">
+              <div onClick="{{ f.onSelect }}" style="display:grid;grid-template-columns:minmax(0,1fr) 90px 90px 140px 200px;border-top:1px solid rgba(35,32,27,.12);background:{{ f.rowBg }};cursor:pointer;font-size:15px">
+                <span style="padding:11px 12px;font-weight:{{ f.w }}">{{ f.name }}</span>
+                <span style="padding:11px 12px;border-left:1px solid rgba(35,32,27,.12);font:400 12px 'Geist Mono',monospace;display:flex;align-items:center">{{ f.type }}</span>
+                <span style="padding:11px 12px;border-left:1px solid rgba(35,32,27,.12)">{{ f.size }}</span>
+                <span style="padding:11px 12px;border-left:1px solid rgba(35,32,27,.12)">{{ f.mod }}</span>
+                <span style="padding:11px 12px;border-left:1px solid rgba(35,32,27,.12);text-decoration:underline;text-underline-offset:3px">{{ f.used }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:14px;border:1px dashed #23201b;padding:28px;display:flex;justify-content:center;font:400 12px 'Geist Mono',monospace;color:#3b362e">Drop Files Here · Or Paste A URL</div>
+        </div>
+      </sc-if>
+
+      <!-- SETTINGS -->
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:40px 48px 72px;max-width:1080px;margin:0 auto;display:flex;flex-direction:column">
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px">
+            <span style="background:#1f1c18;color:#f8f3ea;font:400 12px 'Geist Mono',monospace;padding:3px 7px">Workspace</span>
+            <span style="font:400 12px 'Geist Mono',monospace;color:#6b6255">Shared across conversations</span>
+          </div>
+          <h1 style="margin:0 0 28px;font-family:'Gloock',serif;font-weight:400;font-size:96px;line-height:.92;letter-spacing:-0.035em">Settings</h1>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));border-top:1px solid #23201b;border-left:1px solid #23201b">
+            <div style="padding:14px 16px;border-right:1px solid #23201b;border-bottom:1px solid #23201b;display:flex;flex-direction:column;gap:8px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">This conversation</span>
+              <span style="font:400 28px/1 'Gloock',serif">OpenCode</span>
+            </div>
+            <div onClick="{{ goHarnessTab }}" style="padding:14px 16px;border-right:1px solid #23201b;border-bottom:1px solid #23201b;display:flex;flex-direction:column;gap:8px;cursor:pointer" style-hover="background:#efe9de">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255;display:flex;justify-content:space-between"><span>New chats</span><span>Change ›</span></span>
+              <span style="font:400 28px/1 'Gloock',serif">{{ defaultHarness }}</span>
+            </div>
+            <div style="padding:14px 16px;border-right:1px solid #23201b;border-bottom:1px solid #23201b;font-size:14px;line-height:1.45;color:#3b362e;display:flex;align-items:center;text-wrap:pretty">The default only affects new chats. Existing conversations keep the harness they started with.</div>
+          </div>
+
+          <div style="display:flex;margin-top:36px;border-bottom:1px solid #23201b;position:sticky;top:0;background:#e6dfd2;z-index:3;overflow-x:auto">
+            <sc-for list="{{ stabs }}" as="t" hint-placeholder-count="4">
+              <div onClick="{{ t.onClick }}" style="display:flex;align-items:center;gap:8px;padding:11px 16px;border-right:1px solid #23201b;background:{{ t.bg }};color:{{ t.fg }};cursor:pointer;white-space:nowrap">
+                <span style="font:400 10px 'Geist Mono',monospace;opacity:.7">{{ t.num }}</span>
+                <span style="font-size:16px">{{ t.label }}</span>
+                <sc-if value="{{ t.badge }}" hint-placeholder-val="{{ false }}"><span style="background:#b4412c;color:#f8f3ea;font:400 10px 'Geist Mono',monospace;padding:1px 5px">{{ t.badge }}</span></sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ tabHarness }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;padding-top:36px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap">
+                <h2 style="margin:0;font-family:'Gloock',serif;font-weight:400;font-size:44px;line-height:1;letter-spacing:-0.02em">Harness</h2>
+                <span style="font-size:15px;color:#3b362e">The agent runtime behind a conversation.</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));border-top:1px solid #23201b;border-left:1px solid #23201b;margin-top:20px">
+                <sc-for list="{{ harnesses }}" as="h" hint-placeholder-count="3">
+                  <div onClick="{{ h.onClick }}" style="position:relative;border-right:1px solid #23201b;border-bottom:1px solid #23201b;background:{{ h.bg }};padding:16px 16px 0;display:flex;flex-direction:column;gap:10px;cursor:pointer;min-height:196px" style-hover="background:#efe9de">
+                    <span style="position:absolute;left:-1px;right:-1px;top:-1px;height:5px;background:{{ h.bar }}"></span>
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                      <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">{{ h.num }}</span>
+                      <span style="display:flex;align-items:center;gap:7px;font:400 11px 'Geist Mono',monospace;color:{{ h.st.fg }};white-space:nowrap"><span style="width:7px;height:7px;flex:none;background:{{ h.st.sq }};border:1px solid {{ h.st.line }};transform:{{ h.st.rot }}"></span>{{ h.st.txt }}</span>
+                    </div>
+                    <span style="font:400 36px/1 'Gloock',serif;letter-spacing:-0.01em">{{ h.name }}</span>
+                    <span style="font-size:14px;color:#3b362e">{{ h.meta }}</span>
+                    <div onClick="{{ h.setDefault }}" style="margin-top:auto;border-top:1px dashed rgba(35,32,27,.4);padding:11px 0 13px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+                      <span style="font-size:13px;color:{{ h.defFg }}">{{ h.defLabel }}</span>
+                      <span style="width:15px;height:15px;flex:none;border:1px solid #23201b;display:flex;align-items:center;justify-content:center"><span style="width:9px;height:9px;background:{{ h.defDot }}"></span></span>
+                    </div>
+                  </div>
+                </sc-for>
+                <div style="border-right:1px solid #23201b;border-bottom:1px solid #23201b;padding:16px;display:flex;flex-direction:column;justify-content:space-between;gap:10px;min-height:196px;background:repeating-linear-gradient(135deg,transparent 0 7px,rgba(35,32,27,.08) 7px 8px);cursor:pointer" style-hover="background:#efe9de">
+                  <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">H·0{{ addNum }}</span>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <span style="font:400 36px/1 'Gloock',serif;color:#6b6255">+</span>
+                    <span style="font-size:15px">Add a harness</span>
+                    <span style="font-size:13px;color:#6b6255">Connect another agent runtime.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="margin-top:44px;display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap">
+                <span style="font:400 32px/1 'Gloock',serif">{{ selH.name }} connection</span>
+                <span style="font:400 12px 'Geist Mono',monospace;color:#6b6255">{{ selH.meta }}</span>
+              </div>
+              <div style="margin-top:14px;border-top:1px solid #23201b">
+                <sc-for list="{{ selH.fields }}" as="f" hint-placeholder-count="3">
+                  <div style="display:grid;grid-template-columns:minmax(120px,170px) minmax(0,1fr) auto;align-items:center;gap:18px;padding:13px 0;border-bottom:1px solid rgba(35,32,27,.18)">
+                    <span style="font-size:16px">{{ f.label }}</span>
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid {{ f.line }};padding:4px 0 6px;min-width:0">
+                      <span style="font:400 14px 'Geist Mono',monospace;color:{{ f.color }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.value }}</span>
+                      <span style="font:400 11px 'Geist Mono',monospace;color:#6b6255;flex:none">{{ f.affix }}</span>
+                    </div>
+                    <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255;min-width:70px;text-align:right">{{ f.note }}</span>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ selH.hasUsage }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:grid;grid-template-columns:minmax(120px,170px) minmax(0,1fr) auto;align-items:center;gap:18px;padding:15px 0;border-bottom:1px solid rgba(35,32,27,.18)">
+                    <span style="font-size:16px">Requests used</span>
+                    <div style="display:flex;gap:3px;min-width:0">
+                      <sc-for list="{{ selH.cells }}" as="c" hint-placeholder-count="20">
+                        <span style="flex:1;height:16px;border:1px solid #23201b;background:{{ c.bg }}"></span>
+                      </sc-for>
+                    </div>
+                    <span style="font:400 13px 'Geist Mono',monospace;min-width:70px;text-align:right">{{ selH.usage }}</span>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:16px">
+                <sc-for list="{{ selH.actions }}" as="a" hint-placeholder-count="3">
+                  <span style="padding:7px 12px;font-size:14px;background:{{ a.bg }};color:{{ a.fg }};border:1px solid {{ a.line }};cursor:pointer">{{ a.label }}</span>
+                </sc-for>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 28px;margin-top:22px">
+                <sc-for list="{{ selH.notes }}" as="n" hint-placeholder-count="3">
+                  <div style="display:grid;grid-template-columns:24px minmax(0,1fr);padding:9px 0;border-top:1px dashed rgba(35,32,27,.3);font-size:13px;line-height:1.45;color:#3b362e"><span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">{{ n.k }}</span><span style="text-wrap:pretty">{{ n.t }}</span></div>
+                </sc-for>
+              </div>
+
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255;margin:48px 0 12px">What each harness supports</span>
+              <div style="border:1px solid rgba(35,32,27,.25);overflow-x:auto">
+                <div style="display:grid;grid-template-columns:minmax(150px,1.2fr) repeat(3,minmax(110px,1fr));background:rgba(35,32,27,.07);min-width:520px">
+                  <span style="padding:10px 12px"></span>
+                  <sc-for list="{{ capHead }}" as="c" hint-placeholder-count="3">
+                    <span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.15);font-weight:600;font-size:15px;background:{{ c.bg }}">{{ c.t }}</span>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ caps }}" as="r" hint-placeholder-count="4">
+                  <div style="display:grid;grid-template-columns:minmax(150px,1.2fr) repeat(3,minmax(110px,1fr));border-top:1px solid rgba(35,32,27,.15);font-size:14px;line-height:1.35;min-width:520px">
+                    <span style="padding:11px 12px">{{ r.label }}</span>
+                    <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="3">
+                      <span style="padding:11px 12px;border-left:1px solid rgba(35,32,27,.15);background:{{ c.bg }};color:{{ c.fg }}">{{ c.t }}</span>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ tabApprovals }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;padding-top:36px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap">
+                <h2 style="margin:0;font-family:'Gloock',serif;font-weight:400;font-size:44px;line-height:1;letter-spacing:-0.02em">Approvals</h2>
+                <div style="display:flex;align-items:center;gap:8px"><span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">Applies to</span><span style="background:#1f1c18;color:#f8f3ea;padding:3px 8px;font-size:14px">IBM Bob</span><span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">only</span></div>
+              </div>
+              <p style="margin:16px 0 6px;font-size:17px;line-height:1.45;max-width:62ch;text-wrap:pretty">Decide how to handle new permission requests from the assistant: ask for your approval, allow automatically, or deny.</p>
+              <p style="margin:0;font-size:13px;line-height:1.5;color:#6b6255;max-width:72ch;text-wrap:pretty">Categories are reported by the harness. Allow covers every request in that category, not a particular command, file, or MCP tool. These choices do not control tool availability. OpenCode is not affected: it asks once, natively, for each request.</p>
+
+              <div style="margin-top:22px;display:grid;grid-template-columns:minmax(110px,150px) minmax(0,1fr) auto minmax(110px,130px);gap:18px;padding:8px 0;border-bottom:1px solid #23201b;font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">
+                <span>Category</span><span>Covers</span><span>Policy</span><span>Active</span>
+              </div>
+              <sc-for list="{{ apprRows }}" as="r" hint-placeholder-count="6">
+                <div style="display:grid;grid-template-columns:minmax(110px,150px) minmax(0,1fr) auto minmax(110px,130px);gap:18px;align-items:center;padding:12px 0;border-bottom:1px solid rgba(35,32,27,.18)">
+                  <span style="font-size:16px">{{ r.name }}</span>
+                  <span style="font-size:14px;color:#3b362e;text-wrap:pretty">{{ r.desc }}</span>
+                  <div style="display:flex;gap:1px;background:#23201b;border:1px solid #23201b;flex:none">
+                  <sc-for list="{{ r.opts }}" as="o" hint-placeholder-count="3">
+                    <span onClick="{{ o.onClick }}" title="{{ o.title }}" style="padding:5px 10px;font-size:13px;background:{{ o.bg }};color:{{ o.fg }};opacity:{{ o.op }};cursor:{{ o.cur }};text-decoration:{{ o.deco }};white-space:nowrap">{{ o.label }}</span>
+                  </sc-for>
+                </div>
+                  <span style="display:flex;align-items:center;gap:7px;font:400 11px 'Geist Mono',monospace;color:{{ r.act.fg }};white-space:nowrap"><span style="width:7px;height:7px;flex:none;background:{{ r.act.sq }};border:1px solid {{ r.act.line }};transform:{{ r.act.rot }}"></span>{{ r.act.txt }}</span>
+                </div>
+              </sc-for>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 0;font-size:13px;color:#3b362e">
+                <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">Set every category</span>
+                <span onClick="{{ allAsk }}" style="text-decoration:underline;text-underline-offset:3px;cursor:pointer">Ask</span>
+                <span onClick="{{ allDeny }}" style="text-decoration:underline;text-underline-offset:3px;cursor:pointer">Deny</span>
+              </div>
+
+              <sc-if value="{{ apprDirty }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 14px;background:#1f1c18;color:#f8f3ea;position:sticky;bottom:12px">
+                  <span style="display:flex;align-items:center;gap:10px;font-size:15px"><span style="width:7px;height:7px;background:#b4412c;transform:rotate(45deg)"></span>{{ apprDirtyLabel }}</span>
+                  <div style="display:flex;gap:6px">
+                    <span onClick="{{ apprDiscard }}" style="padding:6px 11px;font-size:14px;border:1px solid #6b6255;cursor:pointer">Discard</span>
+                    <span onClick="{{ apprSave }}" style="padding:6px 12px;font-size:14px;background:#b4412c;border:1px solid #b4412c;cursor:pointer" style-hover="background:#9a3524">Save and apply</span>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ apprClean }}" hint-placeholder-val="{{ true }}">
+                <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 14px;border:1px dashed #23201b">
+                  <span style="display:flex;align-items:center;gap:10px;font-size:15px"><span style="width:7px;height:7px;border:1px solid #6b6255"></span>Saved. Waiting to be applied to a connected harness client.</span>
+                  <span style="padding:6px 11px;font-size:14px;border:1px solid #23201b;cursor:pointer">Refresh status</span>
+                </div>
+              </sc-if>
+              <div style="margin-top:28px;border-top:1px solid #23201b;border-bottom:1px solid rgba(35,32,27,.3)">
+            <div onClick="{{ toggleLim }}" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;cursor:pointer">
+              <span style="font:400 12px 'Geist Mono',monospace">Approval limitations</span>
+              <span style="width:19px;height:19px;border:1px solid #23201b;display:flex;align-items:center;justify-content:center;font-size:11px;transform:{{ limOpenRot }}">▾</span>
+            </div>
+            <sc-if value="{{ limOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;padding:0 0 14px">
+                <sc-for list="{{ limNotes }}" as="n" hint-placeholder-count="3">
+                  <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:8px 0;border-top:1px dashed rgba(35,32,27,.3);font-size:14px;line-height:1.45;color:#3b362e"><span style="font:400 11px 'Geist Mono',monospace;color:#6b6255;padding-top:2px">{{ n.k }}</span><span style="text-wrap:pretty">{{ n.t }}</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ tabTools }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;padding-top:36px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap">
+                <h2 style="margin:0;font-family:'Gloock',serif;font-weight:400;font-size:44px;line-height:1;letter-spacing:-0.02em">Connected tools</h2>
+                <div style="display:flex;align-items:center;gap:14px"><div style="display:flex;align-items:center;gap:8px"><span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">Applies to</span><span style="background:#1f1c18;color:#f8f3ea;padding:3px 8px;font-size:14px">IBM Bob</span><span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">only</span></div><span style="padding:6px 11px;font-size:14px;border:1px solid #23201b;cursor:pointer">+ Add connection</span></div>
+              </div>
+              <p style="margin:16px 0 22px;font-size:13px;line-height:1.5;color:#6b6255;max-width:72ch;text-wrap:pretty">Saved across conversations and worker replacements. Context7 trust does not change native shell or other tool permissions.</p>
+
+              <div style="border:1px solid #23201b">
+                <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;padding:16px">
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">MCP server</span>
+                    <span style="font:400 36px/1 'Gloock',serif">Context7</span>
+                    <span style="font-size:14px;color:#3b362e">Library documentation</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+                    <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">Server default</span>
+                    <div style="display:flex;gap:1px;background:#23201b;border:1px solid #23201b;flex:none">
+                  <sc-for list="{{ srvOpts }}" as="o" hint-placeholder-count="3">
+                    <span onClick="{{ o.onClick }}" title="{{ o.title }}" style="padding:5px 10px;font-size:13px;background:{{ o.bg }};color:{{ o.fg }};opacity:{{ o.op }};cursor:{{ o.cur }};text-decoration:{{ o.deco }};white-space:nowrap">{{ o.label }}</span>
+                  </sc-for>
+                </div>
+                    <span style="display:flex;align-items:center;gap:7px;font:400 11px 'Geist Mono',monospace;color:{{ srvAct.fg }};white-space:nowrap"><span style="width:7px;height:7px;flex:none;background:{{ srvAct.sq }};border:1px solid {{ srvAct.line }};transform:{{ srvAct.rot }}"></span>{{ srvAct.txt }}</span>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:56px minmax(0,1fr) auto minmax(100px,120px);gap:16px;padding:8px 16px;background:rgba(35,32,27,.07);border-top:1px solid #23201b;font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">
+                  <span>On</span><span>Tool</span><span>Permission</span><span>Active</span>
+                </div>
+                <sc-for list="{{ toolRows }}" as="t" hint-placeholder-count="2">
+                  <div style="display:grid;grid-template-columns:56px minmax(0,1fr) auto minmax(100px,120px);gap:16px;align-items:center;padding:14px 16px;border-top:1px solid rgba(35,32,27,.18)">
+                    <div onClick="{{ t.toggle }}" title="{{ t.onLabel }}" style="width:34px;height:18px;box-sizing:border-box;border:1px solid #23201b;background:{{ t.tgBg }};display:flex;justify-content:{{ t.tgJust }};padding:2px;cursor:pointer"><span style="width:12px;height:12px;background:{{ t.knob }}"></span></div>
+                    <div style="display:flex;flex-direction:column;gap:4px;min-width:0;opacity:{{ t.op }}">
+                      <span style="font:400 13px 'Geist Mono',monospace">{{ t.name }}</span>
+                      <span style="font-size:14px;color:#3b362e">{{ t.desc }}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;opacity:{{ t.op }}">
+                      <div style="display:flex;gap:1px;background:#23201b;border:1px solid #23201b;flex:none">
+                  <sc-for list="{{ t.opts }}" as="o" hint-placeholder-count="3">
+                    <span onClick="{{ o.onClick }}" title="{{ o.title }}" style="padding:5px 10px;font-size:13px;background:{{ o.bg }};color:{{ o.fg }};opacity:{{ o.op }};cursor:{{ o.cur }};text-decoration:{{ o.deco }};white-space:nowrap">{{ o.label }}</span>
+                  </sc-for>
+                </div>
+                      <span style="font:400 10px 'Geist Mono',monospace;color:#6b6255">{{ t.keep }}</span>
+                    </div>
+                    <span style="display:flex;align-items:center;gap:7px;font:400 11px 'Geist Mono',monospace;color:{{ t.act.fg }};white-space:nowrap"><span style="width:7px;height:7px;flex:none;background:{{ t.act.sq }};border:1px solid {{ t.act.line }};transform:{{ t.act.rot }}"></span>{{ t.act.txt }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:#6b6255">Deny leaves an enabled tool discoverable but blocks execution. Disabled always wins; its permission is kept.</p>
+
+              <sc-if value="{{ toolDirty }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:18px;display:flex;flex-direction:column;background:#1f1c18;color:#f8f3ea;position:sticky;bottom:12px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 14px">
+                    <span style="display:flex;align-items:center;gap:10px;font-size:15px"><span style="width:7px;height:7px;background:#b4412c;transform:rotate(45deg)"></span>{{ toolDirtyLabel }}</span>
+                    <div style="display:flex;gap:6px">
+                      <span onClick="{{ toolDiscard }}" style="padding:6px 11px;font-size:14px;border:1px solid #6b6255;cursor:pointer">Discard</span>
+                      <span title="Needs a conversation with saved harness credentials" style="padding:6px 12px;font-size:14px;background:#4a443b;color:#cfc6b5;cursor:not-allowed">Apply changes</span>
+                    </div>
+                  </div>
+                  <span style="padding:8px 14px;border-top:1px solid #3b362e;font:400 11px 'Geist Mono',monospace;color:#cfc6b5">Open or create a conversation with saved harness credentials to apply. Saves and applies in one step while idle.</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ toolClean }}" hint-placeholder-val="{{ true }}">
+                <div style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 14px;border:1px dashed #23201b">
+                  <span style="display:flex;align-items:center;gap:10px;font-size:15px"><span style="width:7px;height:7px;border:1px solid #6b6255"></span>Saved settings are pending application.</span>
+                  <span style="padding:6px 11px;font-size:14px;border:1px solid #23201b;cursor:pointer">Refresh status</span>
+                </div>
+              </sc-if>
+              <div style="margin-top:28px;border-top:1px solid #23201b;border-bottom:1px solid rgba(35,32,27,.3)">
+            <div onClick="{{ toggleCat }}" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;cursor:pointer">
+              <span style="font:400 12px 'Geist Mono',monospace">Connected-tool catalog</span>
+              <span style="width:19px;height:19px;border:1px solid #23201b;display:flex;align-items:center;justify-content:center;font-size:11px;transform:{{ catOpenRot }}">▾</span>
+            </div>
+            <sc-if value="{{ catOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;padding:0 0 14px">
+                <sc-for list="{{ catNotes }}" as="n" hint-placeholder-count="3">
+                  <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:8px 0;border-top:1px dashed rgba(35,32,27,.3);font-size:14px;line-height:1.45;color:#3b362e"><span style="font:400 11px 'Geist Mono',monospace;color:#6b6255;padding-top:2px">{{ n.k }}</span><span style="text-wrap:pretty">{{ n.t }}</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ tabAccount }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;padding-top:36px">
+              <h2 style="margin:0 0 20px;font-family:'Gloock',serif;font-weight:400;font-size:44px;line-height:1;letter-spacing:-0.02em">Account</h2>
+              <div style="border-top:1px solid #23201b">
+                <div style="display:grid;grid-template-columns:minmax(140px,200px) minmax(0,1fr) auto;gap:18px;align-items:center;padding:16px 0;border-bottom:1px solid rgba(35,32,27,.18)">
+                  <span style="font-size:16px">Your account</span>
+                  <span style="font-size:14px;color:#3b362e;text-wrap:pretty">Choose your own sign-in password or sign out of this workspace.</span>
+                  <div style="display:flex;gap:6px"><span style="padding:6px 11px;font-size:14px;border:1px solid #23201b;cursor:pointer">Manage account ↗</span><span style="padding:6px 11px;font-size:14px;background:#1f1c18;color:#f8f3ea;cursor:pointer">Sign out</span></div>
+                </div>
+                <div style="display:grid;grid-template-columns:minmax(140px,200px) minmax(0,1fr) auto;gap:18px;align-items:center;padding:16px 0;border-bottom:1px solid rgba(35,32,27,.18)">
+                  <span style="font-size:16px">Models &amp; instructions</span>
+                  <span style="font-size:14px;color:#3b362e;text-wrap:pretty">OpenCode setup currently supports only the listed Console free model. Other models and custom instructions cannot be changed here.</span>
+                  <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">Not available</span>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- Inspector -->
+    <sc-if value="{{ showInspector }}" hint-placeholder-val="{{ true }}">
+      <div style="min-height:0;overflow:auto;padding:22px 14px 24px 18px;display:flex;flex-direction:column;gap:26px">
+        <sc-if value="{{ inspContext }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:26px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255">Context</span>
+              <div style="display:flex;justify-content:space-between;font-size:14px"><span>{{ ctxUsed }}</span><span style="color:#6b6255">of 200k tokens</span></div>
+              <div style="height:8px;border:1px solid #23201b;display:flex"><div style="width:{{ ctxPct }};background:#b4412c"></div></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255">Skill loaded</span>
+              <div style="border-left:1px solid #23201b;padding:2px 0 2px 10px;display:flex;flex-direction:column;gap:3px">
+                <span style="font-size:15px;font-weight:500">{{ ctxSkill }}</span>
+                <span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">{{ ctxSkillMeta }}</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255;padding-bottom:4px">Tools</span>
+              <sc-for list="{{ tools }}" as="t" hint-placeholder-count="5">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(35,32,27,.15)">
+                  <span style="font:400 12px 'Geist Mono',monospace;display:flex;gap:8px;align-items:center"><span style="width:7px;height:7px;background:{{ t.dot }}"></span>{{ t.name }}</span>
+                  <span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">{{ t.state }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255;padding-bottom:4px">Files in thread</span>
+              <sc-for list="{{ threadFiles }}" as="f" hint-placeholder-count="2">
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(35,32,27,.15);font-size:14px">
+                  <span>{{ f.name }}</span><span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">{{ f.size }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isSkills }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255">Selected</span>
+            <span style="font-size:30px;font-weight:500;letter-spacing:-0.04em;line-height:1">{{ selSkill.name }}</span>
+            <pre style="margin:0;background:#1f1c18;color:#e9e1d3;font:400 11.5px/1.65 'Geist Mono',monospace;padding:14px;white-space:pre-wrap">{{ selSkill.md }}</pre>
+            <div style="display:flex;gap:4px"><span style="background:#1f1c18;color:#fbf8f2;padding:3px 8px;font-size:13px">Edit</span><span style="background:#fbf8f2;padding:3px 8px;font-size:13px">Duplicate</span></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isFiles }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255">Preview</span>
+            <span style="font-size:24px;font-weight:500;letter-spacing:-0.03em;line-height:1.05;word-break:break-all">{{ selFile.name }}</span>
+            <pre style="margin:0;background:#1f1c18;color:#e9e1d3;font:400 11.5px/1.65 'Geist Mono',monospace;padding:14px;white-space:pre-wrap">{{ selFile.preview }}</pre>
+            <div style="display:flex;gap:4px"><span onClick="{{ goChat }}" style="background:#1f1c18;color:#fbf8f2;padding:3px 8px;font-size:13px;cursor:pointer">Ask about this file</span><span style="background:#fbf8f2;padding:3px 8px;font-size:13px">Download</span></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:26px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">Scope</span>
+              <span style="font-size:15px;line-height:1.4">One shared workspace.</span>
+              <span style="font:400 11px/1.6 'Geist Mono',monospace;color:#6b6255">These preferences apply across conversations, not just the thread selected on the left.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255;padding-bottom:6px">Permission choices</span>
+              <sc-for list="{{ legend }}" as="g" hint-placeholder-count="3">
+                <div style="display:grid;grid-template-columns:62px minmax(0,1fr);align-items:center;padding:7px 0;border-bottom:1px solid rgba(35,32,27,.15);font-size:14px">
+                  <span style="justify-self:start;background:{{ g.bg }};color:#f8f3ea;padding:2px 7px;font-size:13px">{{ g.k }}</span><span>{{ g.t }}</span>
+                </div>
+              </sc-for>
+              <span style="font:400 11px/1.6 'Geist Mono',monospace;color:#6b6255;padding-top:8px">Native approvals only cover requests the harness asks about. They are not a sandbox.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">Saved vs active</span>
+              <div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;font:400 11px 'Geist Mono',monospace">
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;background:#23201b"></span>Saved</span>
+                <span style="height:1px;background:repeating-linear-gradient(90deg,#23201b 0 3px,transparent 3px 6px)"></span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;background:#3f7a66"></span>Active</span>
+              </div>
+              <span style="font-size:14px;line-height:1.45">Saved is the stored preference. Active is what the connected worker or harness client has confirmed.</span>
+              <span style="font:400 11px/1.6 'Geist Mono',monospace;color:#6b6255">Approval preferences apply without a worker restart. For connected tools, Apply changes saves your choices and prepares the worker with them while idle.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">Pending approvals</span>
+              <span style="font-size:14px;line-height:1.45">Changing preferences does not change already-pending approval requests.</span>
+              <span onClick="{{ goChat }}" style="font:400 11px 'Geist Mono',monospace;color:#23201b;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Return to Chat to decide those ›</span>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showInspector&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;showBanner&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { screen: 'new', t1: true, t2: false, approval: 'pending', skillOn: [true, true, true, false, true, false], selSkill: 0, selFile: 0, model: 1, perms: [0, 0, 1, 1, 2], stab: 'harness', selH: 0, defH: 0, appr: [0, 0, 0, 0, 0, 0], apprSaved: [0, 0, 0, 0, 0, 0], limOpen: false, catOpen: false, srv: 0, tl: [[true, 0], [true, 0]], tlSaved: [[true, 0], [true, 0]] };
+  set = o => this.setState(o);
+  onR = () => this.setState({ w: window.innerWidth });
+  componentDidMount() { this.onR(); window.addEventListener('resize', this.onR); }
+  componentWillUnmount() { window.removeEventListener('resize', this.onR); }
+  renderVals() {
+    const s = this.state, inspector = (this.props.showInspector ?? true) && (s.w ?? 1200) >= 1000;
+    const chip = (on) => ({ bg: on ? '#1f1c18' : '#fbf8f2', fg: on ? '#f8f3ea' : '#23201b' });
+    const navActive = { Chat: s.screen === 'new' || s.screen === 'chat', Skills: s.screen === 'skills', Files: s.screen === 'files', Settings: s.screen === 'settings' };
+    const navTarget = { Chat: 'chat', Skills: 'skills', Files: 'files', Settings: 'settings' };
+    const navNum = { Chat: 'I', Skills: 'II', Files: 'III', Settings: 'IV' };
+    const nav = Object.keys(navActive).map(l => ({ label: l, num: navNum[l], onClick: () => this.set({ screen: navTarget[l] }), ...(navActive[l] ? chip(true) : { bg: 'transparent', fg: '#23201b' }) }));
+    const tt = [['Churn analysis, Q3 cohorts', '3 tools · 12:40'], ['Draft board update email', '1 skill · 10:12'], ['Compare vendor contracts', '2 files · 09:03']];
+    const threadsToday = tt.map((t, i) => ({ title: t[0], meta: t[1], onClick: () => this.set({ screen: 'chat' }), ...(i === 0 && s.screen === 'chat' ? chip(true) : { bg: 'transparent', fg: '#23201b' }) }));
+    const threadsOlder = [['Rewrite onboarding copy', 'Sep 28'], ['SQL for weekly actives', 'Sep 27'], ['Trip planning, Lisbon', 'Sep 26'], ['Pricing page teardown', 'Sep 25']].map(t => ({ title: t[0], meta: t[1], onClick: () => this.set({ screen: 'chat' }) }));
+    const nums = Array.from({ length: 17 }, (_, i) => String(33 + i));
+    const filled = [1, 1, 0, 1, 1, 1, 0, 0, 1];
+    const binRow = filled.map(f => ({ ch: f ? '' : '0', bg: f ? '#1a1714' : 'transparent' }));
+    const skillsData = [
+      ['Data Analyst', 'Loads CSVs, runs Python, returns tables and charts with the method shown.', 'read_file · run_python', '---\nname: data-analyst\ntools: [read_file, run_python]\n---\nWhen given tabular data, inspect columns first.\nState sample sizes. Prefer tables to prose\nfor comparisons. Show the code you ran.'],
+      ['Writer', 'Drafts and edits long-form text in your voice from past documents.', 'read_file · write_file', '---\nname: writer\ntools: [read_file, write_file]\n---\nMatch the tone of /files/voice.\nNo filler. Keep paragraphs short.'],
+      ['Researcher', 'Searches the web, reads sources, and cites them inline.', 'web_search · fetch', '---\nname: researcher\ntools: [web_search, fetch]\n---\nCite every claim. Prefer primary sources.'],
+      ['Contract Review', 'Flags unusual clauses against your standard terms.', 'read_file', '---\nname: contract-review\ntools: [read_file]\n---\nCompare against /files/legal/standard.md.'],
+      ['Meeting Notes', 'Turns transcripts into decisions, owners and dates.', 'read_file · calendar', '---\nname: meeting-notes\ntools: [read_file, calendar]\n---\nOutput: Decisions, Owners, Dates.'],
+      ['SQL', 'Writes and explains queries against the connected warehouse.', 'sql_query', '---\nname: sql\ntools: [sql_query]\n---\nRead-only. Always LIMIT exploratory queries.']
+    ];
+    const skills = skillsData.map((d, i) => {
+      const on = s.skillOn[i];
+      return { name: d[0], desc: d[1], tools: d[2], chipLabel: on ? 'On' : 'Off', ...{ chipBg: on ? '#1f1c18' : '#fbf8f2', chipFg: on ? '#fbf8f2' : '#23201b' }, rowBg: i === s.selSkill ? 'rgba(255,252,245,.3)' : 'transparent', onSelect: () => this.set({ selSkill: i }), onToggle: (e) => { e.stopPropagation(); const a = [...s.skillOn]; a[i] = !a[i]; this.set({ skillOn: a }); } };
+    });
+    const filesData = [
+      ['cohorts_q3.csv', 'CSV', '412 KB', 'Today 12:38', 'Churn analysis', 'cohort,user_id,signup,active_d30,active_d90\nJul-A,10021,2026-07-02,1,1\nJul-B,10022,2026-07-03,1,0\nJul-B,10023,2026-07-03,0,0\nAug-A,10024,2026-08-01,1,1\n…  8,214 rows'],
+      ['churn_q3.md', 'MD', '1.8 KB', 'Today 12:45', 'Churn analysis', '# Q3 churn: Jul-B cohort\n\n90-day churn 41% vs 22% baseline.\nDrop concentrated in days 1–14.'],
+      ['board_deck_sep.pdf', 'PDF', '6.2 MB', 'Oct 01', 'Board update email', '24 pages · text extracted\n\n1  Q3 summary\n2  Revenue\n3  Retention …'],
+      ['vendor_a_msa.docx', 'DOCX', '88 KB', 'Sep 30', 'Vendor contracts', 'Master Services Agreement\n§4.2 Auto-renewal: 24 months …'],
+      ['vendor_b_msa.docx', 'DOCX', '91 KB', 'Sep 30', 'Vendor contracts', 'Master Services Agreement\n§4.2 Auto-renewal: 12 months …'],
+      ['voice.md', 'MD', '3 KB', 'Sep 12', 'Writer skill', 'Short sentences. Concrete nouns.\nNo exclamation marks.']
+    ];
+    const files = filesData.map((d, i) => ({ name: d[0], type: d[1], size: d[2], mod: d[3], used: d[4], rowBg: i === s.selFile ? 'rgba(255,252,245,.3)' : 'transparent', w: i === s.selFile ? 600 : 400, onSelect: () => this.set({ selFile: i }) }));
+    const mNames = ['Large', 'Balanced', 'Fast'];
+    const models = mNames.map((n, i) => ({ name: n, chip: i === s.model ? 'Default' : 'Use', ...chip(i === s.model), onClick: () => this.set({ model: i }) }));
+    const rowsData = [
+      ['Best for', 'Long research, hard reasoning, big codebases.', 'Everyday chat, tools, writing.', 'Quick lookups, short replies.'],
+      ['Speed', 'Slower. Thinks before answering.', 'Fast for most replies.', 'Near-instant.'],
+      ['Cost', 'Highest per token.', 'Moderate.', 'Lowest.'],
+      ['Context', '200k tokens', '200k tokens', '128k tokens'],
+      ['Tool use', 'Parallel tools, long chains.', 'Parallel tools.', 'Single tool per turn.']
+    ];
+    const modelRows = rowsData.map(r => ({ label: r[0], cells: r.slice(1).map((t, i) => ({ t, bg: i === s.model ? 'rgba(255,252,245,.28)' : 'transparent' })) }));
+    const permData = [['read_file', 'Read anything in /files'], ['web_search', 'Search and fetch pages'], ['run_python', 'Execute code in sandbox'], ['write_file', 'Create or change files'], ['send_email', 'Send mail as you']];
+    const perms = permData.map((p, i) => ({ tool: p[0], desc: p[1], opts: ['Allow', 'Ask', 'Deny'].map((l, j) => ({ label: l, ...chip(s.perms[i] === j), onClick: () => { const a = [...s.perms]; a[i] = j; this.set({ perms: a }); } })) }));
+    const toolDots = { read: '#b4412c', run: '#b4412c', ask: '#c08a2e', off: 'transparent' };
+    const ON = { Ask: '#23201b', Allow: '#3f7a66', Deny: '#b4412c', Default: '#3b362e' };
+    const seg = (labels, cur, pick, dis = []) => labels.map((l, i) => { const on = i === cur, d = dis.includes(i); return { label: l, title: d ? 'Not available for this category' : '', bg: on ? ON[l.split(' ')[0]] : '#e6dfd2', fg: on ? '#f8f3ea' : '#23201b', op: d ? '.4' : '1', cur: d ? 'not-allowed' : 'pointer', deco: d ? 'line-through' : 'none', onClick: () => { if (!d) pick(i); } }; });
+    const act = (pending) => pending ? { txt: 'Pending', sq: '#b4412c', line: '#b4412c', rot: 'rotate(45deg)', fg: '#9a3524' } : { txt: 'Not connected', sq: 'transparent', line: '#6b6255', rot: 'none', fg: '#6b6255' };
+    const hData = [
+      { name: 'OpenCode', meta: 'Console · free-only', status: 'Not connected', fields: [['Provider', 'Console (free-only)', '▾', 'Locked'], ['Model', 'longcat-2.5-preview-free', '▾', 'Free only'], ['Console API key', '•••••••••••• saved, encrypted', 'Replace', 'Saved']], usage: 20, actions: [['Save key', 1], ['Remove key', 0], ['Refresh status', 0]], notes: ['Only the listed free-model ID is allowed, with no fallback. Provider pricing and availability can change.', 'The local 20-request safety cap is not a provider quota. Saving or removing a key does not reset it.', 'Replacing or removing the key disconnects an existing OpenCode session and may stop its running turn. The key is never sent to the worker or returned to this page.'] },
+      { name: 'Pi', meta: 'Not set up', status: 'Not set up', fields: [['Provider', 'Choose a provider', '▾', ''], ['Model', 'None', '▾', ''], ['API key', 'No key saved', 'Add', '']], usage: null, actions: [['Save', 1], ['Refresh status', 0]], notes: ['Pi is not set up yet. Add a provider and key to use it for new chats.'] },
+      { name: 'IBM Bob', meta: 'IBM · watsonx', status: 'Not connected', fields: [['Region', 'us-south', '▾', ''], ['Model', 'Bob default', '▾', ''], ['API key', 'No key saved', 'Add', '']], usage: null, actions: [['Save key', 1], ['Refresh status', 0]], notes: ['Approval preferences and connected tools apply to Bob conversations only.', 'Saved preferences are reapplied whenever Bob reconnects.'] }
+    ];
+    const harnesses = hData.map((x, i) => ({ name: x.name, meta: x.meta, num: 'H·0' + (i + 1), st: { ...act(false), txt: x.status }, bg: i === s.selH ? '#fbf8f2' : 'transparent', bar: i === s.selH ? '#23201b' : 'transparent', defLabel: i === s.defH ? 'Default for new chats' : 'Make default', defFg: i === s.defH ? '#23201b' : '#6b6255', defDot: i === s.defH ? '#b4412c' : 'transparent', onClick: () => this.set({ selH: i }), setDefault: (e) => { e.stopPropagation(); this.set({ defH: i, selH: i }); } }));
+    const sh = hData[s.selH];
+    const selH = { name: sh.name, meta: sh.meta, hasUsage: sh.usage != null, usage: (sh.usage ?? 0) + ' / 20', cells: Array.from({ length: 20 }, (_, i) => ({ bg: i < (sh.usage ?? 0) ? '#b4412c' : 'transparent' })), fields: sh.fields.map(f => ({ label: f[0], value: f[1], affix: f[2], note: f[3], color: /^(No |None|Choose)/.test(f[1]) ? '#8a8072' : '#23201b', line: f[3] === 'Locked' ? 'rgba(35,32,27,.3)' : '#23201b' })), actions: sh.actions.map(a => ({ label: a[0], bg: a[1] ? '#1f1c18' : 'transparent', fg: a[1] ? '#f8f3ea' : '#23201b', line: '#23201b' })), notes: sh.notes.map((t, i) => ({ k: String(i + 1).padStart(2, '0'), t })) };
+    const capRows = [['Approval preferences', 'One-time, native', 'None', 'Ask · Allow · Deny'], ['Connected tools', 'None', 'None', 'Context7'], ['Model choice', 'Listed free model', 'Any provider', 'Bob models'], ['Custom instructions', 'None', 'Yes', 'Yes']];
+    const tint = i => i === s.selH ? 'rgba(255,252,245,.45)' : 'transparent';
+    const capHead = hData.map((x, i) => ({ t: x.name, bg: tint(i) }));
+    const caps = capRows.map(r => ({ label: r[0], cells: r.slice(1).map((t, i) => ({ t, bg: tint(i), fg: t === 'None' ? '#8a8072' : '#23201b' })) }));
+    const apprData = [['Edit', 'Create or change files'], ['Delete', 'Remove files or folders'], ['Execute', 'Run shell commands'], ['Search', 'Search the workspace or the web'], ['Fetch', 'Download pages and files from URLs'], ['Other', 'Unclassified requests the harness cannot label']];
+    const apprRows = apprData.map((r, i) => ({ name: r[0], desc: r[1], act: act(s.appr[i] !== s.apprSaved[i]), opts: seg(['Ask', 'Allow', 'Deny'], s.appr[i], j => { const a = [...s.appr]; a[i] = j; this.set({ appr: a }); }, i === 5 ? [1] : []) }));
+    const apprN = s.appr.filter((v, i) => v !== s.apprSaved[i]).length;
+    const P = ['Ask', 'Allow', 'Deny'];
+    const toolData = [['resolve-library-id', "Find a library's documentation identifier."], ['query-docs', 'Look up documentation for a library.']];
+    const tlN = s.tl.filter((t, i) => t[0] !== s.tlSaved[i][0] || t[1] !== s.tlSaved[i][1]).length;
+    const setTl = (i, v) => { const a = s.tl.map(x => [...x]); a[i] = v; this.set({ tl: a }); };
+    const toolRows = toolData.map((d, i) => { const [on, p] = s.tl[i]; return { name: d[0], desc: d[1], op: on ? '1' : '.45', onLabel: on ? 'Enabled' : 'Disabled', tgBg: on ? '#23201b' : 'transparent', tgJust: on ? 'flex-end' : 'flex-start', knob: on ? '#f8f3ea' : '#23201b', toggle: () => setTl(i, [!on, p]), keep: on ? (p === 0 ? 'Inherits server default' : 'Override') : 'Disabled · permission kept', act: act(on !== s.tlSaved[i][0] || p !== s.tlSaved[i][1]), opts: seg(['Default · ' + P[s.srv], 'Ask', 'Allow', 'Deny'], p, j => setTl(i, [on, j])) }; });
+    const stabDef = [['harness', 'Harness', 0], ['approvals', 'Approvals', apprN], ['tools', 'Connected tools', tlN], ['account', 'Account', 0]];
+    const stabs = stabDef.map((t, i) => ({ num: ['I', 'II', 'III', 'IV'][i], label: t[1], badge: t[2] ? String(t[2]) : '', bg: s.stab === t[0] ? '#1f1c18' : 'transparent', fg: s.stab === t[0] ? '#f8f3ea' : '#23201b', onClick: () => this.set({ stab: t[0] }) }));
+    const settingsVals = {
+      defaultHarness: hData[s.defH].name, goHarnessTab: () => this.set({ screen: 'settings', stab: 'harness' }),
+      stabs, tabHarness: s.stab === 'harness', tabApprovals: s.stab === 'approvals', tabTools: s.stab === 'tools', tabAccount: s.stab === 'account',
+      harnesses, addNum: hData.length + 1, selH, capHead, caps,
+      apprRows, apprDirty: apprN > 0, apprClean: apprN === 0, apprDirtyLabel: apprN + (apprN === 1 ? ' unsaved change' : ' unsaved changes'),
+      apprDiscard: () => this.set({ appr: [...s.apprSaved] }), apprSave: () => this.set({ apprSaved: [...s.appr] }),
+      allAsk: () => this.set({ appr: s.appr.map(() => 0) }), allDeny: () => this.set({ appr: s.appr.map(() => 2) }),
+      limOpen: s.limOpen, limOpenRot: s.limOpen ? 'rotate(180deg)' : 'none', toggleLim: () => this.set({ limOpen: !s.limOpen }),
+      limNotes: [['01', 'No worker restart is needed. Saved preferences are reapplied on reconnection.'], ['02', 'Already-pending requests stay manual. Decide them in Chat.'], ['03', 'Manual choices apply once.'], ['04', 'Reads and built-in skills that the harness runs without asking cannot be blocked here. This is not a sandbox.']].map(n => ({ k: n[0], t: n[1] })),
+      srvOpts: seg(P, s.srv, j => this.set({ srv: j })), srvAct: act(false),
+      toolRows, toolDirty: tlN > 0, toolClean: tlN === 0, toolDirtyLabel: tlN + (tlN === 1 ? ' unsaved change' : ' unsaved changes'), toolDiscard: () => this.set({ tl: s.tlSaved.map(x => [...x]) }),
+      catOpen: s.catOpen, catOpenRot: s.catOpen ? 'rotate(180deg)' : 'none', toggleCat: () => this.set({ catOpen: !s.catOpen }),
+      catNotes: [['C7', 'Context7 · resolve-library-id, query-docs'], ['+', 'More servers appear here once connected.']].map(n => ({ k: n[0], t: n[1] })),
+      legend: [['Ask', 'Request your approval.', '#23201b'], ['Allow', 'Approve matching requests automatically.', '#3f7a66'], ['Deny', 'Reject matching requests.', '#b4412c']].map(g => ({ k: g[0], t: g[1], bg: g[2] }))
+    };
+    return {
+      ...settingsVals,
+      nav, threadsToday, threadsOlder, binRow, numRow: nums,
+      modelName: mNames[s.model],
+      goNew: () => this.set({ screen: 'new' }), goChat: () => this.set({ screen: 'chat' }), goSettings: () => this.set({ screen: 'settings' }),
+      isNew: s.screen === 'new', isChat: s.screen === 'chat', isSkills: s.screen === 'skills', isFiles: s.screen === 'files', isSettings: s.screen === 'settings',
+      showBanner: this.props.showBanner ?? true,
+      wide: (s.w ?? 1400) >= 1280,
+      midWide: (s.w ?? 1400) >= 1100,
+      showInspector: inspector,
+      inspectorCol: inspector ? 'clamp(240px,22vw,320px)' : '0px',
+      centerBorderRight: inspector ? 'border-right:1px solid rgba(35,32,27,.35)' : '',
+      inspContext: s.screen === 'new' || s.screen === 'chat',
+      ctxUsed: s.screen === 'chat' ? '41.2k' : '3.1k', ctxPct: s.screen === 'chat' ? '21%' : '2%',
+      ctxSkill: s.screen === 'chat' ? 'Data Analyst' : 'None yet', ctxSkillMeta: s.screen === 'chat' ? 'auto-loaded · matched “csv”' : 'loads when a task matches',
+      tools: [['read_file', 'used ×1', toolDots.read], ['run_python', 'used ×1', toolDots.run], ['write_file', s.approval === 'pending' ? 'asking' : s.approval, s.approval === 'denied' ? '#5f9b86' : toolDots.ask], ['web_search', 'idle', '#23201b'], ['send_email', 'denied', toolDots.off]].map(t => ({ name: t[0], state: s.screen === 'chat' ? t[1] : 'ready', dot: t[2] })),
+      threadFiles: s.screen === 'chat' ? [{ name: 'cohorts_q3.csv', size: '412 KB' }, { name: 'churn_q3.md', size: s.approval === 'allowed' ? '1.8 KB' : 'pending' }] : [{ name: 'None attached', size: '' }],
+      suggestions: [
+        { title: 'Summarize The September Board Deck', meta: 'board_deck_sep.pdf · Writer' },
+        { title: 'Which Vendor Contract Auto-Renews Sooner?', meta: '2 files · Contract Review' },
+        { title: 'Pull Weekly Actives For The Last 12 Weeks', meta: 'SQL · sql_query' },
+        { title: 'Find Three Recent Papers On Calibrated Models', meta: 'Researcher · web_search' }
+      ],
+      t1Open: s.t1, t1Rule: s.t1 ? '1px solid #23201b' : '1px dashed #23201b', t1Rot: s.t1 ? 'rotate(180deg)' : 'none', toggleT1: () => this.set({ t1: !s.t1 }),
+      t2Open: s.t2, t2Rule: s.t2 ? '1px solid #23201b' : '1px dashed #23201b', t2Rot: s.t2 ? 'rotate(180deg)' : 'none', toggleT2: () => this.set({ t2: !s.t2 }),
+      cohortRows: [['Jul-A', '1,842', '9%', '21%'], ['Jul-B (paid ads)', '2,310', '24%', '41%'], ['Aug-A', '2,006', '8%', '23%'], ['Sep-A', '2,056', '7%', '—']].map((r, i) => ({ c: r[0], u: r[1], a: r[2], b: r[3], w: i === 1 ? 600 : 400 })),
+      bars: [['Jul-A', 79, 0], ['Jul-B', 59, 1], ['Aug-A', 77, 0], ['Aug-B', 80, 0], ['Sep-A', 82, 0], ['Sep-B', 78, 0]].map(b => ({ l: b[0], v: b[1] + '%', h: b[1] + '%', c: b[2] ? '#5f9b86' : '#b4412c' })),
+      approvalPending: s.approval === 'pending', approvalDone: s.approval !== 'pending',
+      approvalText: s.approval === 'allowed' ? 'Write_file · /reports/churn_q3.md · Approved · 88ms' : 'Write_file · Denied by you · Nothing written',
+      allow: () => this.set({ approval: 'allowed' }), deny: () => this.set({ approval: 'denied' }), resetApproval: () => this.set({ approval: 'pending' }),
+      skills, selSkill: { name: skillsData[s.selSkill][0], md: skillsData[s.selSkill][3] },
+      files, selFile: { name: filesData[s.selFile][0], preview: filesData[s.selFile][5] },
+      models, modelRows, perms
+    };
+  }
+}
+</script>
+</body>
+</html>

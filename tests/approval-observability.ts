@@ -6,6 +6,7 @@ import { z } from "zod";
 import { HarnessRuntime } from "../src/harness-runtime.js";
 import { OpenCodeRuntime } from "../src/opencode-runtime.js";
 import { Chat } from "../src/chat.js";
+import { Workspace } from "../src/workspace.js";
 import { DatabaseLive } from "../src/database.js";
 import { Identity } from "../src/identity.js";
 import { IdentityLive } from "../src/runtime.js";
@@ -158,7 +159,7 @@ try {
         { permissionId: "1", toolCallId: sharedTool, match: "fallback", kind: "other", decision: "deny" },
       ]);
     }).pipe(Effect.provide(Chat.layer.pipe(Layer.provide(second.layer)))));
-  }).pipe(Effect.provide(OpenCodeRuntime.layer), Effect.provide(McpPermissions.layer), Effect.provide(IdentityLive), Effect.provide(DatabaseLive), Effect.timeout("30 seconds")));
+  }).pipe(Effect.provide(Workspace.layer), Effect.provide(OpenCodeRuntime.layer), Effect.provide(McpPermissions.layer), Effect.provide(IdentityLive), Effect.provide(DatabaseLive), Effect.timeout("30 seconds")));
   console.log("Approval observability passed: session isolation, independent decisions, real persistence, unchanged manual/tool/answer state, reload and client ID reuse.");
 } catch {
   console.error(`Approval observability failed at ${phase}; payloads suppressed.`);

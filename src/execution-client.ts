@@ -4,11 +4,13 @@ import { camenaeMode } from "./assistant-mode.js";
 import { ApprovalDecision, SessionUsage, type Permission } from "./chat-contract.js";
 import type { ApprovalPolicy } from "./approval-contract.js";
 import { Match } from "effect";
+import type { ConsoleModel } from "./console-contract.js";
 
 export type Harness = "bob" | "opencode";
 
 export type ExecutionEvent =
   | { type: "unavailable" }
+  | { type: "title"; session: string; title: string }
   | { type: "text"; session: string; text: string }
   | { type: "activity"; session: string; id: string; title?: string; status?: string }
   | { type: "permission"; session: string; permission: Permission }
@@ -19,7 +21,8 @@ export type ExecutionEvent =
 /** Application operations, not a promise that native policies or sessions are interchangeable. */
 export interface ExecutionClient {
   readonly harness: Harness;
-  openSession(id?: string): Promise<string>;
+  openSession(id?: string, model?: ConsoleModel): Promise<string>;
+  sessionTitle?(id: string, signal: AbortSignal): Promise<string | null>;
   releaseSession(id: string): Promise<void>;
   subscribe(listener: (event: ExecutionEvent) => void): () => void;
   run(session: string, prompt: string): Promise<string>;
@@ -40,6 +43,28 @@ export function bobExecution(client: BobRemoteClient): ExecutionClient {
       return session;
     },
     releaseSession: async (id) => { await client.closeSession(id); },
+    async sessionTitle(id, signal) {
+      if (!client.initializeResult.agentCapabilities?.sessionCapabilities?.list) return null;
+      let cursor: string | undefined;
+      const visited = new Set<string>();
+
+      do {
+        if (signal.aborted) return null;
+        const page = await client.listSessions({ cwd: client.workspace, cursor });
+
+        if (signal.aborted) return null;
+        const session = page.sessions.find((item) => item.sessionId === id && item.cwd === client.workspace);
+
+        if (session) return session.title ?? null;
+        cursor = page.nextCursor ?? undefined;
+
+        if (cursor && visited.has(cursor)) return null;
+
+        if (cursor) visited.add(cursor);
+      } while (cursor);
+
+      return null;
+    },
     subscribe: (listener) => client.subscribe((event) => {
       if (event.type === "connection_error" || event.type === "exit") listener({ type: "unavailable" });
 
@@ -53,6 +78,8 @@ export function bobExecution(client: BobRemoteClient): ExecutionClient {
 
       if (event.type !== "session_update") return;
       const { sessionId: session, update } = event.notification;
+
+      if (update.sessionUpdate === "session_info_update" && update.title) listener({ type: "title", session, title: update.title });
       const usage = SessionUsage.safeParse(update._meta?.["bob-gateway/usage"]);
 
       if (usage.success) listener({ type: "usage", session, usage: usage.data });
@@ -75,13 +102,27 @@ export function bobExecution(client: BobRemoteClient): ExecutionClient {
 export function openCodeExecution(client: OpenCodeConnection): ExecutionClient {
   return {
     harness: "opencode",
-    openSession: (id) => client.openSession(id),
+    async openSession(id, model) {
+      const sessionID = await client.openSession(id);
+
+      if (model) await client.native.session.switchModel({ sessionID, model: { providerID: "camenae", id: model } });
+
+      return sessionID;
+    },
     // A native session is retained independently of connection or worker lifetime.
     releaseSession: async () => {},
+    async sessionTitle(id) {
+      const session = await client.native.session.get({ sessionID: id });
+      const fallback = `New session - ${new Date(session.time.created).toISOString()}`;
+
+      return session.title && session.title !== fallback ? session.title : null;
+    },
     subscribe: (listener) => {
       const disconnect = client.onDisconnect(() => listener({ type: "unavailable" }));
 
       const unsubscribe = client.subscribe((event) => {
+      if (event.type === "session.renamed") listener({ type: "title", session: event.data.sessionID, title: event.data.title });
+
       if (event.type === "session.text.delta") listener({ type: "text", session: event.data.sessionID, text: event.data.delta });
 
       if (event.type === "session.tool.called" || event.type === "session.tool.success" || event.type === "session.tool.failed") {

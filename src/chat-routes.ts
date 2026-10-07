@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { Effect, Schedule, Schema, Stream } from "effect";
+import { Effect, Redacted, Schedule, Schema, Stream } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { z } from "zod";
 import { Identity } from "./identity.js";
@@ -7,6 +7,8 @@ import { Chat, type ChatFailure } from "./chat.js";
 import { ChatAction, StartTurn } from "./chat-contract.js";
 import { DisabledTools, McpPolicies } from "./mcp-contract.js";
 import { ApprovalPolicy } from "./approval-contract.js";
+import { OpenCodeRuntime } from "./opencode-runtime.js";
+import { ConsoleModel, consoleModel, SaveConsoleBudget, SaveConsoleSettings } from "./console-contract.js";
 
 class InvalidChatRequest extends Schema.TaggedError<InvalidChatRequest>()("InvalidChatRequest", {}) {}
 
@@ -21,12 +23,14 @@ const respond = (handler: Effect.Effect<HttpServerResponse.HttpServerResponse, C
   IdentityError: () => Effect.succeed(HttpServerResponse.text("Save a valid API key for the connected harness in connection settings", { status: 503, headers })),
   ChatBusy: () => Effect.succeed(HttpServerResponse.text("Another turn is still running", { status: 409, headers })),
   ChatError: () => Effect.succeed(HttpServerResponse.text("Chat unavailable; check the connection or start a new conversation", { status: 503, headers })),
+  AttachmentError: () => Effect.succeed(HttpServerResponse.text("Attachment unavailable or too large. Choose up to four supported UTF-8 text files, 64 KiB total; remove or reselect changed files and try again.", { status: 400, headers })),
   InvalidChatRequest: () => Effect.succeed(HttpServerResponse.text("Invalid request", { status: 400, headers })),
 }));
 
 export const ChatRoutes = HttpRouter.use(Effect.fn("Chat.routes")(function* (router) {
   const identity = yield* Identity;
   const chat = yield* Chat;
+  const openCode = yield* OpenCodeRuntime;
 
   const token = Effect.map(HttpServerRequest.HttpServerRequest,
     (request) => request.cookies[identity.secureCookie ? "__Host-camenae" : "camenae-local"] ?? "");
@@ -54,11 +58,56 @@ export const ChatRoutes = HttpRouter.use(Effect.fn("Chat.routes")(function* (rou
   });
 
   const create = Effect.gen(function* () {
-    const parsed = z.object({ csrf: z.string() }).safeParse(yield* body);
+    const parsed = z.strictObject({ csrf: z.string(), harness: z.enum(["bob", "opencode"]).optional() }).safeParse(yield* body);
 
     if (!parsed.success) return yield* new InvalidChatRequest();
 
-    return json({ id: yield* chat.create(yield* token, parsed.data.csrf) });
+    return json({ id: yield* chat.create(yield* token, parsed.data.csrf, parsed.data.harness) });
+  });
+
+  const consoleSettings = Effect.gen(function* () {
+    return json({ provider: "console", model: consoleModel, enabled: openCode.configured && openCode.consoleFree,
+      ...yield* identity.consoleStatus(yield* token) });
+  });
+
+  const saveConsoleSettings = Effect.gen(function* () {
+    const parsed = SaveConsoleSettings.safeParse(yield* body);
+
+    if (!parsed.success || !openCode.configured || !openCode.consoleFree) return yield* new InvalidChatRequest();
+    yield* identity.replaceConsoleKey(yield* token, parsed.data.csrf, Redacted.make(parsed.data.key));
+
+    return yield* consoleSettings;
+  });
+
+  const removeConsoleSettings = Effect.gen(function* () {
+    const parsed = z.strictObject({ csrf: z.string() }).safeParse(yield* body);
+
+    if (!parsed.success) return yield* new InvalidChatRequest();
+    yield* identity.removeConsoleKey(yield* token, parsed.data.csrf);
+
+    return yield* consoleSettings;
+  });
+
+  const saveConsoleBudget = Effect.gen(function* () {
+    const parsed = SaveConsoleBudget.safeParse(yield* body);
+
+    if (!parsed.success || !openCode.configured || !openCode.consoleFree) return yield* new InvalidChatRequest();
+    const saved = yield* identity.saveConsoleBudget(yield* token, parsed.data);
+
+    if (!saved) return HttpServerResponse.text("Allowance changed elsewhere. Refresh settings before retrying.", { status: 409, headers });
+
+    return yield* consoleSettings;
+  });
+
+  const selectModel = Effect.gen(function* () {
+    const parsed = z.strictObject({ csrf: z.string(), model: ConsoleModel }).safeParse(yield* body);
+
+    if (!parsed.success) return yield* new InvalidChatRequest();
+    const session = yield* token;
+    const conversation = yield* id;
+    yield* chat.selectModel(session, parsed.data.csrf, conversation, parsed.data.model);
+
+    return json(yield* chat.view(session, conversation));
   });
 
   const settings = Effect.gen(function* () { return json(yield* chat.mcpSettings(yield* token)); });
@@ -109,7 +158,7 @@ export const ChatRoutes = HttpRouter.use(Effect.fn("Chat.routes")(function* (rou
 
     if (!parsed.success) return yield* new InvalidChatRequest();
 
-    yield* chat.start(yield* token, parsed.data.csrf, yield* id, parsed.data.prompt);
+    yield* chat.start(yield* token, parsed.data.csrf, yield* id, parsed.data.prompt, parsed.data.attachments);
 
     return json({ accepted: true });
   });
@@ -150,11 +199,15 @@ export const ChatRoutes = HttpRouter.use(Effect.fn("Chat.routes")(function* (rou
   });
 
   for (const [method, path, handler] of [
+    ["GET", "/api/settings/opencode", consoleSettings], ["POST", "/api/settings/opencode", saveConsoleSettings],
+    ["POST", "/api/settings/opencode/remove", removeConsoleSettings],
+    ["POST", "/api/settings/opencode/budget", saveConsoleBudget],
     ["GET", "/api/settings/mcp", settings], ["POST", "/api/settings/mcp", saveSettings],
     ["GET", "/api/settings/approvals", approvalSettings], ["POST", "/api/settings/approvals", saveApprovalSettings],
     ["GET", "/api/chat", bootstrap], ["POST", "/api/chat", create],
     ["GET", "/api/chat/:id", view], ["POST", "/api/chat/:id", start],
     ["POST", "/api/chat/:id/prepare", prepare],
+    ["POST", "/api/chat/:id/model", selectModel],
     ["POST", "/api/chat/:id/mcp-approve", approveMcp],
     ["GET", "/api/chat/:id/events", events], ["POST", "/api/chat/cancel", action("cancel")],
     ["POST", "/api/chat/approve", action("approve")],

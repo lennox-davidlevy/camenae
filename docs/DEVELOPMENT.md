@@ -24,8 +24,10 @@ bun run check:docs
 bun run build:ui
 bun run test:provisioning
 bun run test:dev-ui
+bun run test:threads
 bun run smoke:foundation
 bun run smoke:mcp
+bun run smoke:console
 bun run probe:build
 bun run probe:bun
 bun run probe:node
@@ -38,14 +40,19 @@ test subnets `172.30.84.0/24`, `172.30.85.0/24` (live), `172.30.86.0/24`, host p
 tests at user-owned volumes or reuse credentials. No deployment is implied by
 passing isolated checks.
 
+OpenCode native smoke uses `172.30.87.0/24`; Console setup smoke uses
+`172.30.89.0/24`. Both use only synthetic provider data.
+
 | Check | Evidence / boundary |
 | --- | --- |
 | lint/typecheck/build | Configured rules (including vendored plugins), TS/TSX contracts, production browser bundle |
 | check:docs | Relative Markdown file/anchor links throughout selected source |
 | test:provisioning | Actual init entrypoints with no pre-existing cache, private file modes, and byte-preserving refusal to overwrite |
 | test:dev-ui | Real loopback proxy, Host/Origin guards, cookies, forwarding, SSE streaming with synthetic backend |
+| test:threads | Local-calendar thread grouping across week/year/DST boundaries and safe headline/metadata rendering |
 | smoke:foundation | Real Docker/Postgres/native Bob: authentication, file boundaries, environment/network isolation, preparation, whole-worker teardown, DNS recovery, state retention, readiness and shutdown |
 | smoke:mcp | Synthetic local MCP/model fixtures, real Postgres/SDK/Bob: settings, ownership refusal, approvals/history, cancellation, native delegation and independent upstream receipts; HTTP/SSE usage consumer and rendered UI |
+| smoke:console | Real HTTP/Postgres/native OpenCode: encrypted Settings credential, new-chat harness selection, strict free-only gateway, atomic persistent request cap; synthetic provider, no egress service |
 | probe:bun / probe:node | Same packaged native runtime, non-root, network disabled: initialization/session/shutdown only |
 
 Tests are executable programs orchestrated by these runners, not a generic
@@ -57,6 +64,31 @@ SDK events through real application HTTP/SSE/Postgres/UI; it does not prove Bob'
 accounting or live billing. The fixture upstream serves only synthetic data.
 
 ## UI development and browser checks
+
+The thread sidebar displays persisted native headlines when available, otherwise
+the first-message preview. Reading native metadata does not request a new summary;
+native harness title generation still follows that harness's own behavior. Rows show
+recorded tool-call counts and local times/dates, grouped by latest prompt into Today,
+Yesterday, This week, Last week, and older months. Older conversations without a
+recorded activity timestamp initially retain their creation date. Group headings
+collapse independently. Drag the vertical separators to resize the thread and
+inspector panels; focused separators also support arrow keys, Shift for larger
+steps, and Home/End. Double-click resets a panel. Width preferences stay in browser
+storage; narrow layouts retain their responsive panel visibility.
+
+Both composers provide **+ File → Upload from computer** or **Choose from workspace**.
+Local text uploads are saved in that chat's inbox folder and automatically selected;
+existing workspace files are selected in place, with folder navigation and preview.
+Chips show filenames, with full paths on hover. An uploading chip blocks sending;
+failed uploads offer Retry or Remove, and cannot silently be omitted from a send.
+Draft selections and failed uploads are isolated per conversation
+in page memory and clear after an accepted send; a rejected send retains the text
+and selection. Reloading clears unsent selections, while sent snapshots remain in
+history and the inspector. Both upload entry points allow 64 KiB text files; a chat
+message is limited to four files and 64 KiB total. Removing a chip does not delete
+the workspace file. PDFs, images, drag-and-drop, and attachment-only messages
+are not supported. The picker estimates size from preview; server validation at
+send time is authoritative if a file changes.
 
 For a deliberately selected backend, `CAMENAE_DEV_BACKEND=http://127.0.0.1:3000
 bun run dev` serves `http://127.0.0.1:5173/chat`. Default backend is port 3000. This
@@ -89,7 +121,8 @@ For mixed-harness regression checks, add `-e CAMENAE_HARNESS=opencode` to the
 disposable `compose run` command and pass `--mixed-harness --serve` to the fixture.
 It leaves OpenCode unconfigured, creates Bob conversations plus 100 newer rows,
 and prints an older Bob deep link outside the sidebar. Verify that its composer
-is enabled, while New Chat remains disabled; select the visible Bob conversation
+is enabled. New Chat is disabled with OpenCode selected, but selecting Bob enables
+it without changing the current conversation's harness. Select the visible Bob conversation
 and save a Context7 change in Settings, then reload to verify persistence. Selecting
 an unavailable OpenCode conversation must disable both its composer and Bob Apply.
 
@@ -126,8 +159,8 @@ Keep application concerns here and native protocol/capabilities in their owning
 SDK/harness. Preserve compatibility identifiers and forward-only migrations.
 Add new routes only with authentication/authorization and bounded data contracts.
 Maintain the single-process lifecycle and fail-closed security boundaries unless
-an explicit design changes them. No application plugin framework, multi-harness
-selector, or cloud deployment is implied by a design idea.
+an explicit design changes them. No application plugin framework or cloud
+deployment is implied by a design idea.
 
 Changes require lint, typecheck, affected boundary tests, production build, and an
 independent review. UI/deployment changes need actual-path checks where possible.

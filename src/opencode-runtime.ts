@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Config, Context, Effect, Layer, Redacted, Schedule, Scope, Schema } from "effect";
 import { z } from "zod";
 import { openCodeExecution, type ExecutionClient, type Harness } from "./execution-client.js";
+import { consoleModel } from "./console-contract.js";
 
 export const openCodeSettings = Config.all({
   harness: Config.String("CAMENAE_HARNESS").pipe(Config.withDefault("bob")),
@@ -11,6 +12,7 @@ export const openCodeSettings = Config.all({
   workspace: Config.String("CAMENAE_OPENCODE_WORKSPACE").pipe(Config.withDefault("/data/workspace")),
   provider: Config.String("CAMENAE_OPENCODE_PROVIDER").pipe(Config.withDefault("camenae")),
   model: Config.String("CAMENAE_OPENCODE_MODEL").pipe(Config.withDefault("assistant")),
+  consoleFree: Config.Boolean("CAMENAE_OPENCODE_CONSOLE_FREE").pipe(Config.withDefault(false)),
 });
 
 /** Application-owned lifetime supervision. Native sessions survive worker retirement. */
@@ -19,6 +21,7 @@ export class OpenCodeRuntimeError extends Schema.TaggedError<OpenCodeRuntimeErro
 export class OpenCodeRuntime extends Context.Service<OpenCodeRuntime, {
   readonly harness: Harness;
   readonly configured: boolean;
+  readonly consoleFree: boolean;
   readonly credential: Redacted.Redacted<string>;
   readonly connect: () => Effect.Effect<ExecutionClient, OpenCodeRuntimeError, Scope.Scope>;
 }>()("camenae/OpenCodeRuntime") {
@@ -35,7 +38,7 @@ export class OpenCodeRuntime extends Context.Service<OpenCodeRuntime, {
     const acquire = Effect.tryPromise(async (signal) => {
       const client = await OpenCode.connect({
         baseUrl: settings.url, password: Redacted.value(settings.password), workspace: settings.workspace,
-        model: { providerID: settings.provider, id: settings.model },
+        model: settings.consoleFree ? { providerID: "camenae", id: consoleModel } : { providerID: settings.provider, id: settings.model },
       });
 
       try {
@@ -81,6 +84,6 @@ export class OpenCodeRuntime extends Context.Service<OpenCodeRuntime, {
     return openCodeExecution(owned.client);
   }, Effect.mapError(() => new OpenCodeRuntimeError()));
 
-  return OpenCodeRuntime.of({ harness, configured, connect, credential: settings.password });
+  return OpenCodeRuntime.of({ harness, configured, consoleFree: settings.consoleFree, connect, credential: settings.password });
   }).pipe(Effect.mapError(() => new OpenCodeRuntimeError())));
 }

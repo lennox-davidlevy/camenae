@@ -1,0 +1,40 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "camenae/longcat-2.5-preview-free",
+  "default_agent": "camenae",
+  "experimental": { "policies": [
+    { "action": "provider.use", "resource": "*", "effect": "deny" },
+    { "action": "provider.use", "resource": "camenae", "effect": "allow" }
+  ] },
+  "agents": {
+    "camenae": {
+      "description": "Camenae free-model assistant",
+      "model": "camenae/longcat-2.5-preview-free",
+      "permissions": [{ "action": "*", "resource": "*", "effect": "ask" }]
+    }
+  },
+  "plugins": ["/app/docker/opencode-runtime/plugin"],
+  "providers": {
+    "camenae": {
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": { "baseURL": "http://app:3003/v1", "apiKey": "{env:CAMENAE_OPENCODE_GATE_TOKEN}", "timeout": 90000 },
+      "body": { "max_tokens": 2048 },
+      "models": {
+        "big-pickle": { "name": "Big Pickle", "limit": { "context": 128000, "output": 2048 }, "capabilities": { "tools": true }, "cost": { "input": 0, "output": 0 } },
+        "fledge-alpha-free": { "name": "Fledge Alpha", "limit": { "context": 128000, "output": 2048 }, "capabilities": { "tools": true }, "cost": { "input": 0, "output": 0 } },
+        "ling-3.0-flash-fin-free": { "name": "Ling 3.0 Flash Fin", "limit": { "context": 128000, "output": 2048 }, "capabilities": { "tools": true }, "cost": { "input": 0, "output": 0 } },
+        "ling-3.1-flash-free": { "name": "Ling 3.1 Flash", "limit": { "context": 128000, "output": 2048 }, "capabilities": { "tools": true }, "cost": { "input": 0, "output": 0 } },
+        "mimo-v2.6-flash-free": { "name": "MiMo-V2.6-Flash", "limit": { "context": 128000, "output": 2048 }, "capabilities": { "tools": true }, "cost": { "input": 0, "output": 0 } },
+        "nemotron-3-ultra-free": { "name": "Nemotron 3 Ultra", "limit": { "context": 128000, "output": 2048 }, "capabilities": { "tools": true }, "cost": { "input": 0, "output": 0 } },
+        "nemotron-3.5-lightning-free": { "name": "Nemotron 3.5 Lightning", "limit": { "context": 128000, "output": 2048 }, "capabilities": { "tools": true }, "cost": { "input": 0, "output": 0 } },
+        "space-bunny-free": { "name": "Space Bunny", "limit": { "context": 128000, "output": 2048 }, "capabilities": { "tools": true }, "cost": { "input": 0, "output": 0 } },
+        "longcat-2.5-preview-free": {
+          "name": "LongCat 2.5 Preview Free",
+          "limit": { "context": 128000, "output": 2048 },
+          "capabilities": { "tools": true },
+          "cost": { "input": 0, "output": 0 }
+        }
+      }
+    }
+  }
+}

@@ -8,6 +8,7 @@ that can use tools and work with your files.
 
 - Keep conversations, stream replies, inspect tool activity, and stop a running turn.
 - Browse a shared workspace; upload small text files, preview text, and download files.
+- Attach workspace text-file snapshots to chat messages.
 - Choose persistent approval preferences and per-tool Context7 permissions.
 - Reuse native workspace skills and scripts across new conversations.
 - Sign in locally and store an encrypted inference credential.
@@ -16,7 +17,9 @@ that can use tools and work with your files.
 [experimental OpenCode integration](docs/OPENCODE.md) is available for isolated
 acceptance; the standard Compose installation below deploys Bob. Camenae
 owns the application, identity, persistence, workspace, UI, and worker deployment;
-each harness owns its agent loop and native tools. There is no UI harness selector.
+each harness owns its agent loop and native tools. New Chat can select a configured
+harness without changing existing conversations. Optional OpenCode setup supports
+approved free Console models through a guarded gateway.
 
 ## Quick start — new installation
 
@@ -54,11 +57,11 @@ This is a local, single-user, single-app-process deployment. One turn runs at a
 time. Closing a browser tab does not cancel work. The worker can see its inference
 key and shared workspace, but not application/database credentials. Approval
 settings only govern requests actually made by the harness; they are not a sandbox.
-Network access is restricted to Bob inference and trusted-gate Context7 requests.
+Network access is restricted to Bob inference and trusted-gate Context7/Console requests.
 General browsing, package downloads, and Git network operations are blocked.
 
 The Skills screen and conversation-policy buttons are previews, not working
-management controls. Model selection, editable custom instructions, arbitrary
+management controls. Arbitrary model selection, editable custom instructions, arbitrary
 connectors, SSO, multi-user isolation, and production/cloud deployment are not
 implemented. Effect v4 RC is a pinned pre-release dependency. Backup restoration
 and cross-host native-session resume are not automated guarantees.

@@ -1,26 +1,20 @@
 import { constants } from "node:fs";
-import { open, opendir, type FileHandle } from "node:fs/promises";
+import { mkdir, open, opendir, type FileHandle } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
-import { Effect, Schema } from "effect";
+import { Effect, Layer, Schema } from "effect";
+import { SqlClient } from "effect/sql";
+import { DatabaseLive } from "./database.js";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { z } from "zod";
 import { Identity } from "./identity.js";
 import { Workspace } from "./workspace.js";
-import { filePreviewLimit, type FilePreview } from "./file-contract.js";
+import { filePreviewLimit, plainText, textFileName, UploadName, WorkspaceFilePath, type FilePreview } from "./file-contract.js";
 
 class FileError extends Schema.TaggedError<FileError>()("FileError", {}) {}
 
-const Upload = z.object({ csrf: z.string(), name: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/),
-  text: z.string().max(8000).refine((text) => Buffer.byteLength(text) <= 8000) });
-
-const textExtensions = new Set([
-  ".txt", ".md", ".markdown", ".csv", ".tsv", ".json", ".jsonl", ".yaml", ".yml", ".toml", ".ini", ".conf", ".log",
-  ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".py", ".go", ".rs", ".java", ".c", ".h", ".cpp", ".hpp", ".cs",
-  ".css", ".scss", ".html", ".htm", ".xml", ".svg", ".sh", ".bash", ".zsh", ".sql", ".rb", ".php", ".swift", ".kt", ".vue", ".svelte",
-]);
-
-const textNames = new Set(["dockerfile", "makefile", "readme", "license", ".gitignore", ".dockerignore"]);
+const Upload = z.object({ csrf: z.string(), name: UploadName, conversation: z.uuid().optional(),
+  text: z.string().max(filePreviewLimit).refine((text) => Buffer.byteLength(text) <= filePreviewLimit && plainText(text)) });
 
 // Linux deployment: each component is opened relative to an already-open
 // directory inode. A concurrent tool cannot redirect traversal through a link.
@@ -38,9 +32,51 @@ async function directory(root: string, parts: string[]): Promise<FileHandle> {
   } catch (error) { await handle.close(); throw error; }
 }
 
+export async function readWorkspaceText(root: string, relative: string): Promise<FilePreview> {
+  const parts = WorkspaceFilePath.parse(relative).split("/");
+  const name = parts.pop();
+
+  if (!name) throw new Error("Invalid file");
+  const parent = await directory(root, parts);
+
+  try {
+    const file = await open(`/proc/self/fd/${parent.fd}/${name}`, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+
+    try {
+      const info = await file.stat();
+
+      if (!info.isFile()) throw new Error("Invalid file");
+
+      if (!textFileName(name)) return { kind: "unavailable", reason: "unsupported" };
+
+      if (info.size > filePreviewLimit) return { kind: "unavailable", reason: "too-large" };
+      const buffer = Buffer.alloc(filePreviewLimit + 1);
+      let size = 0;
+
+      while (size < buffer.length) {
+        const { bytesRead } = await file.read(buffer, size, buffer.length - size, size);
+
+        if (!bytesRead) break;
+        size += bytesRead;
+      }
+
+      if (size > filePreviewLimit) return { kind: "unavailable", reason: "too-large" };
+      let text: string;
+
+      try { text = new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(0, size)); }
+      catch { return { kind: "unavailable", reason: "not-text" }; }
+
+      if (!plainText(text)) return { kind: "unavailable", reason: "not-text" };
+
+      return { kind: "text", text };
+    } finally { await file.close(); }
+  } finally { await parent.close(); }
+}
+
 export const FileRoutes = HttpRouter.use(Effect.fn("Files.routes")(function* (router) {
   const identity = yield* Identity;
   const paths = yield* Workspace;
+  const sql = yield* SqlClient.SqlClient;
   const headers = { "cache-control": "no-store", "x-content-type-options": "nosniff" };
   const previewResponse = (body: FilePreview) => HttpServerResponse.jsonUnsafe(body, { headers });
 
@@ -57,19 +93,56 @@ export const FileRoutes = HttpRouter.use(Effect.fn("Files.routes")(function* (ro
         if (!parsed.success) return yield* new FileError();
 
         yield* identity.authorize(token, parsed.data.csrf);
-        const name = `${randomUUID()}-${parsed.data.name}`;
-        yield* Effect.tryPromise({ try: async () => {
-          const parent = await directory(paths.workspace, ["inbox"]);
+        const { conversation, name, text } = parsed.data;
+
+        if (conversation) {
+          const rows = yield* sql`SELECT id FROM conversation WHERE id = ${conversation}`.pipe(Effect.mapError(() => new FileError()));
+
+          if (rows.length !== 1) return yield* new FileError();
+        }
+
+        const path = yield* Effect.tryPromise({ try: async () => {
+          const inbox = await directory(paths.workspace, ["inbox"]);
 
           try {
-            const file = await open(`/proc/self/fd/${parent.fd}/${name}`, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+            let parent = inbox;
 
-            try { await file.writeFile(parsed.data.text); }
-            finally { await file.close(); }
-          } finally { await parent.close(); }
+            if (conversation) {
+              const folder = `/proc/self/fd/${inbox.fd}/${conversation}`;
+
+              try { await mkdir(folder, { mode: 0o700 }); }
+              catch (error) { if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) throw error; }
+
+              parent = await open(folder, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+            }
+
+            try {
+              for (let attempt = 0; attempt < 100; attempt++) {
+                const extension = extname(name);
+                const candidate = conversation ? attempt === 0 ? name : `${name.slice(0, name.length - extension.length)} (${attempt})${extension}` : `${randomUUID()}-${name}`;
+                // Renamed special basenames (README, .gitignore, etc.) need a
+                // text extension to remain readable by preview and chat.
+                const stored = textFileName(candidate) ? candidate : `${candidate}.txt`;
+                let file: FileHandle;
+
+                try { file = await open(`/proc/self/fd/${parent.fd}/${stored}`, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600); }
+                catch (error) {
+                  if (error instanceof Error && "code" in error && error.code === "EEXIST") continue;
+                  throw error;
+                }
+
+                try { await file.writeFile(text); }
+                finally { await file.close(); }
+
+                return `inbox/${conversation ? `${conversation}/` : ""}${stored}`;
+              }
+
+              throw new Error("Filename collision limit");
+            } finally { if (parent !== inbox) await parent.close(); }
+          } finally { await inbox.close(); }
         }, catch: () => new FileError() });
 
-        return HttpServerResponse.jsonUnsafe({ path: `inbox/${name}` }, { headers });
+        return HttpServerResponse.jsonUnsafe({ path }, { headers });
       }
 
       const relative = new URL(request.url, "http://camenae.invalid").searchParams.get("path") ?? "";
@@ -79,6 +152,8 @@ export const FileRoutes = HttpRouter.use(Effect.fn("Files.routes")(function* (ro
         parts.some((part) => !part || part === "." || part === ".." || part.includes("\0"))) return yield* new FileError();
 
       return yield* Effect.tryPromise({ try: async () => {
+        if (operation === "preview") return previewResponse(await readWorkspaceText(paths.workspace, relative));
+
         if (operation === "list") {
           const parent = await directory(paths.workspace, parts);
 
@@ -108,16 +183,11 @@ export const FileRoutes = HttpRouter.use(Effect.fn("Files.routes")(function* (ro
 
           try {
             const info = await file.stat();
-            const limit = operation === "preview" ? filePreviewLimit : 8 * 1024 * 1024;
+            const limit = 8 * 1024 * 1024;
 
             if (!info.isFile()) throw new Error("Invalid file");
 
-            if (operation === "preview" && !textExtensions.has(extname(name).toLowerCase()) && !textNames.has(name.toLowerCase())) {
-              return previewResponse({ kind: "unavailable", reason: "unsupported" });
-            }
-
             if (info.size > limit) {
-              if (operation === "preview") return previewResponse({ kind: "unavailable", reason: "too-large" });
               throw new Error("File limit");
             }
 
@@ -132,26 +202,7 @@ export const FileRoutes = HttpRouter.use(Effect.fn("Files.routes")(function* (ro
             }
 
             if (size > limit) {
-              if (operation === "preview") return previewResponse({ kind: "unavailable", reason: "too-large" });
               throw new Error("File limit");
-            }
-
-            if (operation === "preview") {
-              let text: string;
-
-              try { text = new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(0, size)); }
-              catch { return previewResponse({ kind: "unavailable", reason: "not-text" }); }
-
-              // A text extension is only a hint: reject binary control bytes too.
-              for (const character of text) {
-                const code = character.charCodeAt(0);
-
-                if ((code < 32 && code !== 9 && code !== 10 && code !== 13) || code === 127) {
-                  return previewResponse({ kind: "unavailable", reason: "not-text" });
-                }
-              }
-
-              return previewResponse({ kind: "text", text });
             }
 
             return HttpServerResponse.uint8Array(buffer.subarray(0, size), { contentType: "application/octet-stream",
@@ -167,4 +218,4 @@ export const FileRoutes = HttpRouter.use(Effect.fn("Files.routes")(function* (ro
 
     yield* router.add(operation === "upload" ? "POST" : "GET", operation === "download" || operation === "preview" ? `/api/files/${operation}` : "/api/files", handler);
   }
-}));
+})).pipe(Layer.provide(DatabaseLive));

@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Geist:ital,wght@0,400;0,500;0,600;1,400&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+html,body{margin:0;height:100%;background:#e6dfd2;color:#23201b;font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#23201b;text-decoration:underline;text-underline-offset:3px}
+a:hover{color:#9a3524}
+::selection{background:#b4412c;color:#fbf8f2}
+textarea::placeholder{color:#7a7062}
+*{scrollbar-width:thin;scrollbar-color:#23201b transparent}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:linear-gradient(90deg,transparent 5px,rgba(35,32,27,.22) 5px 6px,transparent 6px)}
+::-webkit-scrollbar-track:horizontal{background:linear-gradient(0deg,transparent 5px,rgba(35,32,27,.22) 5px 6px,transparent 6px)}
+::-webkit-scrollbar-thumb{background:#23201b;border:4px solid transparent;background-clip:padding-box;border-radius:0;min-height:40px}
+::-webkit-scrollbar-thumb:hover,::-webkit-scrollbar-thumb:active{background-color:#b4412c;border-width:3px}
+::-webkit-scrollbar-corner,::-webkit-scrollbar-button{display:none;background:transparent}
+</style>
+</helmet>
+<div style="height:100vh;display:flex;flex-direction:column;min-width:0">
+  <!-- Masthead -->
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:stretch;height:46px;flex:none;border-bottom:1px solid #23201b;position:relative;z-index:5">
+    <div style="display:flex;align-items:center;gap:12px;padding:0 16px;min-width:0;overflow:hidden">
+      <span style="font:400 24px/1 'Gloock',serif;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap">Camenae</span>
+      <sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}"><span style="width:5px;height:5px;background:#b4412c;transform:rotate(45deg);flex:none"></span>
+      <span style="font:400 10px 'Geist Mono',monospace;letter-spacing:.1em;color:#6b6255;text-transform:uppercase;white-space:nowrap">Fons · Consilium</span></sc-if>
+    </div>
+    <div style="display:flex;align-items:stretch;border-left:1px solid #23201b">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="4">
+        <div onClick="{{ n.onClick }}" style="display:flex;align-items:center;gap:8px;padding:0 clamp(10px,1.3vw,18px);border-right:1px solid #23201b;background:{{ n.bg }};color:{{ n.fg }};cursor:pointer" style-hover="background:rgba(35,32,27,.06)">
+          <span style="font:400 10px 'Geist Mono',monospace;letter-spacing:.06em;opacity:.7">{{ n.num }}</span>
+          <span style="font-size:16px;letter-spacing:-0.01em">{{ n.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex;justify-content:flex-end;align-items:stretch">
+      <div onClick="{{ goSettings }}" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #23201b;cursor:pointer;white-space:nowrap"><span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#6b6255">Model</span><span style="font-size:16px">{{ modelName }}</span><span style="font-size:11px;color:#6b6255">▾</span></div>
+      <div onClick="{{ goNew }}" style="display:flex;align-items:center;gap:10px;padding:0 18px;background:#b4412c;color:#f8f3ea;font-size:16px;cursor:pointer;white-space:nowrap" style-hover="background:#9a3524"><span style="font-size:18px;line-height:1">+</span>New Chat</div>
+    </div>
+  </div>
+
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:clamp(200px,18vw,248px) minmax(0,1fr) {{ inspectorCol }}">
+    <!-- Left sidebar -->
+    <div style="display:flex;flex-direction:column;min-height:0;padding:22px 0 0 0">
+      <div style="padding:0 16px 0 10px;font:400 11px 'Geist Mono',monospace;color:#6b6255;display:flex;gap:6px;align-items:center"><span>⁚</span><span>Threads</span></div>
+      <div style="flex:1;overflow:auto;padding:14px 16px 16px 10px;display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;flex-direction:column;gap:2px;border-left:1px solid #23201b;padding-left:10px">
+          <div style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255;padding:2px 0 6px">Today</div>
+          <sc-for list="{{ threadsToday }}" as="t" hint-placeholder-count="3">
+            <div onClick="{{ t.onClick }}" style="display:flex;flex-direction:column;gap:2px;padding:6px 7px;margin-left:-7px;background:{{ t.bg }};color:{{ t.fg }};cursor:pointer">
+              <span style="font-size:14px;line-height:1.25">{{ t.title }}</span>
+              <span style="font:400 10px 'Geist Mono',monospace;opacity:.7">{{ t.meta }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;border-left:1px dashed #23201b;padding-left:10px">
+          <div style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255;padding:2px 0 6px">Last week</div>
+          <sc-for list="{{ threadsOlder }}" as="t" hint-placeholder-count="4">
+            <div onClick="{{ t.onClick }}" style="display:flex;flex-direction:column;gap:2px;padding:6px 7px;margin-left:-7px;cursor:pointer" style-hover="background:rgba(255,252,245,.35)">
+              <span style="font-size:14px;line-height:1.25">{{ t.title }}</span>
+              <span style="font:400 10px 'Geist Mono',monospace;opacity:.7">{{ t.meta }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;padding:10px">
+        <div style="background:#1f1c18;color:#fbf8f2;padding:3px 7px;font-size:13px">Docs</div>
+        <div style="background:#1f1c18;color:#fbf8f2;padding:3px 7px;font-size:13px">Shortcuts</div>
+        <div style="background:#1f1c18;color:#fbf8f2;padding:3px 7px;font-size:13px">⌘K</div>
+      </div>
+    </div>
+
+    <!-- Center -->
+    <div style="min-height:0;overflow:auto;border-left:1px solid rgba(35,32,27,.35);border-right:1px solid rgba(35,32,27,.35)">
+
+      <!-- NEW CHAT -->
+      <sc-if value="{{ isNew }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:48px 48px 64px;display:flex;flex-direction:column;align-items:center">
+          <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ true }}">
+            <div style="width:100%;max-width:980px;height:190px;display:flex;align-items:flex-end;gap:0;border-bottom:1px solid #23201b">
+              <div style="width:clamp(150px,19%,184px);height:190px;flex:none;background:#1f1c18;border-radius:92px 92px 0 0;position:relative;overflow:hidden">
+                <img src="assets/camenae-coin.png" alt="Aegeria" style="position:absolute;left:50%;top:14px;width:160px;height:164px;transform:translateX(-50%);filter:invert(1);mix-blend-mode:screen;opacity:.94"></img>
+              </div>
+              <div style="flex:1;min-width:0;height:150px;background:#b4412c;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding:14px 20px 14px">
+                <img src="assets/camenae-coin.png" alt="" style="position:absolute;right:-60px;top:-70px;width:280px;height:286px;mix-blend-mode:multiply;opacity:.14"></img>
+                <div style="position:relative;display:flex;justify-content:space-between;align-items:center;gap:12px;font:400 10px 'Geist Mono',monospace;letter-spacing:.1em;color:#f8f3ea;text-transform:uppercase">
+                  <span style="white-space:nowrap">Aegeria · Nº I</span>
+                  <span style="white-space:nowrap">Ex fonte, consilium</span>
+                </div>
+                <div style="position:relative;border-top:1px solid rgba(248,243,234,.5);padding-top:10px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+                  <span style="font:400 clamp(40px,5.6vw,78px)/0.82 'Gloock',serif;letter-spacing:-0.01em;color:#f8f3ea;white-space:nowrap;min-width:0">Camenae</span>
+                </div>
+              </div>
+              <div style="width:clamp(90px,14%,130px);height:190px;flex:none;display:flex;flex-direction:column">
+                <div style="height:14px;background:#23201b"></div>
+                <div style="height:6px;border-bottom:1px solid #23201b"></div>
+                <div style="flex:1;margin:0 10px;background:repeating-linear-gradient(90deg,#e6dfd2 0 8px,#23201b 8px 9px,#d8cfbf 9px 13px,#23201b 13px 14px);border-left:1px solid #23201b;border-right:1px solid #23201b"></div>
+                <div style="height:10px;background:#23201b"></div>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="position:relative;width:100%;max-width:880px;margin-top:56px;padding:22px 30px 34px;display:flex;flex-direction:column;align-items:center;gap:12px">
+            <span style="position:absolute;left:0;top:0;width:9px;height:9px;border-left:1px solid #23201b;border-top:1px solid #23201b"></span>
+            <span style="position:absolute;right:0;top:0;width:9px;height:9px;border-right:1px solid #23201b;border-top:1px solid #23201b"></span>
+            <span style="position:absolute;left:0;bottom:0;width:9px;height:9px;border-left:1px solid #23201b;border-bottom:1px solid #23201b"></span>
+            <span style="position:absolute;right:0;bottom:0;width:9px;height:9px;border-right:1px solid #23201b;border-bottom:1px solid #23201b"></span>
+            <span style="background:#3b362e;color:#f1ebe0;font:400 14px 'Geist Mono',monospace;padding:3px 6px">New Thread</span>
+            <span style="font:400 12px 'Geist Mono',monospace;color:#3b362e">Oct 02, 2026 · 12:52</span>
+            <h1 style="margin:10px 0 0;font-family:'Gloock',serif;font-weight:400;font-size:112px;line-height:.92;letter-spacing:-0.035em;text-align:center;text-wrap:balance">What Are We Working On?</h1>
+          </div>
+
+          <div style="width:100%;max-width:760px;margin-top:40px;border:1px solid #23201b;background:rgba(255,252,245,.28)">
+            <textarea placeholder="Ask anything. Type / for skills, @ for tools, drop files anywhere." style="width:100%;height:96px;resize:none;border:0;outline:0;background:transparent;padding:16px 16px 6px;font:400 17px/1.45 Geist,sans-serif;color:#23201b"></textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 8px 8px 12px">
+              <div style="display:flex;gap:5px;font:400 12px 'Geist Mono',monospace">
+                <span style="background:#fbf8f2;padding:3px 6px">+ File</span>
+                <span style="background:#fbf8f2;padding:3px 6px">/ Skill</span>
+                <span style="background:#fbf8f2;padding:3px 6px">@ Tool</span>
+              </div>
+              <div onClick="{{ goChat }}" style="background:#1f1c18;color:#fbf8f2;padding:5px 9px;font-size:15px;cursor:pointer;display:flex;gap:8px;align-items:center">Send <span style="font:400 11px 'Geist Mono',monospace;opacity:.7">↵</span></div>
+            </div>
+          </div>
+
+          <div style="width:100%;max-width:760px;margin-top:36px;display:flex;flex-direction:column;gap:14px">
+            <sc-for list="{{ suggestions }}" as="s" hint-placeholder-count="4">
+              <div onClick="{{ goChat }}" style="border-left:1px dashed #23201b;padding:10px 0 18px 14px;display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer" style-hover="border-left-style:solid">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <span style="font:400 12px 'Geist Mono',monospace">{{ s.title }}</span>
+                  <span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">{{ s.meta }}</span>
+                </div>
+                <span style="width:19px;height:19px;border:1px solid #23201b;display:flex;align-items:center;justify-content:center;font-size:11px">→</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- CHAT -->
+      <sc-if value="{{ isChat }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:40px 48px 0;display:flex;flex-direction:column;align-items:center;min-height:100%">
+          <div style="width:100%;max-width:780px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:10px;align-items:center">
+              <span style="background:#3b362e;color:#f1ebe0;font:400 13px 'Geist Mono',monospace;padding:3px 6px">Skill: Data Analyst</span>
+              <span style="font:400 12px 'Geist Mono',monospace;color:#3b362e">Oct 02, 2026</span>
+            </div>
+            <h1 style="margin:4px 0 26px;font-family:'Gloock',serif;font-weight:400;font-size:64px;line-height:.95;letter-spacing:-0.03em;text-wrap:balance">Churn Analysis, Q3 Cohorts</h1>
+          </div>
+
+          <div style="width:100%;max-width:780px;border-left:1px solid #23201b;padding:0 0 40px 20px;display:flex;flex-direction:column;gap:22px">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-style:italic;font-size:15px">You</span>
+              <p style="margin:0;font-size:17px;line-height:1.45;text-wrap:pretty">Look at <span style="font:400 14px 'Geist Mono',monospace;background:rgba(255,252,245,.4);padding:1px 4px">cohorts_q3.csv</span> and tell me which signup cohort is churning fastest. Write up the findings as a short report in /reports.</p>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <span style="font:400 11px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.05em;color:#6b6255">Assistant · 3 tool calls · 6.4s</span>
+
+              <div style="border-left:{{ t1Rule }};padding-left:14px">
+                <div onClick="{{ toggleT1 }}" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:6px 0">
+                  <span style="font:400 12px 'Geist Mono',monospace">Read_file · /files/data/cohorts_q3.csv · 214ms</span>
+                  <span style="width:19px;height:19px;border:1px solid #23201b;display:flex;align-items:center;justify-content:center;font-size:10px;transform:{{ t1Rot }}">⌄</span>
+                </div>
+                <sc-if value="{{ t1Open }}" hint-placeholder-val="{{ true }}">
+                  <div style="margin:8px 0 6px;border:1px solid rgba(35,32,27,.18)">
+                    <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;background:rgba(35,32,27,.07);font:600 13px Geist,sans-serif">
+                      <span style="padding:8px 10px">Cohort</span><span style="padding:8px 10px;border-left:1px solid rgba(35,32,27,.12)">Users</span><span style="padding:8px 10px;border-left:1px solid rgba(35,32,27,.12)">30-day churn</span><span style="padding:8px 10px;border-left:1px solid rgba(35,32,27,.12)">90-day churn</span>
+                    </div>
+                    <sc-for list="{{ cohortRows }}" as="r" hint-placeholder-count="4">
+                      <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;border-top:1px solid rgba(35,32,27,.12);font-size:14px">
+                        <span style="padding:7px 10px">{{ r.c }}</span><span style="padding:7px 10px;border-left:1px solid rgba(35,32,27,.12)">{{ r.u }}</span><span style="padding:7px 10px;border-left:1px solid rgba(35,32,27,.12)">{{ r.a }}</span><span style="padding:7px 10px;border-left:1px solid rgba(35,32,27,.12);font-weight:{{ r.w }}">{{ r.b }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+
+              <div style="border-left:{{ t2Rule }};padding-left:14px">
+                <div onClick="{{ toggleT2 }}" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:6px 0">
+                  <span style="font:400 12px 'Geist Mono',monospace">Run_python · retention_curve.py · 3.9s</span>
+                  <span style="width:19px;height:19px;border:1px solid #23201b;display:flex;align-items:center;justify-content:center;font-size:10px;transform:{{ t2Rot }}">⌄</span>
+                </div>
+                <sc-if value="{{ t2Open }}" hint-placeholder-val="{{ false }}">
+                  <pre style="margin:8px 0 6px;background:#1f1c18;color:#e9e1d3;font:400 12px/1.6 'Geist Mono',monospace;padding:14px 16px;overflow:auto">df = pd.read_csv("cohorts_q3.csv")
+curve = df.groupby("cohort")["active"].apply(retention, days=90)
+plot(curve, highlight="Jul-B")</pre>
+                </sc-if>
+              </div>
+
+              <p style="margin:0;font-size:17px;line-height:1.45;text-wrap:pretty"><strong style="font-weight:600">The July paid-ads cohort (Jul-B) is churning fastest.</strong> It loses 41% of users by day 90, against 22% for the rest of Q3. Most of that drop happens in the first two weeks, which points to onboarding rather than pricing.</p>
+
+              <div style="background:#1f1c18;color:#f1ebe0;padding:14px 16px 12px;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline">
+                  <span style="font-weight:600;font-size:13px">90-day retention by cohort</span>
+                  <div style="display:flex;gap:12px;font-size:11px">
+                    <span style="display:flex;gap:5px;align-items:center"><span style="width:8px;height:8px;background:#5f9b86"></span>Jul-B</span>
+                    <span style="display:flex;gap:5px;align-items:center"><span style="width:8px;height:8px;background:#b4412c"></span>Other Q3</span>
+                  </div>
+                </div>
+                <div style="height:150px;display:flex;align-items:flex-end;gap:10px;border-bottom:1px solid #4a443b;background:repeating-linear-gradient(0deg,transparent 0 37px,#34302a 37px 38px)">
+                  <sc-for list="{{ bars }}" as="b" hint-placeholder-count="6">
+                    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;height:100%">
+                      <span style="font:400 10px 'Geist Mono',monospace;color:#cfc6b5">{{ b.v }}</span>
+                      <div style="width:100%;height:{{ b.h }};background:{{ b.c }}"></div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display:flex;gap:10px;font:400 10px 'Geist Mono',monospace;color:#cfc6b5">
+                  <sc-for list="{{ bars }}" as="b" hint-placeholder-count="6"><span style="flex:1;text-align:center">{{ b.l }}</span></sc-for>
+                </div>
+              </div>
+
+              <sc-if value="{{ approvalPending }}" hint-placeholder-val="{{ true }}">
+                <div style="outline:2px solid #2c4a9e;outline-offset:0;border:1px solid #23201b;background:rgba(255,252,245,.22)">
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid rgba(35,32,27,.25)">
+                    <span style="font:400 12px 'Geist Mono',monospace">Approval Required · Write_file</span>
+                    <span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">Waiting on you</span>
+                  </div>
+                  <div style="padding:14px 12px;display:flex;flex-direction:column;gap:12px">
+                    <p style="margin:0;font-size:16px;line-height:1.4">The assistant wants to create <strong style="font-weight:600">/reports/churn_q3.md</strong> (1.8 KB, new file).</p>
+                    <pre style="margin:0;background:#1f1c18;color:#e9e1d3;font:400 12px/1.6 'Geist Mono',monospace;padding:12px 14px;overflow:auto"><span style="color:#b4412c">+ # Q3 churn: Jul-B cohort</span>
+<span style="color:#b4412c">+ 90-day churn 41% vs 22% baseline.</span>
+<span style="color:#b4412c">+ Drop concentrated in days 1–14 …</span></pre>
+                    <div style="display:flex;gap:5px">
+                      <div onClick="{{ allow }}" style="background:#1f1c18;color:#fbf8f2;padding:5px 9px;font-size:15px;cursor:pointer">Allow once</div>
+                      <div onClick="{{ allow }}" style="background:#fbf8f2;padding:5px 9px;font-size:15px;cursor:pointer">Always allow in /reports</div>
+                      <div onClick="{{ deny }}" style="background:#fbf8f2;padding:5px 9px;font-size:15px;cursor:pointer">Deny</div>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ approvalDone }}" hint-placeholder-val="{{ false }}">
+                <div style="border-left:1px dashed #23201b;padding:6px 0 6px 14px;display:flex;justify-content:space-between;align-items:center">
+                  <span style="font:400 12px 'Geist Mono',monospace">{{ approvalText }}</span>
+                  <span onClick="{{ resetApproval }}" style="font:400 11px 'Geist Mono',monospace;text-decoration:underline;cursor:pointer">Undo</span>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+
+          <div style="position:sticky;bottom:0;width:100%;max-width:800px;padding:0 0 22px;background:linear-gradient(transparent,#e6dfd2 30%);padding-top:24px;margin-top:auto">
+            <div style="border:1px solid #23201b;background:#cfc6b5;display:flex;align-items:flex-end">
+              <textarea placeholder="Reply…" style="flex:1;height:52px;resize:none;border:0;outline:0;background:transparent;padding:15px 14px 0;font:400 17px Geist,sans-serif;color:#23201b"></textarea>
+              <div style="display:flex;gap:5px;padding:10px;align-items:center;font:400 12px 'Geist Mono',monospace">
+                <span style="background:#fbf8f2;padding:3px 6px">+</span>
+                <span style="background:#fbf8f2;padding:3px 6px">/</span>
+                <span style="background:#1f1c18;color:#fbf8f2;padding:4px 9px;font:400 15px Geist,sans-serif">Send</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- SKILLS -->
+      <sc-if value="{{ isSkills }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:48px;max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:14px">
+          <span style="align-self:flex-start;background:#3b362e;color:#f1ebe0;font:400 13px 'Geist Mono',monospace;padding:3px 6px">Library</span>
+          <h1 style="margin:0;font-family:'Gloock',serif;font-weight:400;font-size:96px;line-height:.92;letter-spacing:-0.035em">Skills</h1>
+          <p style="margin:6px 0 24px;font-size:17px;line-height:1.45;max-width:620px">Skills are instructions plus tools the assistant loads when a task matches. Turn them off to keep them out of context.</p>
+          <div style="border:1px solid rgba(35,32,27,.18)">
+            <div style="display:grid;grid-template-columns:180px minmax(0,1fr) 200px 80px;background:rgba(35,32,27,.07);font:600 15px Geist,sans-serif">
+              <span style="padding:10px 12px"></span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">What it does</span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">Tools</span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">State</span>
+            </div>
+            <sc-for list="{{ skills }}" as="s" hint-placeholder-count="6">
+              <div onClick="{{ s.onSelect }}" style="display:grid;grid-template-columns:180px minmax(0,1fr) 200px 80px;border-top:1px solid rgba(35,32,27,.12);background:{{ s.rowBg }};cursor:pointer;font-size:15px;line-height:1.35">
+                <span style="padding:12px">{{ s.name }}</span>
+                <span style="padding:12px;border-left:1px solid rgba(35,32,27,.12);text-wrap:pretty">{{ s.desc }}</span>
+                <span style="padding:12px;border-left:1px solid rgba(35,32,27,.12);font:400 12px/1.6 'Geist Mono',monospace">{{ s.tools }}</span>
+                <span style="padding:12px;border-left:1px solid rgba(35,32,27,.12)"><span onClick="{{ s.onToggle }}" style="background:{{ s.chipBg }};color:{{ s.chipFg }};padding:3px 7px;font-size:13px">{{ s.chipLabel }}</span></span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:14px;border-left:1px dashed #23201b;padding:10px 14px 18px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font:400 12px 'Geist Mono',monospace">Create A Skill From This Conversation</span>
+            <span style="width:19px;height:19px;border:1px solid #23201b;display:flex;align-items:center;justify-content:center;font-size:11px">+</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- FILES -->
+      <sc-if value="{{ isFiles }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:48px;max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:14px">
+          <span style="align-self:flex-start;background:#3b362e;color:#f1ebe0;font:400 13px 'Geist Mono',monospace;padding:3px 6px">Workspace</span>
+          <h1 style="margin:0;font-family:'Gloock',serif;font-weight:400;font-size:96px;line-height:.92;letter-spacing:-0.035em">Files</h1>
+          <div style="display:flex;gap:4px;margin:10px 0 18px;font:400 12px 'Geist Mono',monospace;align-items:center">
+            <span style="background:#fbf8f2;padding:3px 6px">/files</span><span>›</span><span style="background:#fbf8f2;padding:3px 6px">data</span><span>›</span><span style="background:#1f1c18;color:#fbf8f2;padding:3px 6px">q3</span>
+          </div>
+          <div style="border:1px solid rgba(35,32,27,.18)">
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 90px 90px 140px 200px;background:rgba(35,32,27,.07);font:600 15px Geist,sans-serif">
+              <span style="padding:10px 12px">Name</span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">Type</span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">Size</span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">Modified</span><span style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12)">Used in</span>
+            </div>
+            <sc-for list="{{ files }}" as="f" hint-placeholder-count="6">
+              <div onClick="{{ f.onSelect }}" style="display:grid;grid-template-columns:minmax(0,1fr) 90px 90px 140px 200px;border-top:1px solid rgba(35,32,27,.12);background:{{ f.rowBg }};cursor:pointer;font-size:15px">
+                <span style="padding:11px 12px;font-weight:{{ f.w }}">{{ f.name }}</span>
+                <span style="padding:11px 12px;border-left:1px solid rgba(35,32,27,.12);font:400 12px 'Geist Mono',monospace;display:flex;align-items:center">{{ f.type }}</span>
+                <span style="padding:11px 12px;border-left:1px solid rgba(35,32,27,.12)">{{ f.size }}</span>
+                <span style="padding:11px 12px;border-left:1px solid rgba(35,32,27,.12)">{{ f.mod }}</span>
+                <span style="padding:11px 12px;border-left:1px solid rgba(35,32,27,.12);text-decoration:underline;text-underline-offset:3px">{{ f.used }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:14px;border:1px dashed #23201b;padding:28px;display:flex;justify-content:center;font:400 12px 'Geist Mono',monospace;color:#3b362e">Drop Files Here · Or Paste A URL</div>
+        </div>
+      </sc-if>
+
+      <!-- SETTINGS -->
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:48px;max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:14px">
+          <span style="align-self:flex-start;background:#3b362e;color:#f1ebe0;font:400 13px 'Geist Mono',monospace;padding:3px 6px">Settings</span>
+          <h1 style="margin:0 0 24px;font-family:'Gloock',serif;font-weight:400;font-size:96px;line-height:.92;letter-spacing:-0.035em">Models</h1>
+          <div style="border:1px solid rgba(35,32,27,.18)">
+            <div style="display:grid;grid-template-columns:140px repeat(3,minmax(0,1fr));background:rgba(35,32,27,.07)">
+              <span style="padding:10px 12px"></span>
+              <sc-for list="{{ models }}" as="m" hint-placeholder-count="3">
+                <div onClick="{{ m.onClick }}" style="padding:10px 12px;border-left:1px solid rgba(35,32,27,.12);cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+                  <span style="font:600 16px Geist,sans-serif">{{ m.name }}</span>
+                  <span style="background:{{ m.bg }};color:{{ m.fg }};padding:2px 6px;font-size:12px">{{ m.chip }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <sc-for list="{{ modelRows }}" as="r" hint-placeholder-count="5">
+              <div style="display:grid;grid-template-columns:140px repeat(3,minmax(0,1fr));border-top:1px solid rgba(35,32,27,.12);font-size:15px;line-height:1.35">
+                <span style="padding:12px">{{ r.label }}</span>
+                <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="3">
+                  <span style="padding:12px;border-left:1px solid rgba(35,32,27,.12);background:{{ c.bg }}">{{ c.t }}</span>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+
+          <h2 style="margin:48px 0 6px;font-family:'Gloock',serif;font-weight:400;font-size:44px;letter-spacing:-0.02em">Tool Permissions</h2>
+          <div style="border-left:1px solid #23201b;padding-left:14px;display:flex;flex-direction:column">
+            <sc-for list="{{ perms }}" as="p" hint-placeholder-count="5">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(35,32,27,.15)">
+                <div style="display:flex;flex-direction:column;gap:3px">
+                  <span style="font:400 13px 'Geist Mono',monospace">{{ p.tool }}</span>
+                  <span style="font-size:13px;color:#3b362e">{{ p.desc }}</span>
+                </div>
+                <div style="display:flex;gap:3px">
+                  <sc-for list="{{ p.opts }}" as="o" hint-placeholder-count="3">
+                    <span onClick="{{ o.onClick }}" style="background:{{ o.bg }};color:{{ o.fg }};padding:3px 8px;font-size:13px;cursor:pointer">{{ o.label }}</span>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- Inspector -->
+    <sc-if value="{{ showInspector }}" hint-placeholder-val="{{ true }}">
+      <div style="min-height:0;overflow:auto;padding:22px 14px 24px 18px;display:flex;flex-direction:column;gap:26px">
+        <sc-if value="{{ inspContext }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:26px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255">Context</span>
+              <div style="display:flex;justify-content:space-between;font-size:14px"><span>{{ ctxUsed }}</span><span style="color:#6b6255">of 200k tokens</span></div>
+              <div style="height:8px;border:1px solid #23201b;display:flex"><div style="width:{{ ctxPct }};background:#b4412c"></div></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255">Skill loaded</span>
+              <div style="border-left:1px solid #23201b;padding:2px 0 2px 10px;display:flex;flex-direction:column;gap:3px">
+                <span style="font-size:15px;font-weight:500">{{ ctxSkill }}</span>
+                <span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">{{ ctxSkillMeta }}</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255;padding-bottom:4px">Tools</span>
+              <sc-for list="{{ tools }}" as="t" hint-placeholder-count="5">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(35,32,27,.15)">
+                  <span style="font:400 12px 'Geist Mono',monospace;display:flex;gap:8px;align-items:center"><span style="width:7px;height:7px;background:{{ t.dot }}"></span>{{ t.name }}</span>
+                  <span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">{{ t.state }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255;padding-bottom:4px">Files in thread</span>
+              <sc-for list="{{ threadFiles }}" as="f" hint-placeholder-count="2">
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(35,32,27,.15);font-size:14px">
+                  <span>{{ f.name }}</span><span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">{{ f.size }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isSkills }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255">Selected</span>
+            <span style="font-size:30px;font-weight:500;letter-spacing:-0.04em;line-height:1">{{ selSkill.name }}</span>
+            <pre style="margin:0;background:#1f1c18;color:#e9e1d3;font:400 11.5px/1.65 'Geist Mono',monospace;padding:14px;white-space:pre-wrap">{{ selSkill.md }}</pre>
+            <div style="display:flex;gap:4px"><span style="background:#1f1c18;color:#fbf8f2;padding:3px 8px;font-size:13px">Edit</span><span style="background:#fbf8f2;padding:3px 8px;font-size:13px">Duplicate</span></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isFiles }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255">Preview</span>
+            <span style="font-size:24px;font-weight:500;letter-spacing:-0.03em;line-height:1.05;word-break:break-all">{{ selFile.name }}</span>
+            <pre style="margin:0;background:#1f1c18;color:#e9e1d3;font:400 11.5px/1.65 'Geist Mono',monospace;padding:14px;white-space:pre-wrap">{{ selFile.preview }}</pre>
+            <div style="display:flex;gap:4px"><span onClick="{{ goChat }}" style="background:#1f1c18;color:#fbf8f2;padding:3px 8px;font-size:13px;cursor:pointer">Ask about this file</span><span style="background:#fbf8f2;padding:3px 8px;font-size:13px">Download</span></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="font:400 10px 'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6255">Custom instructions</span>
+            <textarea style="height:220px;resize:none;border:1px solid #23201b;background:rgba(255,252,245,.28);outline:0;padding:12px;font:400 14px/1.45 Geist,sans-serif;color:#23201b">Be direct. Prefer tables over bullet lists for comparisons. Ask before writing outside /reports.</textarea>
+            <span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">Applied to every new thread.</span>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showInspector&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;showBanner&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { screen: 'new', t1: true, t2: false, approval: 'pending', skillOn: [true, true, true, false, true, false], selSkill: 0, selFile: 0, model: 1, perms: [0, 0, 1, 1, 2] };
+  set = o => this.setState(o);
+  onR = () => this.setState({ w: window.innerWidth });
+  componentDidMount() { this.onR(); window.addEventListener('resize', this.onR); }
+  componentWillUnmount() { window.removeEventListener('resize', this.onR); }
+  renderVals() {
+    const s = this.state, inspector = (this.props.showInspector ?? true) && (s.w ?? 1200) >= 1000;
+    const chip = (on) => ({ bg: on ? '#1f1c18' : '#fbf8f2', fg: on ? '#f8f3ea' : '#23201b' });
+    const navActive = { Chat: s.screen === 'new' || s.screen === 'chat', Skills: s.screen === 'skills', Files: s.screen === 'files', Settings: s.screen === 'settings' };
+    const navTarget = { Chat: 'chat', Skills: 'skills', Files: 'files', Settings: 'settings' };
+    const navNum = { Chat: 'I', Skills: 'II', Files: 'III', Settings: 'IV' };
+    const nav = Object.keys(navActive).map(l => ({ label: l, num: navNum[l], onClick: () => this.set({ screen: navTarget[l] }), ...(navActive[l] ? chip(true) : { bg: 'transparent', fg: '#23201b' }) }));
+    const tt = [['Churn analysis, Q3 cohorts', '3 tools · 12:40'], ['Draft board update email', '1 skill · 10:12'], ['Compare vendor contracts', '2 files · 09:03']];
+    const threadsToday = tt.map((t, i) => ({ title: t[0], meta: t[1], onClick: () => this.set({ screen: 'chat' }), ...(i === 0 && s.screen === 'chat' ? chip(true) : { bg: 'transparent', fg: '#23201b' }) }));
+    const threadsOlder = [['Rewrite onboarding copy', 'Sep 28'], ['SQL for weekly actives', 'Sep 27'], ['Trip planning, Lisbon', 'Sep 26'], ['Pricing page teardown', 'Sep 25']].map(t => ({ title: t[0], meta: t[1], onClick: () => this.set({ screen: 'chat' }) }));
+    const nums = Array.from({ length: 17 }, (_, i) => String(33 + i));
+    const filled = [1, 1, 0, 1, 1, 1, 0, 0, 1];
+    const binRow = filled.map(f => ({ ch: f ? '' : '0', bg: f ? '#1a1714' : 'transparent' }));
+    const skillsData = [
+      ['Data Analyst', 'Loads CSVs, runs Python, returns tables and charts with the method shown.', 'read_file · run_python', '---\nname: data-analyst\ntools: [read_file, run_python]\n---\nWhen given tabular data, inspect columns first.\nState sample sizes. Prefer tables to prose\nfor comparisons. Show the code you ran.'],
+      ['Writer', 'Drafts and edits long-form text in your voice from past documents.', 'read_file · write_file', '---\nname: writer\ntools: [read_file, write_file]\n---\nMatch the tone of /files/voice.\nNo filler. Keep paragraphs short.'],
+      ['Researcher', 'Searches the web, reads sources, and cites them inline.', 'web_search · fetch', '---\nname: researcher\ntools: [web_search, fetch]\n---\nCite every claim. Prefer primary sources.'],
+      ['Contract Review', 'Flags unusual clauses against your standard terms.', 'read_file', '---\nname: contract-review\ntools: [read_file]\n---\nCompare against /files/legal/standard.md.'],
+      ['Meeting Notes', 'Turns transcripts into decisions, owners and dates.', 'read_file · calendar', '---\nname: meeting-notes\ntools: [read_file, calendar]\n---\nOutput: Decisions, Owners, Dates.'],
+      ['SQL', 'Writes and explains queries against the connected warehouse.', 'sql_query', '---\nname: sql\ntools: [sql_query]\n---\nRead-only. Always LIMIT exploratory queries.']
+    ];
+    const skills = skillsData.map((d, i) => {
+      const on = s.skillOn[i];
+      return { name: d[0], desc: d[1], tools: d[2], chipLabel: on ? 'On' : 'Off', ...{ chipBg: on ? '#1f1c18' : '#fbf8f2', chipFg: on ? '#fbf8f2' : '#23201b' }, rowBg: i === s.selSkill ? 'rgba(255,252,245,.3)' : 'transparent', onSelect: () => this.set({ selSkill: i }), onToggle: (e) => { e.stopPropagation(); const a = [...s.skillOn]; a[i] = !a[i]; this.set({ skillOn: a }); } };
+    });
+    const filesData = [
+      ['cohorts_q3.csv', 'CSV', '412 KB', 'Today 12:38', 'Churn analysis', 'cohort,user_id,signup,active_d30,active_d90\nJul-A,10021,2026-07-02,1,1\nJul-B,10022,2026-07-03,1,0\nJul-B,10023,2026-07-03,0,0\nAug-A,10024,2026-08-01,1,1\n…  8,214 rows'],
+      ['churn_q3.md', 'MD', '1.8 KB', 'Today 12:45', 'Churn analysis', '# Q3 churn: Jul-B cohort\n\n90-day churn 41% vs 22% baseline.\nDrop concentrated in days 1–14.'],
+      ['board_deck_sep.pdf', 'PDF', '6.2 MB', 'Oct 01', 'Board update email', '24 pages · text extracted\n\n1  Q3 summary\n2  Revenue\n3  Retention …'],
+      ['vendor_a_msa.docx', 'DOCX', '88 KB', 'Sep 30', 'Vendor contracts', 'Master Services Agreement\n§4.2 Auto-renewal: 24 months …'],
+      ['vendor_b_msa.docx', 'DOCX', '91 KB', 'Sep 30', 'Vendor contracts', 'Master Services Agreement\n§4.2 Auto-renewal: 12 months …'],
+      ['voice.md', 'MD', '3 KB', 'Sep 12', 'Writer skill', 'Short sentences. Concrete nouns.\nNo exclamation marks.']
+    ];
+    const files = filesData.map((d, i) => ({ name: d[0], type: d[1], size: d[2], mod: d[3], used: d[4], rowBg: i === s.selFile ? 'rgba(255,252,245,.3)' : 'transparent', w: i === s.selFile ? 600 : 400, onSelect: () => this.set({ selFile: i }) }));
+    const mNames = ['Large', 'Balanced', 'Fast'];
+    const models = mNames.map((n, i) => ({ name: n, chip: i === s.model ? 'Default' : 'Use', ...chip(i === s.model), onClick: () => this.set({ model: i }) }));
+    const rowsData = [
+      ['Best for', 'Long research, hard reasoning, big codebases.', 'Everyday chat, tools, writing.', 'Quick lookups, short replies.'],
+      ['Speed', 'Slower. Thinks before answering.', 'Fast for most replies.', 'Near-instant.'],
+      ['Cost', 'Highest per token.', 'Moderate.', 'Lowest.'],
+      ['Context', '200k tokens', '200k tokens', '128k tokens'],
+      ['Tool use', 'Parallel tools, long chains.', 'Parallel tools.', 'Single tool per turn.']
+    ];
+    const modelRows = rowsData.map(r => ({ label: r[0], cells: r.slice(1).map((t, i) => ({ t, bg: i === s.model ? 'rgba(255,252,245,.28)' : 'transparent' })) }));
+    const permData = [['read_file', 'Read anything in /files'], ['web_search', 'Search and fetch pages'], ['run_python', 'Execute code in sandbox'], ['write_file', 'Create or change files'], ['send_email', 'Send mail as you']];
+    const perms = permData.map((p, i) => ({ tool: p[0], desc: p[1], opts: ['Allow', 'Ask', 'Deny'].map((l, j) => ({ label: l, ...chip(s.perms[i] === j), onClick: () => { const a = [...s.perms]; a[i] = j; this.set({ perms: a }); } })) }));
+    const toolDots = { read: '#b4412c', run: '#b4412c', ask: '#c08a2e', off: 'transparent' };
+    return {
+      nav, threadsToday, threadsOlder, binRow, numRow: nums,
+      modelName: mNames[s.model],
+      goNew: () => this.set({ screen: 'new' }), goChat: () => this.set({ screen: 'chat' }), goSettings: () => this.set({ screen: 'settings' }),
+      isNew: s.screen === 'new', isChat: s.screen === 'chat', isSkills: s.screen === 'skills', isFiles: s.screen === 'files', isSettings: s.screen === 'settings',
+      showBanner: this.props.showBanner ?? true,
+      wide: (s.w ?? 1400) >= 1280,
+      showInspector: inspector,
+      inspectorCol: inspector ? 'clamp(240px,22vw,320px)' : '0px',
+      centerBorderRight: inspector ? 'border-right:1px solid rgba(35,32,27,.35)' : '',
+      inspContext: s.screen === 'new' || s.screen === 'chat',
+      ctxUsed: s.screen === 'chat' ? '41.2k' : '3.1k', ctxPct: s.screen === 'chat' ? '21%' : '2%',
+      ctxSkill: s.screen === 'chat' ? 'Data Analyst' : 'None yet', ctxSkillMeta: s.screen === 'chat' ? 'auto-loaded · matched “csv”' : 'loads when a task matches',
+      tools: [['read_file', 'used ×1', toolDots.read], ['run_python', 'used ×1', toolDots.run], ['write_file', s.approval === 'pending' ? 'asking' : s.approval, s.approval === 'denied' ? '#5f9b86' : toolDots.ask], ['web_search', 'idle', '#23201b'], ['send_email', 'denied', toolDots.off]].map(t => ({ name: t[0], state: s.screen === 'chat' ? t[1] : 'ready', dot: t[2] })),
+      threadFiles: s.screen === 'chat' ? [{ name: 'cohorts_q3.csv', size: '412 KB' }, { name: 'churn_q3.md', size: s.approval === 'allowed' ? '1.8 KB' : 'pending' }] : [{ name: 'None attached', size: '' }],
+      suggestions: [
+        { title: 'Summarize The September Board Deck', meta: 'board_deck_sep.pdf · Writer' },
+        { title: 'Which Vendor Contract Auto-Renews Sooner?', meta: '2 files · Contract Review' },
+        { title: 'Pull Weekly Actives For The Last 12 Weeks', meta: 'SQL · sql_query' },
+        { title: 'Find Three Recent Papers On Calibrated Models', meta: 'Researcher · web_search' }
+      ],
+      t1Open: s.t1, t1Rule: s.t1 ? '1px solid #23201b' : '1px dashed #23201b', t1Rot: s.t1 ? 'rotate(180deg)' : 'none', toggleT1: () => this.set({ t1: !s.t1 }),
+      t2Open: s.t2, t2Rule: s.t2 ? '1px solid #23201b' : '1px dashed #23201b', t2Rot: s.t2 ? 'rotate(180deg)' : 'none', toggleT2: () => this.set({ t2: !s.t2 }),
+      cohortRows: [['Jul-A', '1,842', '9%', '21%'], ['Jul-B (paid ads)', '2,310', '24%', '41%'], ['Aug-A', '2,006', '8%', '23%'], ['Sep-A', '2,056', '7%', '—']].map((r, i) => ({ c: r[0], u: r[1], a: r[2], b: r[3], w: i === 1 ? 600 : 400 })),
+      bars: [['Jul-A', 79, 0], ['Jul-B', 59, 1], ['Aug-A', 77, 0], ['Aug-B', 80, 0], ['Sep-A', 82, 0], ['Sep-B', 78, 0]].map(b => ({ l: b[0], v: b[1] + '%', h: b[1] + '%', c: b[2] ? '#5f9b86' : '#b4412c' })),
+      approvalPending: s.approval === 'pending', approvalDone: s.approval !== 'pending',
+      approvalText: s.approval === 'allowed' ? 'Write_file · /reports/churn_q3.md · Approved · 88ms' : 'Write_file · Denied by you · Nothing written',
+      allow: () => this.set({ approval: 'allowed' }), deny: () => this.set({ approval: 'denied' }), resetApproval: () => this.set({ approval: 'pending' }),
+      skills, selSkill: { name: skillsData[s.selSkill][0], md: skillsData[s.selSkill][3] },
+      files, selFile: { name: filesData[s.selFile][0], preview: filesData[s.selFile][5] },
+      models, modelRows, perms
+    };
+  }
+}
+</script>
+</body>
+</html>

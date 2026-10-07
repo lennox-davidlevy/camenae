@@ -30,7 +30,7 @@
 .files-upload p { margin: 0; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; max-width: 100%; }
 .files-upload input { max-width: 100%; min-width: 0; font: 400 12px var(--body-font); }
 .files-upload input::file-selector-button { margin-right: 8px; border: 0; border-radius: 0; padding: 6px 10px; background: var(--deep-ink); color: var(--surface); font: inherit; cursor: pointer; }
-.files-upload input:focus-visible { outline: 2px solid var(--approval); outline-offset: 3px; }
+.files-upload input:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 .files-upload code { font-family: var(--mono-font); }
 .file-inspector, .shell-inspector .file-inspector { display: flex; flex-direction: column; gap: 12px; }
 .file-inspector h2 { margin: 0; font: 400 10px var(--mono-font); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
@@ -38,7 +38,7 @@
 .file-preview { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .file-preview h3 { margin: 0; font: 400 10px var(--mono-font); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .file-preview pre { margin: 0; padding: 14px; max-height: 50dvh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; background: var(--deep-ink); color: var(--panel-text); font: 400 11.5px/1.65 var(--mono-font); }
-.file-preview pre:focus-visible { outline: 2px solid var(--approval); outline-offset: 3px; }
+.file-preview pre:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 .file-preview p { margin: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .file-path { background: var(--deep-ink); color: var(--panel-text); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 .file-path span { font: 400 10px var(--mono-font); text-transform: uppercase; letter-spacing: .06em; }

@@ -7,6 +7,8 @@ import { McpApprovals, NativeApproval, NativeApprovalHistory } from "./chat-appr
 import type { Screen } from "./layout-shell.js";
 import { SessionUsagePanel } from "./session-usage.js";
 import "./active-chat.css";
+import { AttachmentChips, ThreadFiles } from "./attachments.js";
+import type { FileAttachment } from "../file-contract.js";
 
 const ApprovalActions = createContext<{
   pending: boolean;
@@ -54,7 +56,9 @@ function ToolActivity({ data }: DataMessagePartProps) {
 }
 
 function UserMessage() {
-  return <MessagePrimitive.Root className="chat-user-message"><span className="chat-user-label">You</span><div className="chat-user-text"><MessagePrimitive.Parts /></div></MessagePrimitive.Root>;
+  const turn = Turn.parse(useAuiState((state) => state.message.metadata.custom.turn));
+
+  return <MessagePrimitive.Root className="chat-user-message"><span className="chat-user-label">You</span><div className="chat-user-text"><MessagePrimitive.Parts /><AttachmentChips files={turn.attachments} /></div></MessagePrimitive.Root>;
 }
 
 function AssistantMessage() {
@@ -73,7 +77,8 @@ function AssistantMessage() {
   </MessagePrimitive.Root>;
 }
 
-export function ActiveChat({ title, mcp, pending, status, reconnect, onNativeApprove, onMcpApprove, onScreen }: {
+export function ActiveChat({ title, mcp, pending, status, reconnect, onNativeApprove, onMcpApprove, onScreen, attachments }: {
+  attachments: ReactNode;
   title: string;
   mcp: ChatView["mcp"];
   pending: boolean;
@@ -92,8 +97,8 @@ export function ActiveChat({ title, mcp, pending, status, reconnect, onNativeApp
     <div className="active-chat-composer-dock">
       <ComposerPrimitive.Root className="active-chat-composer">
         <ComposerPrimitive.Input placeholder="Reply…" aria-label="Message Camenae" maxLength={8000} maxRows={4} />
+        {attachments}
         <div className="active-chat-composer-actions">
-          <button type="button" aria-label="Open shared workspace files" title="Open shared workspace files (not attachments)" onClick={() => onScreen("Files")}>+</button>
           <button type="button" aria-label="Open skills preview" title="Open skills preview" onClick={() => onScreen("Skills")}>/</button>
           <ComposerPrimitive.Send className="active-chat-send">Send</ComposerPrimitive.Send>
           <ComposerPrimitive.Cancel className="active-chat-stop" disabled={pending}>Stop</ComposerPrimitive.Cancel>
@@ -103,7 +108,7 @@ export function ActiveChat({ title, mcp, pending, status, reconnect, onNativeApp
   </ApprovalActions.Provider>;
 }
 
-export function ActiveChatInspector({ turn, usage, approvals, onSettings }: { turn?: Turn; usage: ChatView["usage"]; approvals: number; onSettings: () => void }) {
+export function ActiveChatInspector({ turn, usage, approvals, onSettings, attachments }: { turn?: Turn; usage: ChatView["usage"]; approvals: number; onSettings: () => void; attachments: FileAttachment[] }) {
   const [preview, setPreview] = useState("Default");
 
   return <div className="active-chat-inspector">
@@ -111,7 +116,7 @@ export function ActiveChatInspector({ turn, usage, approvals, onSettings }: { tu
     <section><h2>Skill loaded</h2><div className="chat-skill-status"><strong>Not reported</strong><small>Skill reporting preview</small></div></section>
     <section><h2>Tools · latest turn</h2>{turn?.activity.length ? <ul className="chat-inspector-tools">{turn.activity.map((tool) => <li key={tool.id}><span>{tool.title}</span><small>{tool.status}</small></li>)}</ul> : <p>No tool activity reported.</p>}</section>
     <section><h2>Approvals</h2><p>{approvals > 0 ? `${approvals} waiting in this conversation` : "No pending requests"}</p><small>Authorization does not confirm execution.</small></section>
-    <section><h2>Files in thread</h2><p>Attachments not connected</p></section>
+    <ThreadFiles attachments={attachments} />
     <fieldset className="chat-policy-preview"><legend>Conversation policy · preview</legend><div>{["Default", "Ask", "Allow", "Deny"].map((option) => <button key={option} aria-pressed={preview === option} onClick={() => setPreview(option)}>{option}</button>)}</div><p>UI preview only. This selection does not change permissions. Global policies still apply.</p><button onClick={onSettings}>Global tools &amp; permissions →</button></fieldset>
   </div>;
 }

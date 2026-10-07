@@ -1,11 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { FilePreview } from "../file-contract.js";
+import { FilePreview, filePreviewLimit, plainText, UploadName } from "../file-contract.js";
 import "./files.css";
 
 const Entries = z.object({ entries: z.array(z.object({ name: z.string(), directory: z.boolean() })) });
 
 const Uploaded = z.object({ path: z.string().startsWith("inbox/") });
+
+export async function uploadWorkspaceFile(file: File, csrf: string, conversation?: string) {
+  if (file.size > filePreviewLimit) throw new Error("Choose a text file of up to 64 KiB.");
+
+  if (!UploadName.safeParse(file.name).success) throw new Error("Choose a supported text file with a short filename, without slashes or control characters.");
+  let text: string;
+
+  try { text = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer()); }
+  catch { throw new Error("This file is not valid UTF-8 text."); }
+
+  if (!plainText(text)) throw new Error("This file contains binary data. Choose a text file instead.");
+  const response = await fetch("/api/files", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ csrf, name: file.name, text, conversation }) });
+
+  if (!response.ok) throw new Error(response.status === 401 ? "Sign in again to upload files." : "Upload failed. Please retry; supported text files must be at most 64 KiB.");
+
+  return { path: Uploaded.parse(await response.json()).path, bytes: new TextEncoder().encode(text).length };
+}
 
 const shortcuts = ["outputs", "inbox", "projects", "scratch"];
 
@@ -98,27 +115,11 @@ export function useWorkspaceFiles(active: boolean, csrf?: string) {
     setUploadError("");
     setUploaded("");
 
-    if (file.size > 8000) {
-      setUploadError("Text uploads are limited to 8 KB (8,000 UTF-8 bytes).");
-
-      return;
-    }
-
-    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(file.name)) {
-      setUploadError("Use a filename of up to 80 letters, numbers, dots, dashes or underscores, starting with a letter or number.");
-
-      return;
-    }
-
     uploadPending.current = true;
     setUploading(true);
 
     try {
-      const response = await fetch("/api/files", { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ csrf, name: file.name, text: await file.text() }) });
-
-      if (!response.ok) throw new Error("Upload failed. Check your login and use a UTF-8 text file of up to 8 KB.");
-      const result = Uploaded.parse(await response.json());
+      const result = await uploadWorkspaceFile(file, csrf);
       setPath("inbox");
       setEntries([]);
       setSelected(result.path);
@@ -161,7 +162,7 @@ export function FileInspector({ path, preview }: { path?: string; preview?: Prev
         }}>Copy path</button>
       </div>
       {copyStatus && <p role="status">{copyStatus}</p>}
-      <small>Downloads are attachments, up to 8 MiB. Copy the path to reference this file in Chat; it is not attached automatically.</small>
+      <small>Downloads are limited to 8 MiB. Use + File in Chat to attach a text snapshot, or copy this path to reference it. Files are not attached automatically.</small>
     </> : <p>Select a file to preview it, download it, or copy its path.</p>}
   </section>;
 }
@@ -206,7 +207,7 @@ export function WorkspaceFiles({ files }: { files: ReturnType<typeof useWorkspac
     </div>
     <div className="files-upload">
       <label htmlFor="workspace-file-upload">Upload a text file</label>
-      <p id="workspace-upload-help">TXT, Markdown, CSV, or JSON · up to 8 KB · saved to inbox</p>
+      <p id="workspace-upload-help">Text files · up to 64 KiB · saved to inbox. You can also upload directly from + File in Chat.</p>
       <input id="workspace-file-upload" type="file" accept=".txt,.md,.csv,.json" disabled={files.uploading} aria-describedby="workspace-upload-help" onChange={(event) => {
         const file = event.target.files?.[0];
         event.target.value = "";
@@ -214,7 +215,7 @@ export function WorkspaceFiles({ files }: { files: ReturnType<typeof useWorkspac
         if (file) void files.upload(file);
       }} />
       {files.uploading && <p role="status">Uploading…</p>}
-      {files.uploaded && <p role="status">Saved as <code>{files.uploaded}</code>. Select Copy path to reference it in Chat.</p>}
+      {files.uploaded && <p role="status">Saved as <code>{files.uploaded}</code>. Choose it with + File in Chat.</p>}
       {files.uploadError && <p role="alert">{files.uploadError}</p>}
     </div>
     <div className="files-inline-inspector"><FileInspector key={files.selected ?? "none"} path={files.selected} preview={files.preview} /></div>

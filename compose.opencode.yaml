@@ -1,0 +1,44 @@
+# Opt-in Console/free-only worker. Never apply to an active installation without coordination.
+services:
+  app:
+    environment:
+      CAMENAE_OPENCODE_CONSOLE_FREE: "true"
+      CAMENAE_OPENCODE_URL: http://opencode-worker:4096
+      CAMENAE_OPENCODE_PASSWORD: ${CAMENAE_OPENCODE_PASSWORD:?Dedicated worker credential required}
+    depends_on:
+      opencode-worker:
+        condition: service_healthy
+  opencode-worker:
+    build:
+      context: .
+      dockerfile: docker/application.Dockerfile
+    command: [bun, docker/opencode-runtime/opencode-worker.ts]
+    init: true
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    sysctls:
+      net.ipv4.ip_forward: "0"
+    pids_limit: 256
+    mem_limit: 2g
+    cpus: 2
+    stop_grace_period: 10s
+    environment:
+      CAMENAE_OPENCODE_CONFIG: /app/docker/opencode-runtime/console-free.json
+      CAMENAE_OPENCODE_PASSWORD: ${CAMENAE_OPENCODE_PASSWORD:?Dedicated worker credential required}
+      CAMENAE_OPENCODE_CONSOLE_FREE: "true"
+    volumes:
+      - workspace:/data/workspace
+      - opencode-state:/data/opencode-state
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=0700
+    networks: [inference]
+    healthcheck:
+      test: [CMD, bun, -e, "const r=await fetch('http://127.0.0.1:4096/api/info');process.exit(r.status===401?0:1)"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+volumes:
+  opencode-state:
