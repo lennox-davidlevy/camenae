@@ -33,7 +33,7 @@ not a guarantee against kernel escapes or unsafe handling of generated artifacts
 | --- | --- |
 | `Configuration`, `DatabaseLive` | Validated deployment inputs, redacted secrets, scoped PostgreSQL pool and timeouts |
 | `Installation`, `src/migrations/` | Persistent installation identity and forward-only transactional migrations |
-| `Identity` | Local account, login admission, database-backed sessions, encrypted Bob credential |
+| `Identity` | Local account, login admission, database-backed sessions, encrypted Bob/Console credentials |
 | `Workspace`, `Files` | Retained directories and bounded authenticated file operations |
 | `HarnessRuntime`, `worker.ts` | Packaged SDK connection, environment filtering, worker lifetime and configuration handoff |
 | `Chat` | Conversations, turn admission, retained native sessions, snapshots, preparation, cancellation, usage |
@@ -87,9 +87,27 @@ Native context lives in retained Bob state; the app does not replay transcripts.
 `/data/tmp` and `/tmp` are disposable tmpfs. Workspace folders are conventions,
 not conversation sandboxes. Startup rejects symbolic links in provisioned
 directories; that alone is not race-proof isolation. File APIs reject traversal,
-symlinks, and special files, with limits of 200 directory entries, 8,000 UTF-8 upload
-bytes, 64 KiB plain-text preview, and 8 MiB attachment download. HTML/Markdown
-previews are text, not rendered active content. Upload names are generated in inbox.
+symlinks, and special files, with limits of 200 directory entries, 64 KiB UTF-8 text
+upload/preview, and 8 MiB attachment download. HTML/Markdown previews are text, not
+rendered active content. Files-tab uploads retain generated names in inbox. Chat
+uploads use `inbox/<conversation-id>/<filename>`, preserving readable filenames and
+adding a numeric suffix on collisions without overwriting existing files. The
+conversation must exist before upload; these folders organize files, not isolate
+them from other conversations. Both paths validate text format and content.
+
+Chat accepts up to four selected workspace text files, 64 KiB total UTF-8 content,
+alongside a nonempty message. The authenticated server reopens files through the
+same descriptor-relative, no-symlink reader as preview, validates text, and saves
+immutable path/content snapshots with the turn before dispatch. Both harnesses
+receive those snapshots as labeled JSON text appended to the message, not as native
+binary attachments or instructions. These are provider-visible inputs subject to
+the selected model's data-use terms. Changing/deleting a workspace file does not
+change a sent snapshot. A missing, unsupported, binary, or oversized selection
+rejects the whole send without starting a turn. The HTTP body ceiling is 512 KiB to
+allow JSON escaping of bounded uploads; non-upload requests retain a 16 KiB limit,
+including chunked requests, and endpoint schemas retain their own field limits.
+Native agent access to the shared
+workspace is unchanged; this is context selection, not a filesystem permission gate.
 
 Volumes surviving container replacement is not a backup. Retain database, workspace,
 native state, and encryption credentials together; see [operations](OPERATIONS.md).
@@ -100,16 +118,20 @@ Local provisioning generates an `owner` password hashed with Argon2id (64 MiB,
 three iterations) and an independent 256-bit encryption key. Private files are
 mode 0600 in a mode-0700 directory; initialization never overwrites them. The
 read-only Compose secret seeds only a new database account, not an existing one.
-There is no password reset, registration, key rotation, or SSO implementation.
+The Account page changes the database password after session/CSRF and current-password
+verification. New passwords are 15–256 characters and use the same Argon2id parameters.
+The credential file and encryption key are not rewritten. A password change rotates
+the session atomically; in-flight logins cannot mint sessions using an obsolete hash.
+There is no forgotten-password reset, registration, key rotation, or SSO implementation.
 
 Login attempts, including failures/invalid usernames, are limited account-wide to
-one per five seconds. Sessions use random 256-bit opaque cookies; Postgres stores
+one per five seconds, shared with password-change verification. Sessions use random 256-bit opaque cookies; Postgres stores
 only a SHA-256 digest, CSRF token, and eight-hour absolute expiry. New login revokes
 the previous login. Every protected request checks Postgres; transactional session
 locking prevents credential writes racing revocation. Streams recheck authorization
 before snapshots, including while idle; database failure fails closed.
 
-All POSTs require the exact configured Origin, including login. Protected actions
+All public POSTs require the exact configured Origin, including login. Protected actions
 also require the session CSRF token. Bodies/fields are bounded. Cookies are HttpOnly,
 SameSite=Strict, Path=/, without Domain. HTTPS uses Secure `__Host-` cookies; HTTP
 is accepted only for explicit loopback origins. There is no permissive CORS or
@@ -122,6 +144,13 @@ to installation ID/purpose/version (`camenae:bob-key:v1`). Only ciphertext, nonc
 and tag enter Postgres. Wrong encryption keys fail startup rather than overwriting
 unreadable data. Deleting a credential row does not erase backups/WAL. Saving a key
 reports **saved, not verified**, and performs no inference.
+
+Optional [Console setup](OPENCODE.md#console-free-only-setup) uses a separate
+`camenae:console-key:v1` encryption context. The private inference-network gateway
+requires the worker credential rather than browser cookies/Origin. It supplies
+the Console key outside the worker, restricts endpoint/model/output, and atomically
+counts requests against a persistent safety cap. Key removal clears the live
+credential, not historical database backups or the request counter.
 
 The app is trusted and can read its encryption secret; same-user app processes
 can too. Worker environment is explicitly filtered before native launch. It has

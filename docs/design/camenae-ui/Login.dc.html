@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Geist:ital,wght@0,400;0,500;0,600;1,400&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+html,body{margin:0;background:#e6dfd2;color:#23201b;font-family:'Geist',sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#23201b;text-decoration:underline;text-underline-offset:3px}
+a:hover{color:#b4412c}
+input::placeholder{color:#8a8072}
+*{scrollbar-width:thin;scrollbar-color:#23201b transparent}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:linear-gradient(90deg,transparent 5px,rgba(35,32,27,.22) 5px 6px,transparent 6px)}
+::-webkit-scrollbar-track:horizontal{background:linear-gradient(0deg,transparent 5px,rgba(35,32,27,.22) 5px 6px,transparent 6px)}
+::-webkit-scrollbar-thumb{background:#23201b;border:4px solid transparent;background-clip:padding-box;border-radius:0;min-height:40px}
+::-webkit-scrollbar-thumb:hover,::-webkit-scrollbar-thumb:active{background-color:#b4412c;border-width:3px}
+::-webkit-scrollbar-corner,::-webkit-scrollbar-button{display:none;background:transparent}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column">
+  <div style="display:flex;justify-content:space-between;align-items:stretch;height:46px;flex:none;border-bottom:1px solid #23201b">
+    <div style="display:flex;align-items:center;gap:12px;padding:0 16px">
+      <span style="font:400 24px/1 'Gloock',serif;letter-spacing:.14em;text-transform:uppercase">Camenae</span>
+      <span style="width:5px;height:5px;background:#b4412c;transform:rotate(45deg);flex:none"></span>
+      <span style="font:400 10px 'Geist Mono',monospace;letter-spacing:.1em;color:#6b6255;text-transform:uppercase;white-space:nowrap">Fons · Consilium</span>
+    </div>
+    <div style="display:flex;align-items:stretch">
+      <div style="display:flex;align-items:center;padding:0 16px;border-left:1px solid #23201b;font:400 10px 'Geist Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6255;white-space:nowrap">Status · All systems normal</div>
+      <div onClick="{{ toggleMode }}" style="display:flex;align-items:center;padding:0 18px;border-left:1px solid #23201b;font-size:16px;cursor:pointer;white-space:nowrap" style-hover="background:rgba(35,32,27,.06)">{{ switchLabel }}</div>
+    </div>
+  </div>
+
+  <div style="flex:1;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);min-height:0">
+    <div style="position:relative;border-right:1px solid #23201b;display:flex;flex-direction:column;justify-content:flex-end;padding:48px clamp(24px,4vw,64px) 0;overflow:hidden">
+      <div style="position:absolute;top:28px;left:clamp(24px,4vw,64px);right:clamp(24px,4vw,64px);display:flex;justify-content:space-between;font:400 10px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#6b6255">
+        <span>Aegeria · Nº I</span><span>Ex fonte, consilium</span>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:0;border-bottom:1px solid #23201b">
+        <div style="width:clamp(220px,26vw,380px);aspect-ratio:380 / 520;flex:none;background:#1f1c18;border-radius:999px 999px 0 0;position:relative;overflow:hidden">
+          <img src="assets/camenae-coin.png" alt="Aegeria" style="position:absolute;left:50%;top:9%;width:84%;transform:translateX(-50%);filter:invert(1);mix-blend-mode:screen;opacity:.94"></img>
+          <div style="position:absolute;left:0;right:0;bottom:22px;text-align:center;font:400 10px 'Geist Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#e9e1d3">Fons · I</div>
+        </div>
+        <div style="flex:1;min-width:0;height:clamp(150px,18vw,240px);background:#b4412c;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:0 0 16px 20px">
+          <img src="assets/camenae-coin.png" alt="" style="position:absolute;right:-30%;top:-40%;width:110%;mix-blend-mode:multiply;opacity:.14"></img>
+          <span style="position:relative;font:400 10px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#f8f3ea">Est. MMXXVI</span>
+        </div>
+        <div style="width:clamp(60px,7vw,100px);height:clamp(260px,32vw,440px);flex:none;display:flex;flex-direction:column">
+          <div style="height:14px;background:#23201b"></div>
+          <div style="height:6px;border-bottom:1px solid #23201b"></div>
+          <div style="flex:1;margin:0 8px;background:repeating-linear-gradient(90deg,#e6dfd2 0 8px,#23201b 8px 9px,#d8cfbf 9px 13px,#23201b 13px 14px);border-left:1px solid #23201b;border-right:1px solid #23201b"></div>
+        </div>
+      </div>
+      <div style="padding:22px 0 28px;display:flex;justify-content:space-between;gap:24px;align-items:baseline">
+        <span style="font:400 clamp(16px,1.4vw,19px)/1.4 'Geist',sans-serif;max-width:36ch;text-wrap:pretty;color:#3b362e">An assistant with its tools, skills and files in plain view.</span>
+        <span style="font:400 10px 'Geist Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6255;white-space:nowrap">Fig. I</span>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:center;padding:48px clamp(24px,5vw,80px)">
+      <div style="width:100%;max-width:440px;display:flex;flex-direction:column">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:22px">
+          <span style="background:#1f1c18;color:#f8f3ea;padding:3px 7px;font:400 12px 'Geist Mono',monospace">{{ tag }}</span>
+          <span style="font:400 12px 'Geist Mono',monospace;color:#6b6255">{{ step }}</span>
+        </div>
+        <h1 style="margin:0 0 14px;font-family:'Gloock',serif;font-weight:400;font-size:clamp(52px,5.4vw,80px);line-height:.92;letter-spacing:-0.03em;text-wrap:balance">{{ title }}</h1>
+        <p style="margin:0 0 36px;font-size:17px;line-height:1.45;color:#3b362e;text-wrap:pretty">{{ sub }}</p>
+
+        <sc-if value="{{ isForm }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:22px">
+            <sc-if value="{{ isSignup }}" hint-placeholder-val="{{ false }}">
+              <label style="display:flex;flex-direction:column;gap:6px">
+                <span style="font:400 10px 'Geist Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6255">Name</span>
+                <input placeholder="Numa Pompilius" style="all:unset;font-size:19px;padding:8px 0 10px;border-bottom:1px solid #23201b"></input>
+              </label>
+            </sc-if>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <span style="display:flex;justify-content:space-between;font:400 10px 'Geist Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:{{ emailLabelColor }}"><span>Email</span><span>{{ emailErr }}</span></span>
+              <input value="{{ email }}" onChange="{{ onEmail }}" placeholder="you@company.com" style="all:unset;font-size:19px;padding:8px 0 10px;border-bottom:1px solid {{ emailLine }}"></input>
+            </label>
+            <sc-if value="{{ usePassword }}" hint-placeholder-val="{{ true }}">
+              <label style="display:flex;flex-direction:column;gap:6px">
+                <span style="display:flex;justify-content:space-between;font:400 10px 'Geist Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6255"><span>Password</span><a href="#" style="color:#6b6255">Forgot?</a></span>
+                <input type="password" placeholder="••••••••••" style="all:unset;font-size:19px;padding:8px 0 10px;border-bottom:1px solid #23201b"></input>
+              </label>
+            </sc-if>
+            <div onClick="{{ submit }}" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;background:#b4412c;color:#f8f3ea;padding:14px 16px;font-size:17px;cursor:pointer" style-hover="background:#9a3524">
+              <span>{{ cta }}</span><span style="font:400 13px 'Geist Mono',monospace">↵</span>
+            </div>
+            <sc-if value="{{ showSSO }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:12px;font:400 10px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#6b6255">
+                <span style="flex:1;height:1px;background:rgba(35,32,27,.3)"></span><span>or</span><span style="flex:1;height:1px;background:rgba(35,32,27,.3)"></span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div style="border:1px solid #23201b;padding:11px 14px;font-size:15px;cursor:pointer;display:flex;justify-content:space-between" style-hover="background:#fbf8f2"><span>Google</span><span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">G</span></div>
+                <div style="border:1px solid #23201b;padding:11px 14px;font-size:15px;cursor:pointer;display:flex;justify-content:space-between" style-hover="background:#fbf8f2"><span>SSO</span><span style="font:400 11px 'Geist Mono',monospace;color:#6b6255">SAML</span></div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isSent }}" hint-placeholder-val="{{ false }}">
+          <div style="border-left:1px solid #23201b;padding:4px 0 4px 16px;display:flex;flex-direction:column;gap:14px">
+            <span style="font:400 12px 'Geist Mono',monospace">{{ email }}</span>
+            <div style="display:flex;gap:6px">
+              <div onClick="{{ back }}" style="background:#fbf8f2;padding:6px 10px;font-size:15px;cursor:pointer">Use another email</div>
+              <div style="background:#1f1c18;color:#f8f3ea;padding:6px 10px;font-size:15px;cursor:pointer">Resend link</div>
+            </div>
+          </div>
+        </sc-if>
+
+        <div style="margin-top:40px;padding-top:14px;border-top:1px dashed rgba(35,32,27,.4);display:flex;justify-content:space-between;gap:16px;font-size:14px;color:#3b362e">
+          <span>{{ footQ }} <a href="#" onClick="{{ toggleMode }}">{{ footA }}</a></span>
+          <span onClick="{{ toggleMethod }}" style="font:400 11px 'Geist Mono',monospace;color:#6b6255;cursor:pointer;text-decoration:underline;text-underline-offset:3px">{{ methodLabel }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;height:36px;padding:0 16px;border-top:1px solid #23201b;font:400 10px 'Geist Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6255">
+    <span>© MMXXVI Camenae</span>
+    <div style="display:flex;gap:18px"><a href="#" style="color:#6b6255">Terms</a><a href="#" style="color:#6b6255">Privacy</a><a href="#" style="color:#6b6255">Security</a></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showSSO&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;defaultMethod&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;password&quot;,&quot;magic&quot;],&quot;default&quot;:&quot;password&quot;,&quot;tsType&quot;:&quot;'password' | 'magic'&quot;}}">
+class Component extends DCLogic {
+  state = { mode: 'signin', magic: null, sent: false, email: '', err: false };
+  set = o => this.setState(o);
+  renderVals() {
+    const s = this.state, signup = s.mode === 'signup';
+    const magic = s.magic ?? (this.props.defaultMethod === 'magic');
+    const submit = () => {
+      if (!/^\S+@\S+\.\S+$/.test(s.email)) return this.set({ err: true });
+      if (magic) this.set({ sent: true, err: false });
+    };
+    return {
+      isSignup: signup, usePassword: !magic, isForm: !s.sent, isSent: s.sent,
+      showSSO: this.props.showSSO ?? true,
+      tag: s.sent ? 'Check Inbox' : signup ? 'New Account' : 'Sign In',
+      step: s.sent ? 'Link valid 15 min' : signup ? 'Step 1 of 2' : 'Welcome back',
+      title: s.sent ? 'A Letter Is On Its Way.' : signup ? 'Begin at the Spring.' : 'Return to the Spring.',
+      sub: s.sent ? 'We sent a sign-in link to the address below. Open it on this device to continue.' : signup ? 'Create a workspace for your threads, skills and files.' : 'Sign in to pick up your threads where you left them.',
+      cta: signup ? 'Create account' : magic ? 'Email me a link' : 'Sign in',
+      email: s.email, onEmail: e => this.set({ email: e.target.value, err: false }),
+      emailErr: s.err ? 'Enter a valid email' : '',
+      emailLabelColor: s.err ? '#b4412c' : '#6b6255', emailLine: s.err ? '#b4412c' : '#23201b',
+      submit, back: () => this.set({ sent: false }),
+      switchLabel: signup ? 'Sign in' : 'Create account',
+      toggleMode: e => { e && e.preventDefault && e.preventDefault(); this.set({ mode: signup ? 'signin' : 'signup', sent: false, err: false }); },
+      footQ: signup ? 'Have an account?' : 'New to Camenae?', footA: signup ? 'Sign in' : 'Create an account',
+      methodLabel: magic ? 'Use password instead' : 'Email me a link instead',
+      toggleMethod: () => this.set({ magic: !magic, sent: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

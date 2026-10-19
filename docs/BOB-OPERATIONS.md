@@ -19,8 +19,12 @@ alone cannot install without this prerequisite**. An arbitrary build of version
 0.5.0 is not interchangeable. The runtime includes the SDK's guarded
 `acp-mcp-always-allow-v1` and `acp-session-usage-v1` preparation corrections.
 
+The application also requires the exact [OpenCode SDK archive](OPENCODE.md#exact-local-dependency)
+at install/build time, including Bob-only deployments. Obtain and stage both:
+
 ```sh
-bun run sdk:stage /path/to/approved-sdk.tgz
+bun run sdk:stage /path/to/approved-bob-sdk.tgz
+bun run sdk:stage /path/to/camenae-opencode-0.1.0-b24e73923802.tgz
 bun install --frozen-lockfile
 ```
 

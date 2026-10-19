@@ -8,25 +8,33 @@ that can use tools and work with your files.
 
 - Keep conversations, stream replies, inspect tool activity, and stop a running turn.
 - Browse a shared workspace; upload small text files, preview text, and download files.
+- Attach workspace text-file snapshots to chat messages.
 - Choose persistent approval preferences and per-tool Context7 permissions.
 - Reuse native workspace skills and scripts across new conversations.
 - Sign in locally and store an encrypted inference credential.
 
-**Bob is the only implemented harness**, integrated through `@camenae/bob`. Camenae
+**Bob is the default harness**, integrated through `@camenae/bob`. An
+[experimental OpenCode integration](docs/OPENCODE.md) is available for isolated
+acceptance; the standard Compose installation below deploys Bob. Camenae
 owns the application, identity, persistence, workspace, UI, and worker deployment;
-Bob owns its agent loop and native tools. Other harnesses are not selectable.
+each harness owns its agent loop and native tools. New Chat can select a configured
+harness without changing existing conversations. Optional OpenCode setup supports
+approved free Console models through a guarded gateway.
 
 ## Quick start — new installation
 
 Requirements: Linux Docker Engine with isolated internal bridges (28.4 or newer),
-Docker Compose v2, Bun **1.4.2**, `sha256sum`, and the approved external SDK archive.
+Docker Compose v2, Bun **1.4.2**, `sha256sum`, and both approved external SDK archives.
 Builds need access to package registries and container images. The SDK is not a
 published registry release and its bundled Bob runtime is **not included in this
-source repository**. Obtain the exact delivery described in the
-[Bob integration guide](docs/BOB-OPERATIONS.md#sdk-dependency) before starting.
+source repository**. Obtain the exact Bob delivery described in the
+[Bob integration guide](docs/BOB-OPERATIONS.md#sdk-dependency) and the
+[OpenCode archive](docs/OPENCODE.md#exact-local-dependency) before starting.
+Both are required to install/build, even when using only Bob.
 
 ```sh
-bun run sdk:stage /path/to/approved-sdk.tgz
+bun run sdk:stage /path/to/approved-bob-sdk.tgz
+bun run sdk:stage /path/to/camenae-opencode-0.1.0-b24e73923802.tgz
 bun install --frozen-lockfile
 bun run dev:init
 bun run auth:init
@@ -49,11 +57,11 @@ This is a local, single-user, single-app-process deployment. One turn runs at a
 time. Closing a browser tab does not cancel work. The worker can see its inference
 key and shared workspace, but not application/database credentials. Approval
 settings only govern requests actually made by the harness; they are not a sandbox.
-Network access is restricted to Bob inference and trusted-gate Context7 requests.
+Network access is restricted to Bob inference and trusted-gate Context7/Console requests.
 General browsing, package downloads, and Git network operations are blocked.
 
 The Skills screen and conversation-policy buttons are previews, not working
-management controls. Model selection, editable custom instructions, arbitrary
+management controls. Arbitrary model selection, editable custom instructions, arbitrary
 connectors, SSO, multi-user isolation, and production/cloud deployment are not
 implemented. Effect v4 RC is a pinned pre-release dependency. Backup restoration
 and cross-host native-session resume are not automated guarantees.

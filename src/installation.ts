@@ -9,6 +9,11 @@ import mcpSettingsMigration from "./migrations/004-mcp-settings.js";
 import approvalSettingsMigration from "./migrations/005-approval-settings.js";
 import approvalDecisionsMigration from "./migrations/006-approval-decisions.js";
 import mcpPermissionsMigration from "./migrations/007-mcp-permissions.js";
+import harnessMigration from "./migrations/008-harness.js";
+import consoleConnectionMigration from "./migrations/009-console-connection.js";
+import consoleBudgetModelMigration from "./migrations/010-console-budget-model.js";
+import threadActivityMigration from "./migrations/011-thread-activity.js";
+import turnAttachmentsMigration from "./migrations/012-turn-attachments.js";
 
 export class DatabaseError extends Schema.TaggedError<DatabaseError>()("DatabaseError", {}) {}
 
@@ -28,6 +33,11 @@ export class Installation extends Context.Service<Installation, {
       "005_approval_settings": approvalSettingsMigration,
       "006_approval_decisions": approvalDecisionsMigration,
       "007_mcp_permissions": mcpPermissionsMigration,
+      "008_harness": harnessMigration,
+      "009_console_connection": consoleConnectionMigration,
+      "010_console_budget_model": consoleBudgetModelMigration,
+      "011_thread_activity": threadActivityMigration,
+      "012_turn_attachments": turnAttachmentsMigration,
     }) });
     const parsed = InstallationRows.safeParse(yield* sql`SELECT id FROM installation WHERE singleton = true`);
     const row = parsed.success ? parsed.data[0] : undefined;

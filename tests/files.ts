@@ -56,11 +56,16 @@ for (const operation of ["download", "preview"]) {
   assert.equal((await fetch(`${base}/api/files/${operation}?path=HelloWorld.jsx`)).status, 401);
 }
 
-for (const [text, status] of [["é".repeat(4000), 200], ["é".repeat(4000) + "x", 400]] as const) {
+for (const [text, status] of [["é".repeat(32768), 200], ["é".repeat(32768) + "x", 400], ["\t".repeat(65536), 200], ["😀", 200], ["binary\0data", 400], ["\ud800", 400]] as const) {
   const response = await fetch(base + "/api/files", { method: "POST", headers: { cookie, origin, "content-type": "application/json" },
     body: JSON.stringify({ csrf, name: "multibyte.txt", text }) });
 
   assert.equal(response.status, status);
+
+  if (status === 200) {
+    const saved = z.object({ path: z.string() }).parse(await response.json());
+    assert.equal(await (await get(`/api/files/download?path=${encodeURIComponent(saved.path)}`)).text(), text);
+  }
 }
 
 await mkdir("/data/workspace/outputs/large-directory");
@@ -72,6 +77,84 @@ assert.equal((await get("/api/files?path=outputs/large-directory")).status, 400)
 await mkdir("/data/tmp/file-boundary", { recursive: true });
 
 await writeFile("/data/tmp/file-boundary/private.txt", "synthetic-private-data");
+
+const createConversation = async () => {
+  const response = await fetch(base + "/api/chat", { method: "POST", headers: { cookie, origin, "content-type": "application/json" }, body: JSON.stringify({ csrf, harness: "bob" }) });
+  assert.equal(response.status, 200);
+
+  return z.object({ id: z.uuid() }).parse(await response.json()).id;
+};
+
+const conversation = await createConversation();
+
+const uploadToChat = (name: string, text: string, id = conversation, token = csrf) => fetch(base + "/api/files", {
+  method: "POST", headers: { cookie, origin, "content-type": "application/json" }, body: JSON.stringify({ csrf: token, conversation: id, name, text }),
+});
+
+assert.equal((await uploadToChat("report.md", "refused", conversation, "wrong-csrf")).status, 401);
+
+assert.equal((await uploadToChat("report.md", "refused", crypto.randomUUID())).status, 400);
+
+for (const name of ["../escape.txt", "folder/name.txt", "folder\\name.txt", "bad\nname.txt", "image.png", "report.pdf"]) {
+  assert.equal((await uploadToChat(name, "refused")).status, 400);
+}
+
+const names = new Set<string>();
+
+await Promise.all(["first contents", "second contents"].map(async (text) => {
+  const response = await uploadToChat("Quarterly résumé.md", text);
+  assert.equal(response.status, 200);
+  const saved = z.object({ path: z.string() }).parse(await response.json());
+  names.add(saved.path);
+  assert.equal(await (await get(`/api/files/download?path=${encodeURIComponent(saved.path)}`)).text(), text);
+  assert.deepEqual(await (await get(`/api/files/preview?path=${encodeURIComponent(saved.path)}`)).json(), { kind: "text", text });
+}));
+
+assert.deepEqual(names, new Set([`inbox/${conversation}/Quarterly résumé.md`, `inbox/${conversation}/Quarterly résumé (1).md`]));
+
+// Renaming a supported extensionless file must not make it unreadable by chat.
+for (const name of ["Dockerfile", "Makefile", "README", "LICENSE", ".gitignore", ".dockerignore"]) {
+  const paths = new Set<string>();
+
+  for (const id of [conversation, conversation, undefined]) {
+    const text = `${name}: upload ${paths.size}`;
+
+    const response = await fetch(base + "/api/files", {
+      method: "POST", headers: { cookie, origin, "content-type": "application/json" },
+      body: JSON.stringify({ csrf, conversation: id, name, text }),
+    });
+
+    assert.equal(response.status, 200, name);
+    const saved = z.object({ path: z.string() }).parse(await response.json());
+    assert.ok(!paths.has(saved.path), "uploads must not overwrite earlier files");
+    paths.add(saved.path);
+    assert.deepEqual(await (await get(`/api/files/preview?path=${encodeURIComponent(saved.path)}`)).json(), { kind: "text", text }, saved.path);
+  }
+}
+
+const other = await createConversation();
+
+const otherFile = await uploadToChat("Quarterly résumé.md", "another conversation", other);
+
+assert.equal(otherFile.status, 200);
+
+assert.equal((await otherFile.json()).path, `inbox/${other}/Quarterly résumé.md`);
+
+const linked = await createConversation();
+
+await symlink("/data/tmp/file-boundary", `/data/workspace/inbox/${linked}`);
+
+assert.equal((await uploadToChat("private.txt", "must not overwrite", linked)).status, 400);
+
+await symlink("/data/tmp/file-boundary/private.txt", `/data/workspace/inbox/${conversation}/private.txt`);
+
+const collision = await uploadToChat("private.txt", "new safe file");
+
+assert.equal(collision.status, 200);
+
+assert.equal((await collision.json()).path, `inbox/${conversation}/private (1).txt`);
+
+assert.equal(await Bun.file("/data/tmp/file-boundary/private.txt").text(), "synthetic-private-data");
 
 await symlink("/data/tmp/file-boundary/private.txt", "/data/workspace/outputs/file-link");
 

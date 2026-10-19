@@ -2,8 +2,9 @@
 
 ## Product and ownership
 
-Camenae is a single-user assistant application, not a harness SDK. Bob is the only
-implemented harness. Use Camenae branding and neutral application wording; retain
+Camenae is a single-user assistant application, not a harness SDK. Bob is the default
+harness; the experimental OpenCode path is documented in `docs/OPENCODE.md`.
+Use Camenae branding and neutral application wording; retain
 Bob names for actual credentials, native SDK types, metrics, and integration contracts.
 Do not claim planned integrations or preview UI controls work.
 
@@ -26,7 +27,7 @@ Preserve persisted identifiers, migrations, native IDs, `bob-gateway/usage`,
 `BOB_GATEWAY_*`, encryption context, ownership markers, credential paths, and the
 Compose identity `bob-camenae`. Cosmetic naming is not a data migration.
 
-Workers serve one connection. The entrypoint must exit after `serveOnce()` settles;
+Bob workers serve one connection. The entrypoint must exit after `serveOnce()` settles;
 Docker owns whole-worker teardown before reuse. Disconnect/EOF or an old healthy
 status is not cleanup proof: require a new lifetime and healthy readiness.
 Never silently adopt, delete, or overwrite conflicting managed native files.
@@ -56,6 +57,33 @@ and the feature path, and hand it to the user for acceptance. Coordinate before
 interrupting active work. An inspection/export/isolated-only task does not authorize
 changes to the running installation. Documentation-only changes need no restart.
 Automated validation is not user acceptance.
+
+## UI design references
+
+For UI work, inspect the interactive HTML mockups in `docs/design/camenae-ui`
+with Playwright Code Mode tools. These are design references, not evidence that
+the corresponding app features exist. Close the browser when finished.
+
+Start the preview on demand using the installed `live-server` (from the repository
+root):
+
+```sh
+cd docs/design/camenae-ui
+live-server --host=127.0.0.1 --port=8080 --no-browser
+```
+
+Check port 8080 first. Reuse an existing preview only after confirming it serves
+these mockups; do not stop or replace an unrelated service. If occupied, use an
+unused port explicitly and adjust the URLs. Verify the actual listening URL.
+Serve only the design directory, never the repository root. Keep the preview
+loopback-only; stop a preview you started when finished unless asked to leave it up.
+No always-on service or application deployment is needed.
+
+- App views: http://127.0.0.1:8080/Camenae.dc.html
+- Login page: http://127.0.0.1:8080/Login.dc.html
+- Potential conversational UI items: http://127.0.0.1:8080/Catalog.dc.html — reference
+  for [conversational plugins](docs/CONVERSATIONAL-PLUGINS.md); `json-render` is a
+  possible implementation approach, not an adopted integration.
 
 ## Maintaining this repository
 

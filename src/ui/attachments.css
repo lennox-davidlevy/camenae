@@ -1,0 +1,23 @@
+.attachment-chips { display: flex; flex-wrap: wrap; gap: 5px; padding: 0; margin: 8px 0; list-style: none; min-width: 0; }
+.attachment-chips li { display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 8px; background: var(--surface); font: 400 11px var(--mono-font); border: 1px solid var(--line); }
+.attachment-chips li > span { overflow-wrap: anywhere; min-width: 0; }
+.attachment-chips button { border: 0; background: transparent; padding: 2px 4px; flex: none; }
+.attachment-add { font: 400 12px var(--mono-font); padding: 4px 8px; border: 0; background: var(--surface); }
+.attachment-dialog { color: var(--ink); background: var(--stone); border: 1px solid var(--ink); padding: 0; width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); }
+.attachment-dialog::backdrop { background: rgba(31,28,24,.55); }
+.attachment-dialog header, .attachment-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; font: 400 10px var(--mono-font); }
+.attachment-dialog header { border-bottom: 1px solid var(--ink); text-transform: uppercase; letter-spacing: .08em; }
+.attachment-dialog-body { padding: 18px 16px; }
+.attachment-dialog h2 { font: 400 30px/1 var(--display-font); margin: 0 0 12px; }
+.attachment-dialog p { font-size: 14px; line-height: 1.5; }
+.attachment-dialog nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font: 400 11px var(--mono-font); }
+.attachment-dialog nav span, .attachment-dialog h3 { overflow-wrap: anywhere; }
+.attachment-file-list { list-style: none; padding: 0; max-height: 230px; overflow: auto; }
+.attachment-file-list button { display: grid; grid-template-columns: 38px minmax(0,1fr) auto; gap: 10px; align-items: center; width: 100%; padding: 6px 8px; border: 0; background: transparent; text-align: left; font-size: 14px; overflow-wrap: anywhere; }
+.attachment-file-list button[aria-pressed=true] { background: var(--surface); }
+.attachment-file-type { font: 500 10px var(--mono-font); border: 1px solid var(--ink); padding: 2px 0; text-align: center; }
+.attachment-dialog pre { max-height: 150px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 400 11px/1.5 var(--mono-font); }
+.attachment-dialog footer { border-top: 1px solid var(--line); flex-wrap: wrap; }
+.attachment-sources { display: flex; flex-wrap: wrap; gap: 8px; }
+.attachment-sources button { flex: 1 1 180px; padding: 12px; text-align: left; }
+.attachment-upload { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; font: 400 12px var(--mono-font); overflow-wrap: anywhere; }

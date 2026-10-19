@@ -10,6 +10,11 @@ const percent = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
 const number = (value: number | null | undefined) => value == null ? "—" : exact.format(value);
 
 export function SessionUsagePanel({ usage }: { usage: SessionUsage | null }) {
+  if (usage && "harness" in usage) return <div className="session-usage">
+    <section><h2>OpenCode · this session</h2><strong>${number(usage.costUSD)} USD</strong><small>Native reported cost, not an invoice or account balance.</small></section>
+    <section><h2>Reported tokens</h2><p>Input {number(usage.inputTokens)} · Output {number(usage.outputTokens)}</p><small>These are usage totals, not context occupancy.</small></section>
+  </div>;
+
   const utilization = usage && usage.contextTokens !== null && usage.contextWindow !== null && usage.contextWindow > 0
     ? usage.contextTokens / usage.contextWindow * 100 : null;
 

@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { approvalKinds, ApprovalPolicy, ApprovalSettings } from "../approval-contract.js";
 import { PermissionChoices } from "./settings-layout.js";
 
+const descriptions = {
+  edit: "Create or change files", delete: "Remove files or folders", execute: "Run shell commands",
+  search: "Search the workspace or the web", fetch: "Download pages and files from URLs",
+};
+
 export function ApprovalPreferences({ csrf, running, preparing }: { csrf: string; running: boolean; preparing: boolean }) {
   const [settings, setSettings] = useState<ApprovalSettings>();
   const [draft, setDraft] = useState<ApprovalPolicy>();
@@ -46,28 +51,34 @@ export function ApprovalPreferences({ csrf, running, preparing }: { csrf: string
   const applied = settings?.active !== null && JSON.stringify(settings?.saved) === JSON.stringify(settings?.active);
 
   return <section className="settings-section approval-preferences" aria-label="Approval preferences">
-    <h2>Approval preferences</h2>
+    <div className="settings-section-heading"><h2>Approvals</h2><span className="settings-scope">Applies to <strong>IBM Bob</strong> only</span></div>
     <p>Decide how to handle new permission requests from the assistant: Ask for your approval, Allow automatically, or Deny.</p>
-    <p className="settings-note">Categories are reported by the harness. Allow covers every request in that category—not a particular command, file, or MCP tool. These choices do not control tool availability.</p>
+    <p className="settings-note">Categories are reported by the harness. Allow covers every request in that category—not a particular command, file, or MCP tool. These choices do not control tool availability. OpenCode is not affected; its approvals are one-time native decisions.</p>
     {!settings && !error && <p role="status">Loading approval preferences…</p>}
     {draft && settings && <>
       <div className="settings-rows">
+      <div className="approval-column-head" aria-hidden="true"><span>Category</span><span>Covers</span><span>Policy</span><span>Active</span></div>
       {approvalKinds.map((kind) => <div className="settings-row" key={kind}>
         <div className="settings-row-heading"><h3>{kind}</h3>
-          <small>{verified ? "Saved" : "Last confirmed saved"}: {settings.saved.kinds[kind]}; {verified ? "active" : "last confirmed active"}: {settings.active?.kinds[kind] ?? "not connected"}</small>
+          <small>{verified ? "Saved" : "Last confirmed saved"}: {settings.saved.kinds[kind]}</small>
         </div>
+        <p className="approval-description">{descriptions[kind]}</p>
         <PermissionChoices label={`${kind} approval`} value={draft.kinds[kind]} disabled={busy} onChange={(value) => {
           const policy = ApprovalPolicy.parse({ ...draft, kinds: { ...draft.kinds, [kind]: value } });
           setDraft(policy);
         }} />
+        <small className="settings-active-status">{verified ? "Active" : "Last confirmed active"}: {settings.active?.kinds[kind] ?? "not connected"}</small>
       </div>)}
       <div className="settings-row">
-        <div className="settings-row-heading"><h3>Other / unclassified requests</h3>
-          <small>{verified ? "Saved" : "Last confirmed saved"}: {settings.saved.fallback}; {verified ? "active" : "last confirmed active"}: {settings.active?.fallback ?? "not connected"}</small>
+        <div className="settings-row-heading"><h3>Other</h3>
+          <small>{verified ? "Saved" : "Last confirmed saved"}: {settings.saved.fallback}</small>
         </div>
+        <p className="approval-description">Unclassified requests the harness cannot label</p>
         <PermissionChoices label="Other requests approval" value={draft.fallback} options={["ask", "deny"]} disabled={busy}
           onChange={(value) => setDraft(ApprovalPolicy.parse({ ...draft, fallback: value }))} />
+        <small className="settings-active-status">{verified ? "Active" : "Last confirmed active"}: {settings.active?.fallback ?? "not connected"}</small>
       </div>
+      <div className="settings-bulk-actions"><span>Set every category</span>{(["ask", "deny"] as const).map((policy) => <button key={policy} disabled={busy} onClick={() => setDraft(ApprovalPolicy.parse({ kinds: Object.fromEntries(approvalKinds.map((kind) => [kind, policy])), fallback: policy }))}>{policy === "ask" ? "Ask" : "Deny"}</button>)}</div>
       </div>
       {JSON.stringify(draft) !== JSON.stringify(settings.saved) && <p className="settings-unsaved">Unsaved approval changes</p>}
       <p className="settings-status" role="status">{!verified ? "Approval status is unverified. Displayed values are last confirmed; refresh before relying on them." : applied ? "Saved preferences are active for new permission requests." : "Saved preferences are pending application to a connected harness client."}</p>

@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { ComposerPrimitive, ThreadPrimitive } from "@assistant-ui/react";
 import type { SessionUsage } from "../chat-contract.js";
 import { SessionUsagePanel } from "./session-usage.js";
+import { ThreadFiles } from "./attachments.js";
 import "./new-chat.css";
 
 const suggestions = [
@@ -12,12 +13,11 @@ const suggestions = [
 ] as const;
 
 const previews = [
-  ["+ File", "Conversation attachments are not connected yet. You can manage shared workspace files in the Files tab."],
   ["/ Skill", "Skill selection is a UI preview. This control does not load a skill or change the assistant's behavior."],
   ["@ Tool", "Tool selection is a UI preview. Manage working global tool preferences in Settings."],
 ] as const;
 
-export function NewChat({ status }: { status: ReactNode }) {
+export function NewChat({ status, attachments }: { status: ReactNode; attachments: ReactNode }) {
   const [openedAt] = useState(() => new Date());
   const [preview, setPreview] = useState("");
 
@@ -39,6 +39,7 @@ export function NewChat({ status }: { status: ReactNode }) {
     </div>
     <ComposerPrimitive.Root className="new-chat-composer">
       <ComposerPrimitive.Input placeholder="Ask anything. What would you like to work on?" aria-label="Message Camenae" maxLength={8000} />
+      {attachments}
       <div className="new-chat-composer-actions">
         <div className="new-chat-additions">{previews.map(([label, description]) => <button key={label} type="button" title={`${label} — preview only`} aria-pressed={preview === description} onClick={() => setPreview(preview === description ? "" : description)}>{label}</button>)}<span>Preview</span></div>
         <ComposerPrimitive.Send className="new-chat-send">Send <span aria-hidden="true">↵</span></ComposerPrimitive.Send>
@@ -57,7 +58,7 @@ export function NewChatInspector({ status, reconnect, usage }: { status: string;
     <SessionUsagePanel usage={usage} />
     <section className="new-chat-skill-section"><h2>Skill loaded</h2><div className="new-chat-skill"><strong>Not reported</strong><small>Skill reporting preview</small></div></section>
     <section className="new-chat-tools"><h2>Tools · preview</h2>{["read_file", "run_python", "write_file", "web_search", "send_email"].map((tool) => <div key={tool}><span><i aria-hidden="true" />{tool}</span><small>preview</small></div>)}</section>
-    <section className="new-chat-thread-files"><h2>Files in thread</h2><p>Attachments not connected</p></section>
+    <ThreadFiles attachments={[]} />
     <section><h2>Connection</h2><p role="status">{status}</p>{reconnect}</section>
   </div>;
 }

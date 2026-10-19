@@ -20,6 +20,22 @@ credentials and retrying blindly. Store the generated login password in a passwo
 manager; the operator may remove `login.txt` once it is safely retained elsewhere.
 Never paste credentials into command arguments, logs, screenshots, or chat.
 
+### Sign in and choose your password
+
+Open `/auth/login` on your installation and use its generated password for the
+first sign-in. No username or email entry is needed: this is the local owner account.
+Sign-in opens Chat. Open **Account** in the sidebar (or **Manage account** in Settings)
+and enter the current password, then a new 15–256-character password twice.
+Save it in your password manager. Future sign-ins use that password, not `login.txt`.
+The old generated password no longer works for this database; the login file is
+not rewritten. Keep `credentials.json`: its independent encryption key is still needed.
+
+Password changes replace the sign-in session without changing conversations, files,
+or provider keys. Login and password verification share a five-second attempt limit.
+The Account page also provides **Sign out**. There is no Google/SSO, public signup,
+or email password recovery. If you forget a changed password, do not reprovision
+or replace the credentials file; it cannot reset an initialized account.
+
 ## Configuration
 
 | Input | Default / contract |

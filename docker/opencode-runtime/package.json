@@ -1,0 +1,14 @@
+{
+  "name": "camenae-opencode-worker-runtime",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@camenae/opencode": "file:../../.cache/sdk/camenae-opencode-0.1.0-b24e73923802.tgz",
+    "@opencode/plugin": "2.0.23",
+    "zod": "4.6.5"
+  },
+  "overrides": {
+    "effect": "4.0.0-rc.112",
+    "@effect/platform-node-shared": "4.0.0-rc.112"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "default_agent": "camenae",
+  "agents": {
+    "camenae": {
+      "description": "Camenae general-purpose assistant",
+      "system": "You are Camenae, a general-purpose personal assistant. Use the supplied tools when needed.",
+      "permissions": [{"action":"*","resource":"*","effect":"ask"}]
+    }
+  },
+  "plugins": ["/app/docker/opencode-runtime/plugin"],
+  "providers": {
+    "camenae": {
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {"baseURL":"http://opencode-fixture:3003/v1","apiKey":"synthetic-only"},
+      "models": {"assistant":{"name":"Local fixture","limit":{"context":32000,"output":2048},"capabilities":{"tools":true}}}
+    }
+  }
+}

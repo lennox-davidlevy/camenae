@@ -5,7 +5,9 @@ import { Effect, Layer, Redacted, Schedule } from "effect";
 import { SqlClient } from "effect/sql";
 import { z } from "zod";
 import { HarnessRuntime, HarnessRuntimeError } from "../src/harness-runtime.js";
+import { OpenCodeRuntime } from "../src/opencode-runtime.js";
 import { Chat } from "../src/chat.js";
+import { Workspace } from "../src/workspace.js";
 import { DatabaseLive } from "../src/database.js";
 import { Identity } from "../src/identity.js";
 import { McpPermissions } from "../src/mcp-permissions.js";
@@ -201,8 +203,8 @@ try {
     assert.deepEqual(receipts.flatMap((receipt) => receipt.token.startsWith(marker) ? [receipt.token] : []), [`${marker}-allow`, `${marker}-ask`, `${marker}-fresh`]);
     assert.ok(generation >= 5, "Native session transitions did not replace workers");
     assert.ok(camenaeRequests >= 7, "Persona was not checked across fresh and resumed turns");
-  })).pipe(Effect.provide(Chat.layer), Effect.provide(hostedRuntime), Effect.provide(McpPermissions.layer),
-    Effect.provide(IdentityLive), Effect.provide(DatabaseLive), Effect.timeout("120 seconds")));
+  })).pipe(Effect.provide(Chat.layer), Effect.provide(OpenCodeRuntime.layer), Effect.provide(hostedRuntime), Effect.provide(McpPermissions.layer),
+    Effect.provide(Workspace.layer), Effect.provide(IdentityLive), Effect.provide(DatabaseLive), Effect.timeout("120 seconds")));
   console.log("Packaged Bob MCP passed: Camenae persona at inference across fresh/resumed sessions, prompt-free Allow, single Ask, visible Deny without execution, persistent trust in fresh sessions/workers, separate native category history and execution receipts.");
 } catch {
   console.error(`Packaged Bob MCP failed at ${phase}; payloads suppressed.`);

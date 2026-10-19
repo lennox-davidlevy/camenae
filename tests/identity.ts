@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createDecipheriv, createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { request } from "node:http";
 import { Config, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { z } from "zod";
@@ -12,7 +13,7 @@ const input = await Bun.stdin.text();
 
 const saved = mode === "verify" ? z.object({ password: z.string(), cookie: z.string() }).parse(JSON.parse(input)) : undefined;
 
-const password = saved?.password ?? input.trim();
+let password = saved?.password ?? input.trim();
 
 const base = "http://127.0.0.1:3000";
 
@@ -51,7 +52,7 @@ const login = async () => {
   await Effect.runPromise(resetAdmission);
   const response = await post("/auth/login", new URLSearchParams({ username: "owner", password }));
   assert.equal(response.status, 303);
-  assert.equal(response.headers.get("location"), "/");
+  assert.equal(response.headers.get("location"), "/chat");
   const header = response.headers.get("set-cookie") ?? "";
   assert.match(header, /HttpOnly/i);
   assert.match(header, /SameSite=Strict/i);
@@ -96,17 +97,54 @@ const inspectStorage = Effect.gen(function* () {
   assert.equal(session.token_hash, createHash("sha256").update(rawToken).digest("hex"));
   assert.notEqual(session.password_hash, password);
   assert.match(session.password_hash, /^\$argon2id\$/);
+  assert.equal(yield* Effect.promise(() => Bun.password.verify(password, session.password_hash)), true);
 }).pipe(Effect.provide(DatabaseLive));
 
 if (mode === "seed") {
   assert.equal((await get("/")).status, 303);
   assert.equal((await get("/api/connection/bob")).status, 401);
   assert.equal((await get("/auth/login")).status, 200);
+  assert.equal((await get("/auth/password")).headers.get("location"), "/auth/login");
+
+  for (const [path, type] of [["/auth.css", "text/css"], ["/fonts.css", "text/css"],
+    ["/fonts/gloock.ttf", "font/ttf"], ["/assets/camenae-coin.png", "image/png"]]) {
+    const response = await get(path ?? "");
+    assert.equal(response.status, 200);
+    assert.ok(response.headers.get("content-type")?.startsWith(type ?? ""));
+    assert.ok((await response.arrayBuffer()).byteLength > 0);
+  }
 
   // Valid login fields isolate the transport body bound from field validation.
   assert.equal((await post("/auth/login", new URLSearchParams({
     username: "owner", password, padding: "x".repeat(20_000),
   }))).status, 413);
+
+  const chunked = new ReadableStream<Uint8Array>({ start(controller) {
+    controller.enqueue(new TextEncoder().encode(new URLSearchParams({ username: "owner", password, padding: "x".repeat(20_000) }).toString()));
+    controller.close();
+  } });
+
+  assert.equal((await fetch(base + "/auth/login", { method: "POST", redirect: "manual", headers: { origin: base, "content-type": "application/x-www-form-urlencoded" }, body: chunked })).status, 413);
+
+  // Fetch forbids GET/HEAD bodies; exercise their transport bounds directly.
+  for (const method of ["GET", "HEAD"]) {
+    for (const chunked of [false, true]) {
+      const status = await new Promise<number | undefined>((resolve, reject) => {
+        const outgoing = request(base + "/health/live", {
+          method, headers: chunked ? { "transfer-encoding": "chunked" } : { "content-length": "20000" },
+        }, (response) => {
+          response.resume();
+          response.on("end", () => resolve(response.statusCode));
+        });
+
+        outgoing.on("error", reject);
+        outgoing.setTimeout(10_000, () => outgoing.destroy(new Error("Body-limit request timed out")));
+        outgoing.end("x".repeat(20_000));
+      });
+
+      assert.equal(status, chunked ? 400 : 413, `${method}, chunked=${chunked}`);
+    }
+  }
 
   for (const origin of ["https://attacker.invalid", "null", ""]) {
     assert.equal((await post("/auth/login", new URLSearchParams({ username: "owner", password }), origin)).status, 403);
@@ -129,6 +167,58 @@ if (mode === "seed") {
   assert.equal((await post("/connection/bob", new URLSearchParams({ csrf: token, key: syntheticKey }))).status, 303);
   await Effect.runPromise(inspectStorage);
   await csrf();
+
+  // The real password route owns authorization, validation, rate limiting and rotation.
+  // Keep the generated files unchanged: they seed new databases, never reset existing ones.
+  const credentialsFile = await Effect.runPromise(Effect.gen(function* () { return yield* Config.String("CAMENAE_CREDENTIALS_FILE"); }));
+  const credentialsBefore = await readFile(credentialsFile);
+  const originalPassword = password;
+  const originalCookie = cookie;
+  const nextPassword = "synthetic owner passphrase for authentication checks";
+  const fields = { csrf: token, currentPassword: password, password: nextPassword, confirmation: nextPassword };
+  cookie = "";
+  assert.equal((await post("/auth/password", new URLSearchParams(fields))).headers.get("location"), "/auth/login");
+  cookie = originalCookie;
+  assert.equal((await post("/auth/password", new URLSearchParams(fields), "https://attacker.invalid")).status, 403);
+  assert.equal((await post("/auth/password", new URLSearchParams({ ...fields, csrf: "a".repeat(43) }))).status, 401);
+
+  for (const changes of [
+    { password: "too-short", confirmation: "too-short" },
+    { confirmation: "a different synthetic passphrase" },
+    { password: "x".repeat(257), confirmation: "x".repeat(257) },
+    { password, confirmation: password },
+  ]) {
+    assert.equal((await post("/auth/password", new URLSearchParams({ ...fields, ...changes }))).status, 400);
+  }
+
+  await Effect.runPromise(resetAdmission);
+  const wrong = await post("/auth/password", new URLSearchParams({ ...fields, currentPassword: "wrong" }));
+  assert.equal(wrong.status, 401);
+  const errorHtml = await wrong.text();
+  assert.ok(!errorHtml.includes(nextPassword));
+  assert.ok(!errorHtml.includes(originalPassword));
+  assert.equal((await post("/auth/password", new URLSearchParams(fields))).status, 429);
+  await Effect.runPromise(inspectStorage);
+  await Effect.runPromise(resetAdmission);
+
+  const attempts = await Promise.all([post("/auth/password", new URLSearchParams(fields)), post("/auth/password", new URLSearchParams(fields))]);
+  assert.deepEqual(attempts.map((response) => response.status).sort(), [303, 429]);
+  const changed = attempts.find((response) => response.status === 303);
+  assert.ok(changed);
+  assert.equal(changed.headers.get("location"), "/auth/password?saved=1");
+  assert.equal((await get("/api/connection/bob")).status, 401);
+  cookie = (changed.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  assert.notEqual(cookie, originalCookie);
+  password = nextPassword;
+  assert.notEqual(await csrf(), token);
+  assert.equal((await post("/auth/password", new URLSearchParams({ ...fields, currentPassword: nextPassword,
+    password: "another synthetic owner passphrase", confirmation: "another synthetic owner passphrase" }))).status, 401);
+  await status(true);
+  await Effect.runPromise(inspectStorage);
+  assert.deepEqual(await readFile(credentialsFile), credentialsBefore);
+  await Effect.runPromise(resetAdmission);
+  assert.equal((await post("/auth/login", new URLSearchParams({ username: "owner", password: originalPassword }))).status, 401);
+  await login();
   // The shell captures this in a private host file, never in logs or Bob's volumes.
   console.log(JSON.stringify({ password, cookie }));
 } else {
@@ -155,5 +245,5 @@ if (mode === "seed") {
   }).pipe(Effect.provide(DatabaseLive)));
   assert.equal((await get("/api/connection/bob")).status, 401);
   assert.equal((await post("/connection/bob", new URLSearchParams({ csrf: expiringCsrf, key: syntheticKey }))).status, 401);
-  console.log("Identity smoke passed: login, CSRF, encryption, replacement, retained sessions, expiry, and logout.");
+  console.log("Identity smoke passed: login, password change, CSRF, encryption, replacement, retained passwords/sessions, expiry, and logout.");
 }

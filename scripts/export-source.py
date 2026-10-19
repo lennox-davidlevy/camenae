@@ -10,8 +10,8 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parent.parent
 ROOT_FILES = (".dockerignore", ".gitignore", ".oxlintrc.json", "AGENTS.md",
-              "README.md", "THIRD-PARTY-NOTICES.md", "bun.lock", "compose.yaml",
-              "package.json", "tsconfig.json")
+              "README.md", "THIRD-PARTY-NOTICES.md", "bun.lock", "compose.yaml", "compose.opencode.yaml",
+              "package.json", "tsconfig.json", "bunfig.toml")
 TREES = ("docker", "docs", "scripts", "src", "tests", "tools/oxlint")
 EXTENSIONS = {".ts", ".tsx", ".js", ".py", ".sh", ".css", ".html", ".md",
               ".json", ".yaml", ".conf", ".Dockerfile", ".ttf", ".png", ".txt"}
@@ -36,7 +36,11 @@ def selected_files():
                 if path.name.startswith(".") or path.name in {"node_modules", "__pycache__", "uploads"}:
                     raise ValueError(f"Unexpected source directory: {path.relative_to(ROOT)}")
                 continue
-            if path.suffix not in EXTENSIONS and path.name != "LICENSE":
+            # Design-editor thumbnails/backups are not runtime or reference assets.
+            relative = path.relative_to(ROOT).as_posix()
+            if relative == "docs/design/.thumbnail" or (relative.startswith("docs/design/") and path.suffix == ".bak"):
+                continue
+            if path.suffix not in EXTENSIONS and path.name != "LICENSE" and path != ROOT / "docker/opencode-runtime/bun.lock":
                 raise ValueError(f"Unexpected source file: {path.relative_to(ROOT)}")
             if path.name in {"credentials.json", "login.txt", "session.json"}:
                 raise ValueError(f"Private data filename: {path.relative_to(ROOT)}")

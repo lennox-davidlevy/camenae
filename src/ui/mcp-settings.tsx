@@ -43,9 +43,9 @@ export function McpToolSettings({ csrf, running, preparing, pending, onApplyingC
     JSON.stringify(settings?.disabledTools) === JSON.stringify(settings?.activeDisabledTools) &&
     JSON.stringify(settings?.permissions) === JSON.stringify(settings?.activePermissions);
 
-  return <section className="settings-section" aria-label="MCP tool settings">
-    <h2>Connected tools</h2>
-    <p>Context7 · Library documentation</p>
+  return <section className="settings-section mcp-settings" aria-label="MCP tool settings">
+    <div className="settings-section-heading"><h2>Connected tools</h2><span className="settings-scope">Applies to <strong>IBM Bob</strong> only</span></div>
+    <div className="settings-section-heading"><p>Context7 · Library documentation</p><button disabled title="Only the packaged Context7 connection is supported">+ Add connection · Not available</button></div>
     <p className="settings-note">Saved across conversations and worker replacements. Context7 trust does not change native shell or other tool permissions.</p>
     {!settings && !error && <p role="status">Loading connected-tool settings…</p>}
     {settings && <>
