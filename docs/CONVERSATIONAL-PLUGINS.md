@@ -1,31 +1,17 @@
-# Camenae conversational plugins — handoff
+# Target plugin architecture
 
-## Goal and current state
+## Scope and status
 
 Design a self-expanding Camenae: a user requests a real plugin with custom UI and
 executable behavior, revises it through conversation, and shares it with another
 user who connects their own accounts and can customize a fork. Example: Google
 Calendar weekly planner, later revised visually and given rescheduling behavior.
 
-Product interview is complete and the user confirmed shared understanding. An
-architecture proposal was presented in chat, not approved for implementation.
-No plugin implementation, prototype, or deployment has been performed. The
-current request authorizes this handoff only.
-
-## Verified completed work
-
-- Inspected Shapeshift and json-render upstream documentation and source.
-  Shapeshift selects predefined intent cards; json-render composes catalog-based
-  interfaces. Neither supplies the requested executable plugin lifecycle. They
-  may complement the product but must not define its ceiling.
-- Created and updated `docs/PLUGIN-DESIGN.md` with three decision records and a
-  working glossary. `bun run lint` passed after each documentation batch.
-- Inspected then-current Camenae architecture: native skills/CLI scripts exist;
-  a general plugin runtime, registry, and connection broker did not. Hosting was
-  single-user with a shared authoring workspace. These observations predate the
-  October 4 SDK migration and must not substitute for current source inspection.
-- Researched primary sources on gVisor, browser isolation, and Calendar scopes
-  and conditional updates. These support a proposal, not verified containment.
+This is the proposed future architecture, consolidated on 2026-10-24 from the
+earlier plugin brief and subsequent blank-slate product discussion. It is not an
+implemented plugin platform or authorization to build one. See [current status](CURRENT-STATUS.md),
+[product direction](PRODUCT.md), [roadmap](ROADMAP.md), and the
+[implemented architecture](ARCHITECTURE.md).
 
 ## Agreed product decisions to preserve
 
@@ -33,7 +19,9 @@ current request authorizes this handoff only.
   conveniences, not a fixed vocabulary limiting functionality.
 - Begin with JS/TS and dependencies; design replaceable boundaries for expansion.
 - Integrate through designated extension points, initially including plugin pages
-  and navigation entries. Core host UI rewriting is outside initial scope.
+  and navigation entries. The original first slice excluded core host UI rewriting.
+  The later end-state requirement expands user-facing shell customization; this
+  does not authorize arbitrary host-code execution or remove trust boundaries.
 - Zero trust and sandboxing are foundational, including dependency installation
   and builds. Private storage and explicit grants; no ambient host/other-plugin
   access.
@@ -43,8 +31,7 @@ current request authorizes this handoff only.
   Installing a plugin or enabling a schedule is not blanket write permission.
 - Previews categorically prohibit real-world mutations and commitments, with NO
   ask/allow override. Sample data by default; explicitly authorized live reads
-  only. Separate preview state; preview schedules disabled. The user briefly
-  misunderstood this, then explicitly reaffirmed the categorical restriction.
+  only. Separate preview state; preview schedules disabled.
 - Build revisions alongside the active version; activate explicitly. Durable
   state, migration backups and consistent recovery are agreed in principle;
   infrastructure needs careful analysis and should remain easy to replace.
@@ -57,8 +44,104 @@ current request authorizes this handoff only.
 - MVP acceptance spans two separate Camenae instances/accounts: read-only agenda,
   conversational visual revision plus confirmed rescheduling, then sharing and
   customization by the second user. Multi-user hosting is not required.
-- User grew tired of lengthy questioning. Do not restart an exhaustive interview;
-  offer concrete proposals and bounded technical experiments.
+- Prefer concrete proposals and bounded technical experiments over repeating an
+  exhaustive product interview whose decisions are already recorded here.
+
+## Proposed structure
+
+```text
+request / selected element / current version
+    -> authoring harness
+    -> proposed definition or isolated code change
+    -> host validation, functional checks, migration review
+    -> no-write preview
+    -> explicit activation of an immutable version
+    -> installed UI and runtime with installation-local state and grants
+```
+
+The application owns the durable artifact and installed execution. A harness
+authors proposals; its session is not the runtime of an installed plugin. Normal
+non-AI operations must work without an authoring provider. Runtime model calls,
+where needed, are explicit scoped operations with their own costs and failures.
+
+| Definition | Responsibility |
+| --- | --- |
+| UI catalog and view | Registered components, layouts, data bindings, and interaction contracts. |
+| Backend capability catalog | Typed, bounded storage/query/calculation operations and trusted connector actions. |
+| Workflow | Explicit steps, triggers, version identity, budgets, and failure/approval behavior. |
+| Theme | Semantic appearance values and checked assets, without execution authority. |
+| Package and immutable version | Portable definitions/source, dependency requirements, compatibility, identity, and lineage. |
+| Installation | Selected version, owner, private records, local settings, connection bindings, and grants. |
+| Draft and activation | Proposed change against a base version, verification state, migration/recovery plan, and explicit promotion. |
+| Run | Operation identity, authorized parameters, outcome, and uncertainty about external effects. |
+
+Stable field/record identities should survive renames. Reject stale activation
+against a newer base version. Bind jobs to the activated version and reconcile
+old work before granting a replacement version authority. Schema rollback must
+not silently erase records created after an update.
+
+## Catalogs, decision models, and custom code
+
+The preferred implementation direction is catalog-first, with isolated custom
+extensions when existing capabilities cannot express a request. Catalogs must not
+quietly become a fixed ceiling on the agreed open-ended product.
+
+json-render is a candidate UI renderer with application-defined components and
+actions. It does not implement durable storage, authorization, workflow execution,
+or safe plugin installation. Prefer supported extension points before deciding
+to maintain a fork. It is not installed in the current app.
+
+Jev can choose among supplied candidates or bounded options. The harness or app
+must still prepare values, bindings, and genuinely new content. Keep arithmetic,
+dates, permissions, grants, limits, and deterministic operations in code. Neither
+schema validity nor a model's confidence establishes semantic correctness or
+authority. Compare whole workflows before adopting model routing as an optimization.
+
+The October research found contradictory release wording: the Jev guide said
+“unreleased,” while published json-render core 0.21.0 declarations exported the
+experimental composition APIs. This is historical evidence, not a current version
+recommendation. Check exact package capabilities and stability before integration.
+
+Custom computations do not automatically justify custom authority. New connectors
+need reviewed operation contracts. An extension cannot promote itself into the
+trusted catalog, declare arbitrary HTTP read-only, or inspect other installations.
+Scope authoring inputs too: displaying private data does not automatically permit
+sending that data to a model provider.
+
+## Theming and editable views
+
+Use semantic roles consistently across the host shell and generated components:
+text, surfaces, actions, feedback, focus, and interaction states. Extend appearance
+definitions to typography, spacing/density, borders, corners, elevation, and motion.
+Keep layout and behavior separate from theme values.
+
+A received plugin uses the recipient's theme by default. Importing the author's
+theme or workspace arrangement is a separate choice. Direct controls and text
+edits should update the same definitions. Preserve a host-owned path to home,
+permissions, history, cancellation, and recovery outside generated content's control.
+
+Theme imports are bounded data and checked assets, not arbitrary install scripts.
+Validate actual rendered contrast, focus, keyboard navigation, zoom, and reduced
+motion. Remote assets, arbitrary CSS, and isolated custom components need explicit
+network/accessibility policies; a token schema alone cannot enforce them.
+
+## Sharing and updates
+
+Start with copying a versioned package between separate installations. Import
+with clean sample data, explicit grants, and recipient-owned connection setup.
+Exclude records, credentials, private chat history, logs, and personal values
+embedded in generated source, labels, or previews. Hashes prove identity of
+contents, not author trust.
+
+Settings remain local without creating a fork. Activated changes to definitions
+or behavior preserve fork lineage. Updates are optional, permission increases
+require fresh grants, and customized copies are not silently overwritten. No
+automatic fork merging is required initially.
+
+Shared live data requires a separate ownership/membership/revocation design.
+It is not a consequence of installing the same package. Revoking a download link
+cannot recall already downloaded copies. Cross-plugin data access likewise needs
+explicit grants and versioned contracts, not ambient access to a common database.
 
 ## Architecture proposal presented (not implementation approval)
 
@@ -99,25 +182,26 @@ before implementing Calendar functionality. Define pass/fail criteria first and
 inspect current repository/runtime prerequisites. Do not silently weaken the
 security promise if browser or sandbox constraints block it.
 
-## References
+## References and continuity
 
-- `docs/PLUGIN-DESIGN.md`: canonical agreed product decisions; read before drafting
-  a detailed design. Its “pending user confirmation” sentence is stale: the user
-  subsequently confirmed; do not treat proposed architecture as approved code.
-- `AGENTS.md`: read current guidance before any engineering; preserve unrelated
-  work, never commit/push, lint every edit batch, and follow local delivery rules.
-- `docs/SELF-EXTENSION.md`: evidence for native skill/CLI creation and lifecycle;
-  use when designing authoring without replacing the harness's native loop.
-- `docs/ARCHITECTURE.md` and current `src/worker.ts`, runtime, identity, MCP, and UI
-  shell sources: inspect for current integration seams, not historical assumptions.
-- `docs/BOB-0.5.0-INTEGRATION.md` and `docs/SDK-INTEGRATION-2026-10-04.md`: use when
-  tracing updated harness integration. Current guidance identifies pinned
-  `@camenae/bob`, native Bob APIs, and SDK repository
-   `../camenae-sdk` (sibling checkout); earlier chat's bob-gateway names are
-  historical. SDK edits/migrations need separate authority; no sibling imports.
+Earlier handoff text referred to `docs/PLUGIN-DESIGN.md` and
+`docs/SELF-EXTENSION.md`, which are absent from this checkout. Do not treat those
+paths as required reading or claim their contents were recovered. The preserved
+requirements are above; the subsequent product direction and proposed plan live
+in [product direction](PRODUCT.md) and [roadmap](ROADMAP.md).
+
+- [Repository guidance](../AGENTS.md): ownership, preservation, authorization,
+  and validation requirements for every implementation task.
+- [Current architecture](ARCHITECTURE.md): source ownership and current trust limits.
+- [Bob operations](BOB-OPERATIONS.md) and [OpenCode](OPENCODE.md): exact packaged
+  SDK delivery and native integration contracts. SDK changes require separate
+  authorization; no sibling-source imports or installed-package edits.
 - https://github.com/anishfn/shapeshift : interaction inspiration, not runtime.
-- https://github.com/vercel-labs/json-render : optional UI authoring/rendering
-  substrate; its experimental Jev composition was labeled unreleased when read.
+- https://github.com/vercel-labs/json-render : candidate UI renderer, not the
+  application backend or plugin security boundary.
+- https://json-render.dev/docs/jev : bounded composition and current limitations.
+- https://github.com/bjarneo/100-themes : theme packaging and palette inspiration.
+- https://opencode.ai/v2/docs/cli/theme : semantic theme role inspiration.
 - https://gvisor.dev/docs/architecture_guide/security/ : sandbox guarantees and
   limitations; network policy/resource limits remain separate responsibilities.
 - https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-iframe-sandbox
@@ -127,14 +211,5 @@ security promise if browser or sandbox constraints block it.
   https://developers.google.com/workspace/calendar/api/guides/version-resources :
   scope selection and optimistic concurrency for the calendar vertical slice.
 
-## Potentially useful skills
-
-- `prototype`: bounded experiment for one uncertain security/runtime question.
-- `research`: primary-source verification of consequential technical assumptions.
-- `effect`: when implementing host services using the repository's pinned Effect.
-- `test-audit`: mandatory when authoring/changing/reviewing tests.
-- `code-review`: formal review via reviewer agents once work is authorized.
-- `grill-with-docs`: interview already completed; domain-modeling failed to load
-  and was absent locally, so decisions/glossary were recorded directly.
-
-**Authorization: This handoff transfers context only; the receiving agent must rely on the user's current instruction before acting.**
+**Authorization:** This architecture records requirements and proposals. It does
+not authorize implementation, a new harness, SDK changes, or deployment.

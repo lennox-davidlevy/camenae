@@ -1,9 +1,35 @@
 # Camenae repository guidance
 
+## Start here
+
+For a new session or harness, read these repository documents in order:
+
+1. [Current status](docs/CURRENT-STATUS.md): implemented capabilities, evidence
+   limits, pending acceptance, and the next recommended decision.
+2. [Product direction](docs/PRODUCT.md): the intended end state and decision status.
+3. [Current architecture](docs/ARCHITECTURE.md): existing runtime and ownership.
+4. [Target plugin architecture](docs/CONVERSATIONAL-PLUGINS.md): proposed execution,
+   data, theming, sharing, and trust boundaries; not an implemented platform.
+5. [Roadmap](docs/ROADMAP.md): proposed phases, acceptance gates, and deferred work.
+
+Use [development](docs/DEVELOPMENT.md) for checks and [operations](docs/OPERATIONS.md)
+for the selected installation. Source, deployment evidence, and user acceptance
+are separate facts. Recheck the worktree and relevant source before acting; a
+dated status entry is not proof of current readiness. Plans and handoffs do not
+authorize implementation, paid inference, deployment, or SDK changes.
+
+Keep these documents current when a task changes capabilities or decisions.
+Keep durable product context in the repository, not solely in temporary files or
+session history. Keep private delivery evidence and session journals outside it.
+
 ## Product and ownership
 
 Camenae is a single-user assistant application, not a harness SDK. Bob is the default
 harness; the experimental OpenCode path is documented in `docs/OPENCODE.md`.
+The intended product is a blank-slate personal app that users create and modify
+through conversation, including themes, views, functionality, and shareable
+plugins. That end state is not implemented. Pi, a new harness, and a json-render
+fork are not approved implementation work merely because they appear in planning.
 Use Camenae branding and neutral application wording; retain
 Bob names for actual credentials, native SDK types, metrics, and integration contracts.
 Do not claim planned integrations or preview UI controls work.

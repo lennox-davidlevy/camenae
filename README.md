@@ -68,6 +68,8 @@ and cross-host native-session resume are not automated guarantees.
 
 ## Guides
 
+- [Current status and session pickup](docs/CURRENT-STATUS.md): what exists, evidence limits, and reading order.
+- [Product direction](docs/PRODUCT.md) and [roadmap](docs/ROADMAP.md): intended end state and proposed delivery gates.
 - [Operations](docs/OPERATIONS.md): installation, configuration, upgrades, backup/recovery.
 - [Architecture and security](docs/ARCHITECTURE.md): ownership and trust boundaries.
 - [Permissions](docs/PERMISSIONS.md): approvals, Context7, history, and limitations.

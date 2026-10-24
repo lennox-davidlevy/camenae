@@ -1,6 +1,12 @@
 # Architecture and security
 
+This guide describes the implemented application. See [current status](CURRENT-STATUS.md)
+for verification limits, [product direction](PRODUCT.md) for the intended end state,
+and [target plugin architecture](CONVERSATIONAL-PLUGINS.md) for proposed capabilities.
+
 ## Topology
+
+The default Bob deployment has this topology:
 
 ```text
 browser → loopback nginx ingress → Camenae (Bun / Effect / React)
@@ -16,6 +22,13 @@ isolated inference bridge; only egress has outbound networking. The application
 has a fixed inference-network address so Squid can allow Context7 only from its
 trusted gate. The worker cannot access the app/database network or arbitrary hosts.
 See [Bob integration](BOB-OPERATIONS.md) for exact endpoints and limitations.
+
+The optional [OpenCode deployment](OPENCODE.md) adds a separate private native HTTP
+worker on the inference network. The app connects through `@camenae/opencode`;
+the worker shares the workspace and retains its own native-state volume. With
+`compose.opencode.yaml`, provider requests use the app-owned restricted Console
+gateway. The worker has no direct outbound network. This does not replace Bob's
+Unix-socket transport or make their native permissions interchangeable.
 
 Ingress uses a fixed `app:3000` upstream, refreshes Docker DNS after app replacement,
 and is not a request-selected outbound proxy. Access/error logging and disk
@@ -36,17 +49,27 @@ not a guarantee against kernel escapes or unsafe handling of generated artifacts
 | `Identity` | Local account, login admission, database-backed sessions, encrypted Bob/Console credentials |
 | `Workspace`, `Files` | Retained directories and bounded authenticated file operations |
 | `HarnessRuntime`, `worker.ts` | Packaged SDK connection, environment filtering, worker lifetime and configuration handoff |
+| `OpenCodeRuntime`, `opencode-worker.ts` | Separate packaged OpenCode connection, native worker ownership and retirement |
+| `execution-client.ts` | Narrow application chat/event adapter for Bob and OpenCode; not a general harness SDK |
+| `console-gateway.ts` | Restricted Console forwarding, encrypted credential use, persistent request accounting |
 | `Chat` | Conversations, turn admission, retained native sessions, snapshots, preparation, cancellation, usage |
 | `McpPermissions` | Stored settings and application-owned lifecycle of SDK authorization gates |
 | `ServerLive`, UI | Authenticated HTTP/SSE routes, presentation, shutdown |
 
 The application uses the real `@camenae/bob` contracts, not a universal client.
+`Chat` selects the runtime from each conversation's persisted harness. The
+application's `ExecutionClient` normalizes only the operations/events needed by
+chat; native session, policy, accounting, and worker contracts remain distinct.
 Effect owns resource scopes/concurrency and SQL migrations; Zod owns application
 data contracts, with Effect Schema used for typed errors. Effect and its drivers
 are pinned together to v4 RC. Do not add parallel pools, agent loops, protocol
 implementations, or permission evaluators to compensate for missing upstream APIs.
 
 ## Conversations and worker lifetime
+
+The detailed Unix-socket lifetime below describes Bob. OpenCode has its own
+owner/retirement protocol and native session lifecycle, documented in
+[OpenCode contracts](OPENCODE.md#contracts).
 
 Conversation preparation is an authenticated, CSRF-protected POST. It initializes
 the native session without submitting a prompt or creating a turn. GET/SSE reads
