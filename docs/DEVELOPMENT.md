@@ -84,8 +84,8 @@ failed uploads offer Retry or Remove, and cannot silently be omitted from a send
 Draft selections and failed uploads are isolated per conversation
 in page memory and clear after an accepted send; a rejected send retains the text
 and selection. Reloading clears unsent selections, while sent snapshots remain in
-history and the inspector. Both upload entry points allow 64 KiB text files; a chat
-message is limited to four files and 64 KiB total. Removing a chip does not delete
+history and the inspector. The React UI allows 64 KiB text files, four per message,
+saved as before. Removing a chip does not delete
 the workspace file. PDFs, images, drag-and-drop, and attachment-only messages
 are not supported. The picker estimates size from preview; server validation at
 send time is authoritative if a file changes.

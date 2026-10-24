@@ -1,221 +1,139 @@
-import { constants } from "node:fs";
-import { mkdir, open, opendir, type FileHandle } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
-import { extname } from "node:path";
-import { Effect, Layer, Schema } from "effect";
-import { SqlClient } from "effect/sql";
-import { DatabaseLive } from "./database.js";
+import { Effect, Schema, Stream } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { z } from "zod";
-import { Identity } from "./identity.js";
+import { EditPath, FailureCode, FileEdit, failureMessages, UploadMode, uploadLimit } from "./file-contract.js";
+import { AccessDenied, Identity, IdentityError } from "./identity.js";
 import { Workspace } from "./workspace.js";
-import { filePreviewLimit, plainText, textFileName, UploadName, WorkspaceFilePath, type FilePreview } from "./file-contract.js";
+import { downloadFile, editWorkspace, FileProblem, listDirectory, listPaths, previewFile, uploadFile } from "./workspace-files.js";
 
-class FileError extends Schema.TaggedError<FileError>()("FileError", {}) {}
+class FileFailure extends Schema.TaggedError<FileFailure>()("FileFailure", { code: Schema.String }) {}
 
-const Upload = z.object({ csrf: z.string(), name: UploadName, conversation: z.uuid().optional(),
-  text: z.string().max(filePreviewLimit).refine((text) => Buffer.byteLength(text) <= filePreviewLimit && plainText(text)) });
+const statuses = { FILE_EXISTS: 409, FILE_TOO_LARGE: 413, PATH_NOT_ALLOWED: 400, NOT_FOUND: 404, INVALID: 400 } satisfies Record<FailureCode, number>;
 
-// Linux deployment: each component is opened relative to an already-open
-// directory inode. A concurrent tool cannot redirect traversal through a link.
-async function directory(root: string, parts: string[]): Promise<FileHandle> {
-  let handle = await open(root, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+const missing = z.object({ code: z.literal("ENOENT") });
 
-  try {
-    for (const part of parts) {
-      const next = await open(`/proc/self/fd/${handle.fd}/${part}`, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
-      await handle.close();
-      handle = next;
-    }
+const Query = z.object({ path: z.string().max(1024).default(""), hidden: z.string().optional() });
 
-    return handle;
-  } catch (error) { await handle.close(); throw error; }
-}
+const UploadQuery = z.object({ path: EditPath, mode: UploadMode.default("fail") });
 
-export async function readWorkspaceText(root: string, relative: string): Promise<FilePreview> {
-  const parts = WorkspaceFilePath.parse(relative).split("/");
-  const name = parts.pop();
+// A directory path as segments; "" is the workspace root.
+const segments = (relative: string) => {
+  const parts = relative === "" ? [] : relative.split("/");
 
-  if (!name) throw new Error("Invalid file");
-  const parent = await directory(root, parts);
+  if (parts.some((part) => !part || part === "." || part === ".." || part.includes("\0"))) throw new FileProblem("INVALID");
 
-  try {
-    const file = await open(`/proc/self/fd/${parent.fd}/${name}`, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
-
-    try {
-      const info = await file.stat();
-
-      if (!info.isFile()) throw new Error("Invalid file");
-
-      if (!textFileName(name)) return { kind: "unavailable", reason: "unsupported" };
-
-      if (info.size > filePreviewLimit) return { kind: "unavailable", reason: "too-large" };
-      const buffer = Buffer.alloc(filePreviewLimit + 1);
-      let size = 0;
-
-      while (size < buffer.length) {
-        const { bytesRead } = await file.read(buffer, size, buffer.length - size, size);
-
-        if (!bytesRead) break;
-        size += bytesRead;
-      }
-
-      if (size > filePreviewLimit) return { kind: "unavailable", reason: "too-large" };
-      let text: string;
-
-      try { text = new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(0, size)); }
-      catch { return { kind: "unavailable", reason: "not-text" }; }
-
-      if (!plainText(text)) return { kind: "unavailable", reason: "not-text" };
-
-      return { kind: "text", text };
-    } finally { await file.close(); }
-  } finally { await parent.close(); }
-}
+  return parts;
+};
 
 export const FileRoutes = HttpRouter.use(Effect.fn("Files.routes")(function* (router) {
   const identity = yield* Identity;
   const paths = yield* Workspace;
-  const sql = yield* SqlClient.SqlClient;
   const headers = { "cache-control": "no-store", "x-content-type-options": "nosniff" };
-  const previewResponse = (body: FilePreview) => HttpServerResponse.jsonUnsafe(body, { headers });
+  const cookie = identity.secureCookie ? "__Host-camenae" : "camenae-local";
+  const json = <T,>(value: T, status = 200) => HttpServerResponse.jsonUnsafe(value, { status, headers });
 
-  for (const operation of ["list", "download", "upload", "preview"] as const) {
-    const handler = Effect.gen(function* () {
-      const request = yield* HttpServerRequest.HttpServerRequest;
-      const token = request.cookies[identity.secureCookie ? "__Host-camenae" : "camenae-local"] ?? "";
-      yield* identity.session(token);
+  const run = <A,>(work: () => Promise<A>) => Effect.tryPromise({
+    try: work,
+    catch: (error) => {
+      if (error instanceof FileProblem) return new FileFailure({ code: error.code });
 
-      if (operation === "upload") {
-        if (request.headers.origin !== identity.origin || request.headers["content-type"]?.split(";")[0] !== "application/json") return yield* new FileError();
-        const parsed = Upload.safeParse(yield* request.json.pipe(Effect.mapError(() => new FileError())));
+      return new FileFailure({ code: missing.safeParse(error).success ? "NOT_FOUND" : "INVALID" });
+    },
+  });
 
-        if (!parsed.success) return yield* new FileError();
+  // Session cookie only; writes add the Origin and CSRF checks below.
+  const session = Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const token = request.cookies[cookie] ?? "";
+    yield* identity.session(token);
 
-        yield* identity.authorize(token, parsed.data.csrf);
-        const { conversation, name, text } = parsed.data;
+    return { request, token, query: new URL(request.url, "http://camenae.invalid").searchParams };
+  });
 
-        if (conversation) {
-          const rows = yield* sql`SELECT id FROM conversation WHERE id = ${conversation}`.pipe(Effect.mapError(() => new FileError()));
+  const guarded = (request: HttpServerRequest.HttpServerRequest, expected: string) => request.headers.origin === identity.origin && request.headers["content-type"]?.split(";")[0] === expected
+    ? Effect.void : Effect.fail(new FileFailure({ code: "INVALID" }));
 
-          if (rows.length !== 1) return yield* new FileError();
-        }
+  const handled = (handler: Effect.Effect<HttpServerResponse.HttpServerResponse, FileFailure | AccessDenied | IdentityError,
+    HttpServerRequest.HttpServerRequest>) => handler.pipe(Effect.catchTags({
+    AccessDenied: () => Effect.succeed(HttpServerResponse.text("Sign in again", { status: 401, headers })),
+    IdentityError: () => Effect.succeed(HttpServerResponse.text("Unavailable", { status: 503, headers })),
+    FileFailure: (failure) => {
+      const parsed = FailureCode.safeParse(failure.code);
+      const code = parsed.success ? parsed.data : "INVALID";
 
-        const path = yield* Effect.tryPromise({ try: async () => {
-          const inbox = await directory(paths.workspace, ["inbox"]);
+      return Effect.succeed(json({ code, message: failureMessages[code] }, statuses[code]));
+    },
+  }));
 
-          try {
-            let parent = inbox;
+  const list = Effect.gen(function* () {
+    const { query } = yield* session;
+    const parsed = Query.safeParse(Object.fromEntries(query));
 
-            if (conversation) {
-              const folder = `/proc/self/fd/${inbox.fd}/${conversation}`;
+    if (!parsed.success) return yield* new FileFailure({ code: "INVALID" });
+    const { path, hidden } = parsed.data;
 
-              try { await mkdir(folder, { mode: 0o700 }); }
-              catch (error) { if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) throw error; }
+    return json(yield* run(() => listDirectory(paths.workspace, segments(path), hidden === "1")));
+  });
 
-              parent = await open(folder, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
-            }
+  const everything = Effect.gen(function* () {
+    yield* session;
 
-            try {
-              for (let attempt = 0; attempt < 100; attempt++) {
-                const extension = extname(name);
-                const candidate = conversation ? attempt === 0 ? name : `${name.slice(0, name.length - extension.length)} (${attempt})${extension}` : `${randomUUID()}-${name}`;
-                // Renamed special basenames (README, .gitignore, etc.) need a
-                // text extension to remain readable by preview and chat.
-                const stored = textFileName(candidate) ? candidate : `${candidate}.txt`;
-                let file: FileHandle;
+    return json(yield* run(() => listPaths(paths.workspace)));
+  });
 
-                try { file = await open(`/proc/self/fd/${parent.fd}/${stored}`, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600); }
-                catch (error) {
-                  if (error instanceof Error && "code" in error && error.code === "EEXIST") continue;
-                  throw error;
-                }
+  const preview = Effect.gen(function* () {
+    const { query } = yield* session;
 
-                try { await file.writeFile(text); }
-                finally { await file.close(); }
+    return json(yield* run(() => previewFile(paths.workspace, query.get("path") ?? "")));
+  });
 
-                return `inbox/${conversation ? `${conversation}/` : ""}${stored}`;
-              }
+  const download = Effect.gen(function* () {
+    const { query } = yield* session;
+    const file = yield* run(() => downloadFile(paths.workspace, query.get("path") ?? ""));
 
-              throw new Error("Filename collision limit");
-            } finally { if (parent !== inbox) await parent.close(); }
-          } finally { await inbox.close(); }
-        }, catch: () => new FileError() });
+    return HttpServerResponse.uint8Array(file.bytes, { contentType: "application/octet-stream",
+      headers: { ...headers, "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}` } });
+  });
 
-        return HttpServerResponse.jsonUnsafe({ path }, { headers });
-      }
+  // Raw bytes, CSRF in a header: the browser sends the file itself, not a JSON copy of it.
+  const upload = Effect.gen(function* () {
+    const { request, token, query } = yield* session;
+    yield* guarded(request, "application/octet-stream");
+    yield* identity.authorize(token, request.headers["x-camenae-csrf"] ?? "");
+    const parsed = UploadQuery.safeParse(Object.fromEntries(query));
 
-      const relative = new URL(request.url, "http://camenae.invalid").searchParams.get("path") ?? "";
-      const parts = relative === "" ? [] : relative.split("/");
+    if (!parsed.success) return yield* new FileFailure({ code: "INVALID" });
 
-      if (relative.length > 1024 ||
-        parts.some((part) => !part || part === "." || part === ".." || part.includes("\0"))) return yield* new FileError();
+    if (Number(request.headers["content-length"] ?? 0) > uploadLimit) return yield* new FileFailure({ code: "FILE_TOO_LARGE" });
+    const chunks: Uint8Array[] = [];
+    let total = 0;
 
-      return yield* Effect.tryPromise({ try: async () => {
-        if (operation === "preview") return previewResponse(await readWorkspaceText(paths.workspace, relative));
+    yield* request.stream.pipe(
+      Stream.runForEach((chunk) => total + chunk.length > uploadLimit
+        ? Effect.fail(new FileFailure({ code: "FILE_TOO_LARGE" }))
+        : Effect.sync(() => { total += chunk.length; chunks.push(chunk); })),
+      Effect.mapError((error) => error instanceof FileFailure ? error : new FileFailure({ code: "INVALID" })),
+    );
 
-        if (operation === "list") {
-          const parent = await directory(paths.workspace, parts);
+    return json({ path: yield* run(() => uploadFile(paths.workspace, parsed.data.path, parsed.data.mode, Buffer.concat(chunks))) });
+  });
 
-          try {
-            const entries: { name: string; directory: boolean }[] = [];
-            let count = 0;
+  const edit = Effect.gen(function* () {
+    const { request, token } = yield* session;
+    yield* guarded(request, "application/json");
+    const parsed = FileEdit.safeParse(yield* request.json.pipe(Effect.mapError(() => new FileFailure({ code: "INVALID" }))));
 
-            // Async iteration closes the directory on completion or rejection.
-            for await (const entry of await opendir(`/proc/self/fd/${parent.fd}`, { bufferSize: 32 })) {
-              if (++count > 200) throw new Error("Directory limit");
+    if (!parsed.success) return yield* new FileFailure({ code: "INVALID" });
+    yield* identity.authorize(token, parsed.data.csrf);
+    yield* run(() => editWorkspace(paths.workspace, parsed.data));
 
-              if (entry.isFile() || entry.isDirectory()) entries.push({ name: entry.name, directory: entry.isDirectory() });
-            }
+    return json({ ok: true });
+  });
 
-            return HttpServerResponse.jsonUnsafe({ entries }, { headers });
-          } finally { await parent.close(); }
-        }
-
-        const name = parts.pop();
-
-        if (!name) throw new Error("Invalid file");
-
-        const parent = await directory(paths.workspace, parts);
-
-        try {
-          const file = await open(`/proc/self/fd/${parent.fd}/${name}`, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
-
-          try {
-            const info = await file.stat();
-            const limit = 8 * 1024 * 1024;
-
-            if (!info.isFile()) throw new Error("Invalid file");
-
-            if (info.size > limit) {
-              throw new Error("File limit");
-            }
-
-            const buffer = Buffer.alloc(limit + 1);
-            let size = 0;
-
-            while (size < buffer.length) {
-              const { bytesRead } = await file.read(buffer, size, buffer.length - size, size);
-
-              if (!bytesRead) break;
-              size += bytesRead;
-            }
-
-            if (size > limit) {
-              throw new Error("File limit");
-            }
-
-            return HttpServerResponse.uint8Array(buffer.subarray(0, size), { contentType: "application/octet-stream",
-              headers: { ...headers, "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(name)}` } });
-          } finally { await file.close(); }
-        } finally { await parent.close(); }
-      }, catch: () => new FileError() });
-    }).pipe(Effect.catchTags({
-      AccessDenied: () => Effect.succeed(HttpServerResponse.text("Sign in again", { status: 401, headers })),
-      IdentityError: () => Effect.succeed(HttpServerResponse.text("Unavailable", { status: 503, headers })),
-      FileError: () => Effect.succeed(HttpServerResponse.text("File unavailable, invalid path, or size limit exceeded", { status: 400, headers })),
-    }));
-
-    yield* router.add(operation === "upload" ? "POST" : "GET", operation === "download" || operation === "preview" ? `/api/files/${operation}` : "/api/files", handler);
-  }
-})).pipe(Layer.provide(DatabaseLive));
+  yield* router.add("GET", "/api/files", handled(list));
+  yield* router.add("GET", "/api/files/paths", handled(everything));
+  yield* router.add("GET", "/api/files/preview", handled(preview));
+  yield* router.add("GET", "/api/files/download", handled(download));
+  yield* router.add("POST", "/api/files/upload", handled(upload));
+  yield* router.add("POST", "/api/files/edit", handled(edit));
+}));

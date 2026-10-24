@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { attachmentCountLimit, filePreviewLimit, type FileAttachment } from "../file-contract.js";
+import type { FileAttachment } from "../file-contract.js";
+import { attachmentCountLimit, filePreviewLimit } from "./attachment-limits.js";
 import { useWorkspaceFiles } from "./files.js";
 import "./attachments.css";
 

@@ -33,18 +33,19 @@ determine what work is authorized.
 | OpenCode integration (the only harness) | `src/opencode-runtime.ts`, worker/plugin files, and exact packaged `@camenae/opencode`. Docker retires the whole worker. Live-provider use is not validated. |
 | Console model selection and request allowance | `src/console-gateway.ts`, `src/console-contract.ts`, settings, and migrations 009/010. Fixed allowlist, persistent cap, no paid fallback. Provider availability/pricing is not guaranteed. |
 | One-time native approvals | Approval cards in Chat for requests the harness makes. No persistent approval preferences, connector gates, or Context7/Playwright bundle yet. |
-| Workspace browsing and text uploads/attachments | `src/files.ts`, `src/file-contract.ts`, `src/ui/attachments.tsx`, and chat snapshot persistence. Shared workspace, not per-conversation isolation. |
+| Workspace files, uploads, and attachment paths | `src/files.ts`, `src/workspace-files.ts`, `src/file-contract.ts`, and chat path persistence. Shared workspace, not per-conversation isolation. |
 | Conversation sidebar and adjustable panels | `src/ui/thread-list.tsx`, `src/ui/panel-sizes.tsx`, and migration 011. Native headline display, activity metadata, collapsible groups, remembered widths. |
-| SolidJS preview shell | `src/app`, `scripts/dev-app.ts`. Source and local browser checks only: masthead, thread list, resizable panels, and a chat view (streaming, sanitized Markdown, tool activity, approvals, drafts, stop, new chat, per-conversation model picker, usage panel), and Settings (provider key, request cap, refresh, request-limit notice) against synthetic data, and once against an isolated OpenCode stack with a synthetic provider (new chat, streaming, approval, cancel, failure, reload). Not served by the application, not in the Docker images, and without attachments, skills, or files. The React UI remains the working interface. |
+| SolidJS preview shell | `src/app`, `scripts/dev-app.ts`. Source and local browser checks only: masthead, thread list, resizable panels, and a chat view (streaming, sanitized Markdown, tool activity, approvals, drafts, stop, new chat, per-conversation model picker, usage panel), and Settings (provider key, request cap, refresh, request-limit notice) against synthetic data, and once against an isolated OpenCode stack with a synthetic provider (new chat, streaming, approval, cancel, failure, reload). Not served by the application, not in the Docker images, and without skills. The React UI remains the working interface. |
 | Fixed visual styling | `src/ui/theme.css` contains CSS tokens. No user-authored theme package/import engine or conversation-driven shell editor. |
 
-Chat attachments support four text files and 64 KiB total per message, with a
-64 KiB per-file upload/preview limit. Local uploads automatically attach and use
-conversation-organized inbox paths with collision-safe names. Pending/failed
-uploads block sending; failures offer Retry/Remove. Existing files stay in place.
-Removing a selection does not delete its file. The server persists immutable
-path/content snapshots at send time. Unsent selections are page-memory drafts.
-PDF/image attachments, drag-and-drop, and attachment-only messages are unsupported.
+Attachments are saved as workspace files in `inbox/` when a message is sent (up to
+10 files, 15 MiB each, any type) and the turn stores path references; the agent is
+told the paths. Files can be previewed and edited as text up to 1 MiB. In the
+Solid preview, the Files screen (browse, edit, upload, new folder, rename/move,
+delete), composer attachments, `@` path mentions, and "Ask about this file" were
+verified in a browser against synthetic fixtures only, not yet a real backend. The
+server routes and tests passed on isolated stacks. The React UI keeps a smaller
+text-only upload policy.
 
 ## Not implemented
 

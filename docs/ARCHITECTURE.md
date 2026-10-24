@@ -95,27 +95,25 @@ in retained native state; the app does not replay transcripts.
 
 `/data/tmp` and `/tmp` are disposable tmpfs. Workspace folders are conventions,
 not conversation sandboxes. Startup rejects symbolic links in provisioned
-directories; that alone is not race-proof isolation. File APIs reject traversal,
-symlinks, and special files, with limits of 200 directory entries, 64 KiB UTF-8 text
-upload/preview, and 8 MiB attachment download. HTML/Markdown previews are text, not
-rendered active content. Files-tab uploads retain generated names in inbox. Chat
-uploads use `inbox/<conversation-id>/<filename>`, preserving readable filenames and
-adding a numeric suffix on collisions without overwriting existing files. The
-conversation must exist before upload; these folders organize files, not isolate
-them from other conversations. Both paths validate text format and content.
+directories; that alone is not race-proof isolation. `src/workspace-files.ts`
+opens every path component relative to an open directory with `O_NOFOLLOW`, so
+traversal, symlinks, and special files are refused. Limits: 1000 directory entries,
+1 MiB UTF-8 text preview/edit, 15 MiB upload, 25 MiB download. Routes: list, path
+finder, preview, download, raw `POST /api/files/upload` (octet-stream body, CSRF in
+a header, modes `fail|replace|unique`), and `POST /api/files/edit` (new folder,
+move, delete). Moves never overwrite; the top-level `inbox`, `projects`, `outputs`,
+and `scratch` folders and `.git` contents cannot be changed. Previews are text,
+not rendered active content.
 
-Chat accepts up to four selected workspace text files, 64 KiB total UTF-8 content,
-alongside a nonempty message. The authenticated server reopens files through the
-same descriptor-relative, no-symlink reader as preview, validates text, and saves
-immutable path/content snapshots with the turn before dispatch. The harness
-receives those snapshots as labeled JSON text appended to the message, not as native
-binary attachments or instructions. These are provider-visible inputs subject to
-the selected model's data-use terms. Changing/deleting a workspace file does not
-change a sent snapshot. A missing, unsupported, binary, or oversized selection
-rejects the whole send without starting a turn. The HTTP body ceiling is 512 KiB to
-allow JSON escaping of bounded uploads; non-upload requests retain a 16 KiB limit,
-including chunked requests, and endpoint schemas retain their own field limits.
-Native agent access to the shared
+Chat accepts up to ten attachments per message alongside a nonempty message. The
+page saves each as a real workspace file (`inbox/<name>`, `-2` suffix on collision,
+never overwriting) when the message is sent, and the turn stores only path
+references. The harness is told the paths in the prompt and reads the files with
+its own tools; contents are not inlined. These files are provider-visible when the
+agent reads them, subject to the selected model's data-use terms. Older turns that
+stored file text keep their paths; the text is ignored. The HTTP body ceiling is
+16 MiB, applied only to the upload route; other requests retain a 16 KiB limit,
+including chunked requests. Native agent access to the shared
 workspace is unchanged; this is context selection, not a filesystem permission gate.
 
 Volumes surviving container replacement is not a backup. Retain database, workspace,

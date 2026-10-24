@@ -9,6 +9,7 @@ import { createStickToBottom } from "./stick-to-bottom.js";
 
 interface ChatPaneProps {
   session: ReturnType<typeof createChatSession>;
+  insertion?: { text: string; nonce: number };
 }
 
 export function ChatPane(props: ChatPaneProps) {
@@ -42,8 +43,8 @@ export function ChatPane(props: ChatPaneProps) {
       </div>
       <Show when={scroll.unseen()}><button class="chat-jump" onClick={scroll.jump}>New messages ↓</button></Show>
       <div class="active-chat-composer-dock">
-        <Composer conversation={session.conversation()} drafts={session.drafts} disabled={!session.conversation() || !session.configured() || session.ready() !== session.conversation() || session.pending() || session.preparing()}
-          running={Boolean(session.running())} busy={session.pending()} onSend={(prompt) => { scroll.follow(); void session.send(prompt); }} onStop={() => void session.cancel()} />
+        <Composer conversation={session.conversation()} csrf={session.bootstrap()?.csrf} insertion={props.insertion} drafts={session.drafts} disabled={!session.conversation() || !session.configured() || session.ready() !== session.conversation() || session.pending() || session.preparing()}
+          running={Boolean(session.running())} busy={session.pending()} onSend={(prompt, attachments) => { scroll.follow(); void session.send(prompt, attachments); }} onStop={() => void session.cancel()} />
       </div>
     </div>
   </div>;

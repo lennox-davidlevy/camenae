@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
+import { AttachmentPaths } from "../src/file-contract.js";
+import { filesRoute, fixtureFileSize } from "./dev-app-files.js";
 import { z } from "zod";
 import type { ChatView, Conversation, Turn } from "../src/chat-contract.js";
 import { ConsoleModel, consoleExhausted, consoleModel, SaveConsoleBudget, SaveConsoleSettings } from "../src/console-contract.js";
@@ -101,7 +103,9 @@ const run = async (chat: Chat, turn: Turn) => {
     push(chat);
   }
 
-  for (const word of words(turn.prompt)) {
+  const note = turn.attachments.length > 0 ? ` (I can see the attached files: ${turn.attachments.map((file) => file.path).join(", ")})` : "";
+
+  for (const word of words(`${turn.prompt}${note}`)) {
     if (!live()) return;
     turn.answer += word;
     push(chat);
@@ -126,7 +130,7 @@ const body = async (request: IncomingMessage) => {
 
 const Authorized = z.looseObject({ csrf: z.literal(csrf) });
 
-const Prompt = z.looseObject({ csrf: z.literal(csrf), prompt: z.string().trim().min(1).max(8000) });
+const Prompt = z.looseObject({ csrf: z.literal(csrf), prompt: z.string().trim().min(1).max(8000), attachments: AttachmentPaths.default([]) });
 
 const Action = z.looseObject({ csrf: z.literal(csrf), turnId: z.uuid(), optionId: z.string().nullable().optional() });
 
@@ -268,10 +272,14 @@ const route = async (request: IncomingMessage, response: ServerResponse, path: s
     if (chat.turns.some((turn) => turn.status === "running")) return json(response, { error: "A turn is already running" }, 409);
 
     if (!ready()) return json(response, { error: "Provider not ready" }, 503);
+    const attached = start.attachments.map((path) => ({ path, size: fixtureFileSize(path) }));
+
+    // Like the real route: every attachment must be a file that exists in the workspace.
+    if (attached.some((file) => file.size === undefined)) return json(response, { error: "Attachment unavailable" }, 400);
     provider.used += 1;
 
     const turn: Turn = { id: crypto.randomUUID(), ordinal: chat.turns.length + 1, prompt: start.prompt, answer: "", activity: [], permission: null,
-      attachments: [], status: "running", stop_reason: null };
+      attachments: attached.flatMap((file) => file.size === undefined ? [] : [{ path: file.path, size: file.size }]), status: "running", stop_reason: null };
 
     chat.turns.push(turn);
 
@@ -290,6 +298,12 @@ export const fixtureBackend: Plugin = {
   configureServer(server) {
     server.middlewares.use((request, response, next) => {
       const path = new URL(request.url ?? "/", "http://localhost").pathname;
+
+      if (path.startsWith("/api/files")) {
+        void filesRoute(request, response, path);
+
+        return undefined;
+      }
 
       if (!path.startsWith("/api/chat") && !path.startsWith("/api/settings/opencode")) return next();
       route(request, response, path).catch(() => { if (!response.headersSent) json(response, { error: "Invalid request" }, 400); });

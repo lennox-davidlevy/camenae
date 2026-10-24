@@ -164,8 +164,10 @@ try {
 
       assert.equal(completed.turns.at(-1)?.status, "completed");
       assert.equal(completed.turns.at(-1)?.answer, "Console fixture answer");
-      assert.deepEqual(completed.turns.at(-1)?.attachments, [{ path: "inbox/console-attachment.txt", text: "Attachment receipt: quartz meadow 42" }]);
-      assert.ok(providerRequests.some((request) => request.messages.includes("Attachment receipt: quartz meadow 42")), "Attachment did not reach the native OpenCode provider request");
+      assert.deepEqual(completed.turns.at(-1)?.attachments, [{ path: "inbox/console-attachment.txt", size: 36 }]);
+      // The message names the saved file for the agent to read; its contents are not inlined.
+      assert.ok(providerRequests.some((request) => request.messages.includes("inbox/console-attachment.txt")), "The attachment path did not reach the native OpenCode provider request");
+      assert.ok(!providerRequests.some((request) => request.messages.includes("quartz meadow 42")), "Attachment contents must not be inlined into the prompt");
 
       const titled = await Effect.runPromise(Effect.tryPromise(() => view(opencode)).pipe(
         Effect.repeat({ schedule: Schedule.spaced("50 millis"), while: (snapshot) => snapshot.conversation.title !== "Synthetic greeting summary" }), Effect.timeout("10 seconds")));

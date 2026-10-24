@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { FilePreview, filePreviewLimit, plainText, UploadName } from "../file-contract.js";
+import { FilePreview, plainText, safeName } from "../file-contract.js";
+import { filePreviewLimit } from "./attachment-limits.js";
 import "./files.css";
 
 const Entries = z.object({ entries: z.array(z.object({ name: z.string(), directory: z.boolean() })) });
@@ -9,19 +10,21 @@ const Uploaded = z.object({ path: z.string().startsWith("inbox/") });
 
 export async function uploadWorkspaceFile(file: File, csrf: string, conversation?: string) {
   if (file.size > filePreviewLimit) throw new Error("Choose a text file of up to 64 KiB.");
-
-  if (!UploadName.safeParse(file.name).success) throw new Error("Choose a supported text file with a short filename, without slashes or control characters.");
   let text: string;
 
   try { text = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer()); }
   catch { throw new Error("This file is not valid UTF-8 text."); }
 
   if (!plainText(text)) throw new Error("This file contains binary data. Choose a text file instead.");
-  const response = await fetch("/api/files", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ csrf, name: file.name, text, conversation }) });
+  const path = `${conversation ? `inbox/${conversation}` : "inbox"}/${safeName(file.name)}`;
 
-  if (!response.ok) throw new Error(response.status === 401 ? "Sign in again to upload files." : "Upload failed. Please retry; supported text files must be at most 64 KiB.");
+  const response = await fetch(`/api/files/upload?${new URLSearchParams({ path, mode: "unique" })}`, {
+    method: "POST", headers: { "content-type": "application/octet-stream", "x-camenae-csrf": csrf }, body: file,
+  });
 
-  return { path: Uploaded.parse(await response.json()).path, bytes: new TextEncoder().encode(text).length };
+  if (!response.ok) throw new Error(response.status === 401 ? "Sign in again to upload files." : "Upload failed. Please retry; text files must be at most 64 KiB.");
+
+  return { path: Uploaded.parse(await response.json()).path, bytes: file.size };
 }
 
 const shortcuts = ["outputs", "inbox", "projects", "scratch"];
@@ -29,8 +32,7 @@ const shortcuts = ["outputs", "inbox", "projects", "scratch"];
 type PreviewResult = FilePreview | { kind: "error"; message: string };
 
 const previewMessages = {
-  unsupported: "This file type is not supported for text preview. Download it to open it in a suitable application.",
-  "too-large": "This file exceeds the 64 KiB preview limit. Download it to view its contents (downloads are limited to 8 MiB).",
+  "too-large": "This file exceeds the 1 MiB preview limit. Download it to view its contents (downloads are limited to 25 MiB).",
   "not-text": "This file contains binary data or is not valid UTF-8 text. Download it to view it in a suitable application.",
 };
 

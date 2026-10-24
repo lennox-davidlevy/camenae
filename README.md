@@ -9,7 +9,7 @@ that can use tools and work with your files.
 - Keep conversations, stream replies, inspect tool activity, and stop a running turn.
 - Approve or reject each tool request the agent makes, one at a time.
 - Browse a shared workspace; upload small text files, preview text, and download files.
-- Attach workspace text-file snapshots to chat messages.
+- Attach files to chat messages; they are saved in the workspace and referenced by path.
 - Choose among approved free Console models per conversation, under a local request cap.
 - Sign in locally and store an encrypted provider key.
 

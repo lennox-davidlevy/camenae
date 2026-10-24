@@ -20,7 +20,11 @@ interface MessagesProps {
 
 export function Messages(props: MessagesProps) {
   return <For each={props.turns}>{(turn) => <>
-    <div class="chat-user-message"><span class="chat-user-label">You</span><div class="chat-user-text"><p>{turn.prompt}</p></div></div>
+    <div class="chat-user-message"><span class="chat-user-label">You</span><div class="chat-user-text"><p>{turn.prompt}</p></div>
+      <Show when={turn.attachments.length > 0}><ul class="chat-user-attachments" aria-label="Sent attachments">
+        <For each={turn.attachments}>{(file) => <li title={file.path}>{file.path.split("/").at(-1)}</li>}</For>
+      </ul></Show>
+    </div>
     <div class="chat-assistant-message">
       <div class="chat-assistant-label">Assistant · Turn {turn.ordinal} · {turn.status}{turn.activity.length > 0 && ` · ${turn.activity.length} tool calls`}</div>
       <For each={turn.activity}>{(tool) => <ToolActivity tool={tool} />}</For>

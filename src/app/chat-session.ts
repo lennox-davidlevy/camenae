@@ -168,13 +168,13 @@ export function createChatSession() {
     await open(created.id, next);
   });
 
-  const send = (prompt: string) => perform(async () => {
+  const send = (prompt: string, attachments: readonly string[] = []) => perform(async () => {
     const state = bootstrap();
     const id = conversation();
 
     if (!state || !id) return;
 
-    try { await request(`/api/chat/${id}`, { csrf: state.csrf, prompt, attachments: [] }); }
+    try { await request(`/api/chat/${id}`, { csrf: state.csrf, prompt, attachments: [...attachments] }); }
     catch (failure) {
       drafts.set(id, prompt);
       throw failure;

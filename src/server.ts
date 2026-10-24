@@ -14,7 +14,8 @@ const Routes = HttpRouter.use(Effect.fn("Health.routes")(function* (router) {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const path = new URL(request.url, "http://camenae.invalid").pathname;
 
-    if (request.method === "POST" && path === "/api/files") return yield* handler;
+    // Only file uploads stream a large body, bounded again by their own route.
+    if (request.method === "POST" && path === "/api/files/upload") return yield* handler;
 
     if (Number(request.headers["content-length"] ?? 0) > 16 * 1024) return HttpServerResponse.empty({ status: 413 });
 
@@ -48,9 +49,8 @@ const Transport = Layer.unwrap(Effect.gen(function* () {
 
   return BunHttpServer.layer({
     hostname: settings.host, port: settings.port,
-    // A 64 KiB text upload can expand sixfold when JSON escapes control characters.
-    // Individual route schemas retain their own smaller input limits.
-    maxRequestBodySize: 512 * 1024,
+    // Room for the 15 MiB upload limit; every other route is held to 16 KiB by the middleware above.
+    maxRequestBodySize: 16 * 1024 * 1024,
     gracefulShutdownTimeout: "10 seconds",
   });
 }));

@@ -5,6 +5,9 @@ import { render } from "solid-js/web";
 import { ChatPane } from "./chat-pane.js";
 import { createChatSession } from "./chat-session.js";
 import { consoleExhausted } from "../console-contract.js";
+import { mention } from "./file-search.js";
+import { FileInspector, FilesScreen } from "./files-view.js";
+import { createFiles } from "./files-state.js";
 import { RequestLimitNotice, SettingsInspector, SettingsPage } from "./settings.js";
 import { Shell, type Screen } from "./shell.js";
 import { SessionUsagePanel } from "./usage.js";
@@ -14,20 +17,29 @@ import "./app.css";
 
 const notes = {
   Skills: "Skills are not built in this view yet.",
-  Files: "Files are not built in this view yet. The working file browser is inside Classic chat.",
 } as const;
 
 const contentClass = (screen: Screen) => Match.value(screen).pipe(
   Match.when("Chat", () => "shell-content shell-content-active"),
   Match.when("Settings", () => "shell-content shell-content-settings"),
+  Match.when("Files", () => "shell-content shell-content-files"),
   Match.orElse(() => "shell-content"),
 );
 
-const noteFor = (screen: Screen) => screen === "Chat" || screen === "Settings" ? undefined : notes[screen];
+const noteFor = (screen: Screen) => screen === "Skills" ? notes[screen] : undefined;
 
 function App() {
   const session = createChatSession();
   const [screen, setScreen] = createSignal<Screen>("Chat");
+  const [insertion, setInsertion] = createSignal<{ text: string; nonce: number }>();
+  const files = createFiles({ csrf: () => session.bootstrap()?.csrf, active: () => screen() === "Files" });
+
+  // "Ask about this file": the reference goes into the message being written.
+  const ask = (path: string) => {
+    setInsertion({ text: `${mention(path)} `, nonce: Date.now() });
+    setScreen("Chat");
+  };
+
   const current = createMemo(() => session.conversations().find((item) => item.id === session.conversation()));
   const latest = createMemo(() => session.view()?.turns.at(-1));
   const approvals = createMemo(() => session.view()?.turns.filter((turn) => turn.permission).length ?? 0);
@@ -51,14 +63,21 @@ function App() {
     <section><h2>Approvals</h2><p>{approvals() > 0 ? `${approvals()} waiting in this conversation` : "No pending requests"}</p><small>Authorization does not confirm execution.</small></section>
   </div>;
 
+  const rail = () => Match.value(screen()).pipe(
+    Match.when("Settings", () => <SettingsInspector />),
+    Match.when("Files", () => <FileInspector files={files} onAsk={ask} />),
+    Match.orElse(() => inspector),
+  );
+
   return <Shell screen={screen()} onScreen={setScreen} conversations={session.conversations()} selected={session.conversation()}
     onSelect={(id) => { setScreen("Chat"); void session.select(id); }} onNew={() => { setScreen("Chat"); void session.create(); }}
     newDisabled={!session.idle() || !session.bootstrap()?.readiness.opencode} selectionDisabled={session.pending() || session.preparing()}
-    inspector={screen() === "Settings" ? <SettingsInspector /> : inspector}>
+    inspector={rail()}>
     <div class={contentClass(screen())}>
       <Show when={session.error()}><p role="alert" class="app-error">{session.error()}</p></Show>
       <Show when={screen() === "Chat" ? exhausted() : undefined}>{(usage) => <RequestLimitNotice usage={usage()}><button onClick={() => setScreen("Settings")}>Open Settings</button></RequestLimitNotice>}</Show>
-      <div hidden={screen() !== "Chat"} class="chat-screen-wrap"><ChatPane session={session} /></div>
+      <div hidden={screen() !== "Chat"} class="chat-screen-wrap"><ChatPane session={session} insertion={insertion()} /></div>
+      <Show when={screen() === "Files"}><FilesScreen files={files} /></Show>
       <Show when={screen() === "Settings" ? session.bootstrap() : undefined}>{(state) =>
         <SettingsPage csrf={state().csrf} usage={state().consoleUsage} onChanged={session.refreshStatus} />}</Show>
       <Show when={noteFor(screen())}>{(note) => <>

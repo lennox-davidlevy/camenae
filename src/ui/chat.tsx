@@ -16,7 +16,7 @@ import { ActiveChat, ActiveChatInspector } from "./active-chat.js";
 import { SessionUsagePanel } from "./session-usage.js";
 import { exampleSkills, SkillsInspector, SkillsPreview } from "./skills.js";
 import { AttachmentControl, type AttachmentUpload, type SelectedAttachment } from "./attachments.js";
-import { attachmentCountLimit, filePreviewLimit } from "../file-contract.js";
+import { attachmentCountLimit, filePreviewLimit } from "./attachment-limits.js";
 
 
 type ChatRequest = { csrf: string; model?: ConsoleModel; harness?: "opencode"; prompt?: string; attachments?: string[]; turnId?: string; permissionId?: string; optionId?: string | null };
