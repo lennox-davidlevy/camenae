@@ -7,3 +7,4 @@
 .chat-jump:hover { background: var(--ink); }
 .chat-screen-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .active-chat-viewport { overflow-anchor: none; }
+.chat-screen-active > .chat-model-picker { margin-inline: 24px; }

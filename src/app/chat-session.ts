@@ -3,6 +3,7 @@ import { createStore, reconcile } from "solid-js/store";
 import { z } from "zod";
 import { Bootstrap } from "../bootstrap-contract.js";
 import { ChatView, type Conversation, type Turn } from "../chat-contract.js";
+import type { ConsoleModel } from "../console-contract.js";
 import { request } from "./api.js";
 
 const loadBootstrap = async () => Bootstrap.parse(await (await request("/api/chat")).json());
@@ -194,6 +195,15 @@ export function createChatSession() {
     await open(id, state);
   });
 
+  const selectModel = (model: ConsoleModel) => perform(async () => {
+    const state = bootstrap();
+    const id = conversation();
+
+    if (!state || !id) return;
+    await request(`/api/chat/${id}/model`, { csrf: state.csrf, model });
+    await open(id, state);
+  });
+
   const approveNative = (turn: Turn, optionId: string | null) => perform(async () => {
     const state = bootstrap();
 
@@ -202,5 +212,5 @@ export function createChatSession() {
   });
 
   return { bootstrap, conversations, conversation, view, error, pending, preparing, ready, running, harness, configured, idle, drafts,
-    start, select, reconnect, create, send, cancel, approveNative, refreshStatus };
+    start, select, reconnect, create, send, cancel, selectModel, approveNative, refreshStatus };
 }

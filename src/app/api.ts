@@ -1,6 +1,7 @@
 export interface ChatRequest {
   csrf: string;
   harness?: "opencode";
+  model?: string;
   prompt?: string;
   attachments?: string[];
   turnId?: string;

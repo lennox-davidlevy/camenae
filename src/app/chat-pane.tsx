@@ -1,8 +1,10 @@
 /** @jsxImportSource solid-js */
-import { Show } from "solid-js";
+import { createEffect, on, Show } from "solid-js";
 import type { createChatSession } from "./chat-session.js";
 import { Composer } from "./composer.js";
 import { Messages } from "./messages.js";
+import { ModelPicker } from "./model-picker.js";
+import { SessionUsagePanel } from "./usage.js";
 import { createStickToBottom } from "./stick-to-bottom.js";
 
 interface ChatPaneProps {
@@ -13,10 +15,15 @@ export function ChatPane(props: ChatPaneProps) {
   const session = props.session;
   const scroll = createStickToBottom();
 
+  // Opening a conversation and sending a message both resume following the newest content.
+  createEffect(on(() => session.view()?.conversation.id, () => scroll.follow(), { defer: true }));
+
   const status = () => session.preparing() ? "Preparing conversation…" : session.running() ? "Working"
     : !session.configured() ? "Connection not set up." : session.ready() ? "Camenae is ready." : "Conversation not ready.";
 
   return <div class="chat-screen-active">
+    <Show when={session.view()?.model}>{(model) => <ModelPicker model={model()} disabled={!session.idle()} onSelect={(selected) => void session.selectModel(selected)} />}</Show>
+    <details class="chat-usage-inline"><summary>Context &amp; session usage</summary><SessionUsagePanel usage={session.view()?.usage} /></details>
     <div class="active-chat">
       <div class="active-chat-viewport" ref={scroll.ref}>
         <div class="active-chat-heading">
@@ -36,7 +43,7 @@ export function ChatPane(props: ChatPaneProps) {
       <Show when={scroll.unseen()}><button class="chat-jump" onClick={scroll.jump}>New messages ↓</button></Show>
       <div class="active-chat-composer-dock">
         <Composer conversation={session.conversation()} drafts={session.drafts} disabled={!session.conversation() || !session.configured() || session.ready() !== session.conversation() || session.pending() || session.preparing()}
-          running={Boolean(session.running())} busy={session.pending()} onSend={(prompt) => void session.send(prompt)} onStop={() => void session.cancel()} />
+          running={Boolean(session.running())} busy={session.pending()} onSend={(prompt) => { scroll.follow(); void session.send(prompt); }} onStop={() => void session.cancel()} />
       </div>
     </div>
   </div>;

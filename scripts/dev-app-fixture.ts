@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { z } from "zod";
 import type { ChatView, Conversation, Turn } from "../src/chat-contract.js";
-import { consoleExhausted, consoleModel, SaveConsoleBudget, SaveConsoleSettings } from "../src/console-contract.js";
+import { ConsoleModel, consoleExhausted, consoleModel, SaveConsoleBudget, SaveConsoleSettings } from "../src/console-contract.js";
 
 const minute = 60_000;
 
@@ -15,6 +15,8 @@ const csrf = "fixture";
 interface Chat {
   conversation: Conversation;
   turns: Turn[];
+  model: ConsoleModel;
+  usage: ChatView["usage"];
 }
 
 const chats = new Map<string, Chat>();
@@ -47,7 +49,7 @@ const finished = (ordinal: number, prompt: string, answer: string): Turn => ({
 });
 
 const seed = (id: string, title: string, harness: "opencode", age: number, turns: Turn[]) =>
-  chats.set(id, { conversation: conversation(id, title, harness, age, turns.reduce((sum, turn) => sum + turn.activity.length, 0)), turns });
+  chats.set(id, { conversation: conversation(id, title, harness, age, turns.reduce((sum, turn) => sum + turn.activity.length, 0)), turns, model: consoleModel, usage: null });
 
 const ids = Array.from({ length: 6 }, (_, index) => `5b3f0c1e-7a41-4c52-9c11-0a1f2b3c4d0${index + 1}`);
 
@@ -67,7 +69,7 @@ seed(ids[5] ?? "", "Old experiment with a very long title that should wrap acros
 
 const view = (chat: Chat): ChatView => ({
   conversation: { ...chat.conversation, toolCount: chat.turns.reduce((sum, turn) => sum + turn.activity.length, 0) },
-  harness: chat.conversation.harness, model: null, turns: chat.turns, usage: null,
+  harness: chat.conversation.harness, model: chat.model, turns: chat.turns, usage: chat.usage,
 });
 
 const push = (chat: Chat) => {
@@ -109,6 +111,7 @@ const run = async (chat: Chat, turn: Turn) => {
   if (live()) {
     turn.status = "completed";
     turn.stop_reason = "end_turn";
+    chat.usage = { harness: "opencode", costUSD: 0, inputTokens: (chat.usage?.inputTokens ?? 0) + turn.prompt.length * 4, outputTokens: (chat.usage?.outputTokens ?? 0) + turn.answer.length };
     push(chat);
   }
 };
@@ -236,6 +239,17 @@ const route = async (request: IncomingMessage, response: ServerResponse, path: s
   if (!match?.[2] && method === "GET") return json(response, view(chat));
 
   if (match?.[2] === "/prepare" && method === "POST") return json(response, { ok: true });
+
+  if (match?.[2] === "/model" && method === "POST") {
+    const input = await body(request);
+
+    Authorized.parse(input);
+
+    if (chat.turns.some((turn) => turn.status === "running")) return json(response, { error: "A turn is still running" }, 409);
+    chat.model = ConsoleModel.parse(input.model);
+
+    return json(response, view(chat));
+  }
 
   if (match?.[2] === "/events" && method === "GET") {
     response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });

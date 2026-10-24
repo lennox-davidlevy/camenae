@@ -7,6 +7,7 @@ import { createChatSession } from "./chat-session.js";
 import { consoleExhausted } from "../console-contract.js";
 import { RequestLimitNotice, SettingsInspector, SettingsPage } from "./settings.js";
 import { Shell, type Screen } from "./shell.js";
+import { SessionUsagePanel } from "./usage.js";
 import "../ui/theme.css";
 import "../ui/layout-shell.css";
 import "./app.css";
@@ -40,6 +41,7 @@ function App() {
   onMount(() => void session.start());
 
   const inspector = <div class="active-chat-inspector">
+    <SessionUsagePanel usage={session.view()?.usage} />
     <section><h2>Thread</h2><Show when={current()} fallback={<p>Select a thread to see its details.</p>}>
       {(item) => <><p>{item().title}</p><small>{item().harness} · {item().toolCount} tool calls</small></>}
     </Show></section>
