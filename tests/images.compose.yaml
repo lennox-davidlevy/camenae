@@ -1,0 +1,18 @@
+# Fixed tags are shared by serial test runs; project-owned state stays isolated.
+x-test-build: &test-build
+  labels:
+    app.camenae.test-image: "true"
+
+services:
+  app:
+    image: camenae-test-app:latest
+    build: *test-build
+  worker:
+    image: camenae-test-worker:latest
+    build: *test-build
+  ingress:
+    image: camenae-test-ingress:latest
+    build: *test-build
+  egress:
+    image: camenae-test-egress:latest
+    build: *test-build

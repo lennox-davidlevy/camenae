@@ -25,6 +25,7 @@ bun run build:ui
 bun run test:provisioning
 bun run test:dev-ui
 bun run test:threads
+bun run test:images
 bun run smoke:foundation
 bun run smoke:mcp
 bun run smoke:console
@@ -40,6 +41,14 @@ test subnets `172.30.84.0/24`, `172.30.85.0/24` (live), `172.30.86.0/24`, host p
 tests at user-owned volumes or reuse credentials. No deployment is implied by
 passing isolated checks.
 
+Test runners apply `tests/images.compose.yaml` (and
+`tests/opencode-images.compose.yaml` for OpenCode workers) to reuse fixed
+`camenae-test-*:latest` image tags. Rebuilding replaces the previous tags; cleanup
+prunes only dangling images labeled `app.camenae.test-image=true`, never deployment
+images or images still used by containers. Containers, volumes, networks and
+credentials still use unique disposable projects. Run suites serially because the
+image tags and test subnets are shared.
+
 OpenCode native smoke uses `172.30.87.0/24`; Console setup smoke uses
 `172.30.89.0/24`. Both use only synthetic provider data.
 
@@ -50,6 +59,7 @@ OpenCode native smoke uses `172.30.87.0/24`; Console setup smoke uses
 | test:provisioning | Actual init entrypoints with no pre-existing cache, private file modes, and byte-preserving refusal to overwrite |
 | test:dev-ui | Real loopback proxy, Host/Origin guards, cookies, forwarding, SSE streaming with synthetic backend |
 | test:threads | Local-calendar thread grouping across week/year/DST boundaries and safe headline/metadata rendering |
+| test:images | Resolve all smoke Compose stacks: stable test tags/cleanup labels, isolated project state, unchanged deployment images; no services started |
 | smoke:foundation | Real Docker/Postgres/native Bob: authentication, file boundaries, environment/network isolation, preparation, whole-worker teardown, DNS recovery, state retention, readiness and shutdown |
 | smoke:mcp | Synthetic local MCP/model fixtures, real Postgres/SDK/Bob: settings, ownership refusal, approvals/history, cancellation, native delegation and independent upstream receipts; HTTP/SSE usage consumer and rendered UI |
 | smoke:console | Real HTTP/Postgres/native OpenCode: encrypted Settings credential, new-chat harness selection, strict free-only gateway, atomic persistent request cap; synthetic provider, no egress service |
@@ -99,13 +109,15 @@ forwards streaming. Do not expose it through tunnels or use it in production.
 Only dev HTML uses the HMR policy; the deployed page retains its production CSP.
 
 For no-inference browser checks, start a separate disposable Compose project with
-its own generated auth/env, unused port/subnet, and `tests/mcp.compose.yaml`. Build
+its own generated auth/env, unused port/subnet, `tests/mcp.compose.yaml`, and
+`tests/images.compose.yaml`. Build
 `app`; start `postgres` and `mcp-fixture`, keeping normal `app` stopped. Run:
 
 ```sh
 # Replace these placeholders with the disposable project's own paths/name only.
 docker compose --env-file <test-env> -p <test-project> \
-  -f compose.yaml -f tests/mcp.compose.yaml run --rm --no-deps --use-aliases -T \
+  -f compose.yaml -f tests/mcp.compose.yaml -f tests/images.compose.yaml \
+  run --rm --no-deps --use-aliases -T \
   app bun tests/session-usage.tsx --serve < <test-auth-directory>/login.txt
 ```
 

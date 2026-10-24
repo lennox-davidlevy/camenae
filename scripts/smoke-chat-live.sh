@@ -15,9 +15,10 @@ project="camenae-live-$(date +%s)-$$"
 bun scripts/auth-init.ts "$auth_directory"
 bun -e 'console.log("CAMENAE_DATABASE_PASSWORD=" + crypto.randomUUID()); console.log("CAMENAE_HTTP_PORT=0"); console.log("CAMENAE_INFERENCE_PREFIX=172.30.85")' > "$env_file"
 printf 'CAMENAE_AUTH_FILE=%s/%s/credentials.json\n' "$PWD" "$auth_directory" >> "$env_file"
-dc() { compose --env-file "$env_file" --project-name "$project" -f compose.yaml "$@"; }
+dc() { compose --env-file "$env_file" --project-name "$project" -f compose.yaml -f tests/images.compose.yaml "$@"; }
 cleanup() {
   dc down --volumes --remove-orphans >/dev/null 2>&1 || true
+  sh scripts/cleanup-test-images.sh
   rm -f "$env_file" "$auth_directory/credentials.json" "$auth_directory/login.txt" "$auth_directory/state.json" "$auth_directory/next.json"
   rmdir "$auth_directory"
 }

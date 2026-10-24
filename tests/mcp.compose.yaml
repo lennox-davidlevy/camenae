@@ -3,7 +3,10 @@ services:
     environment:
       CAMENAE_CONTEXT7_URL: http://mcp-fixture:3002/mcp
   mcp-fixture:
+    image: camenae-test-mcp-fixture:latest
     build:
+      labels:
+        app.camenae.test-image: "true"
       context: .
       dockerfile: docker/application.Dockerfile
     command: [bun, tests/mcp-upstream.ts]

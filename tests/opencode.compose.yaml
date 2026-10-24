@@ -43,7 +43,10 @@ services:
       timeout: 5s
       retries: 30
   opencode-fixture:
+    image: camenae-test-opencode-fixture:latest
     build:
+      labels:
+        app.camenae.test-image: "true"
       context: .
       dockerfile: docker/application.Dockerfile
     command: [bun, tests/opencode-upstream.ts]

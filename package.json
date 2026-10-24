@@ -19,6 +19,7 @@
     "test:dev-ui": "bun tests/dev-ui.ts",
     "test:threads": "TZ=America/New_York bun tests/thread-list.tsx",
     "test:provisioning": "bun tests/provisioning.ts",
+    "test:images": "python3 tests/test-images.py",
     "check:runtime": "bun src/main.ts check-runtime",
     "smoke:foundation": "sh scripts/smoke-foundation.sh",
     "smoke:mcp": "sh scripts/smoke-mcp.sh",
