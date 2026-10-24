@@ -1,0 +1,182 @@
+[
+  {
+    "id": 132,
+    "sha256": "2301ae1ce20875381a316b2fd0ac5ada00f71bacdc732458a11b3674b358e360",
+    "title": "The Art of War",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 228,
+    "sha256": "398117fc34d7876e681e1feae1ebabfc72485be17f819779796d3dcfe886a504",
+    "title": "The Aeneid",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 785,
+    "sha256": "de777331b920c8b6f713cbb6b86ed8e68076904ba12a867ed13a11f0c5e00af4",
+    "title": "On the Nature of Things",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 1170,
+    "sha256": "48785a24a81d7aacd7a59593d2846ed2208e30242f5fe2e7f0a596282d710b87",
+    "title": "Anabasis",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 1177,
+    "sha256": "7414f8d46c152c4367af2c56b8e73a4935f61ca91b618aa60efec3eeea61d0d0",
+    "title": "The Memorabilia",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 1232,
+    "sha256": "33496a305f7a4b933784fb5aec95f920fbc3d4687794817e4cc444aa6578d2e4",
+    "title": "The Prince",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 1497,
+    "sha256": "3d2e397122881d7737a48fb80e71cddf4c78cda54ceac7e0905fe945dfab48fd",
+    "title": "The Republic",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 1656,
+    "sha256": "f4cc548bd8c8b59e14effdbaab9df97f29bd48f317a466fe8c3c63ad288b964c",
+    "title": "Apology",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 1727,
+    "sha256": "ffbdb29c3dda284b65c11243db1a98167826a70c81bca2ed4b6232f86c905fb9",
+    "title": "The Odyssey",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 2085,
+    "sha256": "bc4cce39e27ef1b43be758d63be853f7a8cd0c28332673061c5395cacd85637e",
+    "title": "Cyropaedia: The Education of Cyrus",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 2199,
+    "sha256": "72673dcefeaa5d302b4ac1cc9ce6fd0b236831e816de41391e5cfe138ab5b077",
+    "title": "The Iliad",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 2456,
+    "sha256": "7b28f25dbed0064cd8f66c662eaa776cccd535cdeb6e3ff94c37dd1cc2a752db",
+    "title": "The History of Herodotus — Volume 2",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 2680,
+    "sha256": "6977474f82a39dd88a4af31a59504821658174d33c177732c54357e4d680b96c",
+    "title": "Meditations",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 2707,
+    "sha256": "b4a845d38e9051690201561803d2aa83f6589a7b3f80273b97d79801981e64a3",
+    "title": "The History of Herodotus — Volume 1",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 2808,
+    "sha256": "e16d9cf072824f3dda72dd3f4744fca1a7e9dfd19375eb5105347d339fd06aa3",
+    "title": "Treatises on Friendship and Old Age",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 6400,
+    "sha256": "ce62a16afa01bbf5c597788d8c73290ad7bc8ac09a5c87ed9b5c8010c1a9687f",
+    "title": "The Lives of the Twelve Caesars, Complete",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 6762,
+    "sha256": "4b5f5d1bc2859780ba5954f5e98b5a8ebf0a0945ace77c861d5b164454155e9f",
+    "title": "Politics: A Treatise on Government",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 7142,
+    "sha256": "b7df28eabde17b252e38e808c5d9c287ac69d9503e2958ba74bd316922963b14",
+    "title": "The History of the Peloponnesian War",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 7959,
+    "sha256": "d702716cba1deefe61e5845ca8bd78bd1c7fb50e5f2a37d0bc6bb7aef4892e39",
+    "title": "The Reign of Tiberius, Out of the First Six Annals of Tacitus;",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 8438,
+    "sha256": "a68264a6537bb58b899ed68e25d1c7d8ea1bcb3e9544b4d1b464f74d99c3d059",
+    "title": "The Nicomachean ethics of Aristotle",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 10657,
+    "sha256": "7e1a58776d28d7385752c4be7931f80ad385d6aad28309f56e28f4bcd38f4789",
+    "title": "\"De Bello Gallico\" and Other Commentaries",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 10661,
+    "sha256": "7915eac7442daed1fbc461b8a281ecc315c5e619126d50d914c29c39fa3b2209",
+    "title": "A Selection from the Discourses of Epictetus with the Encheiridion",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 14033,
+    "sha256": "b769a27b58572497c6c2846efac84f8365c78b4f55135678d121aa56257ef68c",
+    "title": "Plutarch's Lives, Volume 1 (of 4)",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 14114,
+    "sha256": "0ed878d3796efd58800020eba9ab9fdc10f28d6b3d172899d16476eacd9d0c63",
+    "title": "Plutarch's Lives, Volume 2 (of 4)",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 14140,
+    "sha256": "fa6e882806ac7b27b8e949184092cb3d35a762c3770220847932092321cb59bf",
+    "title": "Plutarch's Lives, Volume 3 (of 4)",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 14988,
+    "sha256": "9eb99f90fe7d95dd3f19ebc79e578f30314164cc9acb67b8f7f40b7cf048f7a7",
+    "title": "Cicero's Tusculan Disputations",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 15877,
+    "sha256": "06d297ee497058efbd89bd90a90582ecc68614b65ca75b44ff452a6b34b51cfb",
+    "title": "Thoughts of Marcus Aurelius Antoninus",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 44315,
+    "sha256": "0efb2f6e17c136f033913d4061077a7e3d70ccdc8162d1bd0f838643a0d26e1b",
+    "title": "Plutarch's Lives, Volume 4 (of 4)",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 56075,
+    "sha256": "acd016ee6b7cb232b8050ff88582a229770f14c70fd1fe35468b765e9949065d",
+    "title": "Seneca's Morals of a Happy Life, Benefits, Anger and Clemency",
+    "retrieved": "2026-10-24"
+  },
+  {
+    "id": 64576,
+    "sha256": "ff92ddd84505a319d6346113900312315ab58e0ff46570fdb808c5995c5a483b",
+    "title": "Minor Dialogues, Together With the Dialogue on Clemency",
+    "retrieved": "2026-10-24"
+  }
+]

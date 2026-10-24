@@ -177,3 +177,12 @@ There is no `.git` or old remote in the archive. Stage only the selected source,
 review `git status`, and make your initial commit. Create/configure the new GitHub
 remote and push only when you choose to publish. Do not copy the old checkout's
 Git directory, private backups, validation runtime state, or SDK archive.
+
+## Quotes pipeline
+
+`tools/quotes` builds `data/quotes/quotes.jsonl`, a dataset of public-domain quotations
+verified word for word against pinned Project Gutenberg editions. It runs outside the
+application and is not in the Docker images. See [its README](../tools/quotes/README.md);
+`bun run test:quotes` checks the text helpers and the committed dataset. A private,
+gitignored set of Games Workshop quotes is built the same way from locally saved pages; the
+README says how and why it stays out of the repository.

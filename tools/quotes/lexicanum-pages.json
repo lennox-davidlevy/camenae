@@ -1,0 +1,13 @@
+[
+  { "id": 900001, "page": "Imperium_Quotes", "category": "Imperium" },
+  { "id": 900002, "page": "Space_Marine_Quotes", "category": "Adeptus Astartes" },
+  { "id": 900003, "page": "Astra_Militarum_Quotes", "category": "Astra Militarum" },
+  { "id": 900004, "page": "Adeptus_Mechanicus_Quotes", "category": "Adeptus Mechanicus" },
+  { "id": 900005, "page": "Ecclesiarchy_Quotes", "category": "Ecclesiarchy" },
+  { "id": 900006, "page": "Inquisition_Quotes", "category": "Inquisition" },
+  { "id": 900007, "page": "Imperial_Navy_Quotes", "category": "Imperial Navy" },
+  { "id": 900008, "page": "Adepta_Sororitas_Quotes", "category": "Adepta Sororitas" },
+  { "id": 900009, "page": "Adeptus_Arbites_Quotes", "category": "Adeptus Arbites" },
+  { "id": 900010, "page": "Tactica_Imperium_passages", "category": "Tactica Imperium" },
+  { "id": 900011, "page": "Thought_for_the_day", "category": "Thought for the Day" }
+]
