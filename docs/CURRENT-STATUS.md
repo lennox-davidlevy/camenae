@@ -43,7 +43,7 @@ Attachments are saved as workspace files in `inbox/` when a message is sent (up 
 told the paths. Files can be previewed and edited as text up to 1 MiB. In the
 Solid preview, the Files screen (browse, edit, upload, new folder, rename/move,
 delete), composer attachments, `@` path mentions, and "Ask about this file" were
-verified in a browser against synthetic fixtures only, not yet a real backend. The
+verified in a browser against synthetic fixtures. The Files screen was also checked against an isolated real stack (upload, clash, 15 MB limit, edit/save, move, delete); sending a message with attachments was not, because no model connection was configured. The
 server routes and tests passed on isolated stacks. The React UI keeps a smaller
 text-only upload policy.
 

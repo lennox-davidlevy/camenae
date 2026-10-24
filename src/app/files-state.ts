@@ -9,6 +9,13 @@ export interface Clash {
   target: string;
 }
 
+const missingFolder = "That folder no longer exists.";
+
+const loadFailed = "Could not load files. Refresh to retry.";
+
+// Errors the listing itself raised; a later successful load clears only these.
+const loadFailures = [missingFolder, loadFailed];
+
 const join = (folder: string, name: string) => folder ? `${folder}/${name}` : name;
 
 const parentOf = (path: string) => path.split("/").slice(0, -1).join("/");
@@ -30,16 +37,26 @@ export function createFiles(props: { csrf: () => string | undefined; active: () 
   const [clash, setClash] = createSignal<readonly Clash[]>([]);
   const [revision, setRevision] = createSignal(0);
 
+  // A slower, older load must not replace a newer one (a folder deleted while open).
+  let latest = 0;
+
   const loadListing = async () => {
+    latest += 1;
+    const mine = latest;
     setLoading(true);
 
     try {
-      setListing(await listFiles(path(), showHidden()));
-      setError("");
+      const next = await listFiles(path(), showHidden());
+
+      if (mine !== latest) return;
+      setListing(next);
+
+      if (loadFailures.includes(error())) setError("");
     } catch (failure) {
+      if (mine !== latest) return;
       setListing(undefined);
-      setError(failure instanceof FileRequestError && failure.code === "NOT_FOUND" ? "That folder no longer exists." : "Could not load files. Refresh to retry.");
-    } finally { setLoading(false); }
+      setError(failure instanceof FileRequestError && failure.code === "NOT_FOUND" ? missingFolder : loadFailed);
+    } finally { if (mine === latest) setLoading(false); }
   };
 
   const loadPreview = async (file: string) => {
