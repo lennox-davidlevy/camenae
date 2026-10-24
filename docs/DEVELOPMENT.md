@@ -115,11 +115,10 @@ loopback-only, refuses other Host headers, and serves only `src/` and `node_modu
 application does not serve that build yet, and the Docker images do not use it.
 The shell has thread grouping, resizable panels, and a chat view: message list with
 sanitized Markdown, tool activity, approval cards, a composer with per-conversation
-drafts, stop, new chat, and a server-sent-event stream with follow-the-bottom
-scrolling. In fixture mode the dev server simulates turns in memory: any message
+drafts, stop, new chat, a server-sent-event stream with follow-the-bottom
+scrolling, and a Settings screen for the provider key and request allowance. In fixture mode the dev server simulates turns in memory: any message
 streams a reply; include `approve` to trigger an approval card and `markdown` for
-hostile Markdown. Attachments, model selection, usage, skills, files, and settings
-are not built in it. Close any browser you opened and stop the server when
+hostile Markdown. Attachments, model selection, usage, skills, and files are not built in it. Close any browser you opened and stop the server when
 finished.
 
 For browser checks against a real backend without inference, start a separate

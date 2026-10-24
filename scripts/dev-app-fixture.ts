@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { z } from "zod";
 import type { ChatView, Conversation, Turn } from "../src/chat-contract.js";
+import { consoleExhausted, consoleModel, SaveConsoleBudget, SaveConsoleSettings } from "../src/console-contract.js";
 
 const minute = 60_000;
 
@@ -21,6 +22,20 @@ const chats = new Map<string, Chat>();
 const listeners = new Map<string, Set<ServerResponse>>();
 
 const approvals = new Map<string, (optionId: string | null) => void>();
+
+// Provider settings state, shaped like the real endpoints: one saved key and a request allowance.
+interface ProviderState {
+  stored: boolean;
+  used: number;
+  limit: number | null;
+  revision: number;
+}
+
+const provider: ProviderState = { stored: true, used: 3, limit: 20, revision: 0 };
+
+const usage = () => ({ used: provider.used, limit: provider.limit, revision: provider.revision });
+
+const ready = () => provider.stored && !consoleExhausted(usage());
 
 const conversation = (id: string, title: string, harness: "opencode", age: number, toolCount: number): Conversation => ({
   id, title, harness, toolCount, createdAt: Date.now() - age - 5 * minute, updatedAt: Date.now() - age,
@@ -112,16 +127,26 @@ const Prompt = z.looseObject({ csrf: z.literal(csrf), prompt: z.string().trim().
 
 const Action = z.looseObject({ csrf: z.literal(csrf), turnId: z.uuid(), optionId: z.string().nullable().optional() });
 
+interface SettingsReply {
+  provider: "console";
+  model: string;
+  enabled: boolean;
+  stored: boolean;
+  used: number;
+  limit: number | null;
+  revision: number;
+}
+
 interface BootstrapReply {
   csrf: string;
   stored: boolean;
   readiness: { opencode: boolean };
-  consoleUsage: null;
+  consoleUsage: { used: number; limit: number | null; revision: number };
   harness: "opencode";
   conversations: Conversation[];
 }
 
-type Reply = ChatView | BootstrapReply | { id: string } | { error: string } | { ok: true };
+type Reply = ChatView | BootstrapReply | SettingsReply | { id: string } | { error: string } | { ok: true };
 
 const json = (response: ServerResponse, value: Reply, status = 200) => {
   response.statusCode = status;
@@ -129,15 +154,49 @@ const json = (response: ServerResponse, value: Reply, status = 200) => {
   response.end(JSON.stringify(value));
 };
 
+const settingsReply = (): SettingsReply => ({ provider: "console", model: consoleModel, enabled: true, stored: provider.stored, ...usage() });
+
+const settingsRoute = async (request: IncomingMessage, response: ServerResponse, path: string) => {
+  const method = request.method ?? "GET";
+
+  if (path === "/api/settings/opencode" && method === "GET") return json(response, settingsReply());
+
+  if (method !== "POST") return json(response, { error: "Not found" }, 404);
+
+  const input = await body(request);
+
+  Authorized.parse(input);
+
+  if (path === "/api/settings/opencode") {
+    SaveConsoleSettings.parse(input);
+    provider.stored = true;
+  } else if (path === "/api/settings/opencode/remove") {
+    provider.stored = false;
+  } else if (path === "/api/settings/opencode/budget") {
+    const budget = SaveConsoleBudget.parse(input);
+
+    if (budget.revision !== provider.revision) return json(response, { error: "Allowance changed elsewhere" }, 409);
+    provider.limit = budget.limit;
+
+    if (budget.refresh) provider.used = 0;
+    provider.revision += 1;
+  } else return json(response, { error: "Not found" }, 404);
+
+  return json(response, settingsReply());
+};
+
 const route = async (request: IncomingMessage, response: ServerResponse, path: string) => {
   const method = request.method ?? "GET";
+
+  if (path.startsWith("/api/settings/opencode")) return settingsRoute(request, response, path);
+
   const match = /^\/api\/chat\/([0-9a-f-]{36})(\/[a-z-]+)?$/.exec(path);
   const chat = match?.[1] ? chats.get(match[1]) : undefined;
 
   if (path === "/api/chat" && method === "GET") {
     const conversations = [...chats.values()].map((item) => view(item).conversation);
 
-    return json(response, { csrf, stored: true, readiness: { opencode: true }, consoleUsage: null, harness: "opencode", conversations });
+    return json(response, { csrf, stored: provider.stored, readiness: { opencode: ready() }, consoleUsage: usage(), harness: "opencode", conversations });
   }
 
   if (path === "/api/chat" && method === "POST") {
@@ -194,6 +253,9 @@ const route = async (request: IncomingMessage, response: ServerResponse, path: s
 
     if (chat.turns.some((turn) => turn.status === "running")) return json(response, { error: "A turn is already running" }, 409);
 
+    if (!ready()) return json(response, { error: "Provider not ready" }, 503);
+    provider.used += 1;
+
     const turn: Turn = { id: crypto.randomUUID(), ordinal: chat.turns.length + 1, prompt: start.prompt, answer: "", activity: [], permission: null,
       attachments: [], status: "running", stop_reason: null };
 
@@ -215,7 +277,7 @@ export const fixtureBackend: Plugin = {
     server.middlewares.use((request, response, next) => {
       const path = new URL(request.url ?? "/", "http://localhost").pathname;
 
-      if (!path.startsWith("/api/chat")) return next();
+      if (!path.startsWith("/api/chat") && !path.startsWith("/api/settings/opencode")) return next();
       route(request, response, path).catch(() => { if (!response.headersSent) json(response, { error: "Invalid request" }, 400); });
     });
   },

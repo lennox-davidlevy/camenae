@@ -150,6 +150,13 @@ export function createChatSession() {
     return id ? select(id) : Promise.resolve();
   };
 
+  // Settings changes report here: refresh the allowance, and re-prepare after a key change.
+  const refreshStatus = async (connectionChanged: boolean) => {
+    setBootstrap(await loadBootstrap());
+
+    if (connectionChanged) setReady(undefined);
+  };
+
   const create = () => perform(async () => {
     const state = bootstrap();
 
@@ -195,5 +202,5 @@ export function createChatSession() {
   });
 
   return { bootstrap, conversations, conversation, view, error, pending, preparing, ready, running, harness, configured, idle, drafts,
-    start, select, reconnect, create, send, cancel, approveNative };
+    start, select, reconnect, create, send, cancel, approveNative, refreshStatus };
 }

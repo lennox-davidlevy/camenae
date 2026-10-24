@@ -1,8 +1,11 @@
 /** @jsxImportSource solid-js */
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
+import { Match } from "effect";
 import { render } from "solid-js/web";
 import { ChatPane } from "./chat-pane.js";
 import { createChatSession } from "./chat-session.js";
+import { consoleExhausted } from "../console-contract.js";
+import { RequestLimitNotice, SettingsInspector, SettingsPage } from "./settings.js";
 import { Shell, type Screen } from "./shell.js";
 import "../ui/theme.css";
 import "../ui/layout-shell.css";
@@ -11,10 +14,15 @@ import "./app.css";
 const notes = {
   Skills: "Skills are not built in this view yet.",
   Files: "Files are not built in this view yet. The working file browser is inside Classic chat.",
-  Settings: "Settings are not built in this view yet. They remain inside Classic chat, including connection setup.",
 } as const;
 
-const noteFor = (screen: Screen) => screen === "Chat" ? undefined : notes[screen];
+const contentClass = (screen: Screen) => Match.value(screen).pipe(
+  Match.when("Chat", () => "shell-content shell-content-active"),
+  Match.when("Settings", () => "shell-content shell-content-settings"),
+  Match.orElse(() => "shell-content"),
+);
+
+const noteFor = (screen: Screen) => screen === "Chat" || screen === "Settings" ? undefined : notes[screen];
 
 function App() {
   const session = createChatSession();
@@ -22,6 +30,12 @@ function App() {
   const current = createMemo(() => session.conversations().find((item) => item.id === session.conversation()));
   const latest = createMemo(() => session.view()?.turns.at(-1));
   const approvals = createMemo(() => session.view()?.turns.filter((turn) => turn.permission).length ?? 0);
+
+  const exhausted = createMemo(() => {
+    const usage = session.bootstrap()?.consoleUsage;
+
+    return usage && consoleExhausted(usage) ? usage : undefined;
+  });
 
   onMount(() => void session.start());
 
@@ -38,10 +52,13 @@ function App() {
   return <Shell screen={screen()} onScreen={setScreen} conversations={session.conversations()} selected={session.conversation()}
     onSelect={(id) => { setScreen("Chat"); void session.select(id); }} onNew={() => { setScreen("Chat"); void session.create(); }}
     newDisabled={!session.idle() || !session.bootstrap()?.readiness.opencode} selectionDisabled={session.pending() || session.preparing()}
-    inspector={inspector}>
-    <div class={screen() === "Chat" ? "shell-content shell-content-active" : "shell-content"}>
+    inspector={screen() === "Settings" ? <SettingsInspector /> : inspector}>
+    <div class={contentClass(screen())}>
       <Show when={session.error()}><p role="alert" class="app-error">{session.error()}</p></Show>
+      <Show when={screen() === "Chat" ? exhausted() : undefined}>{(usage) => <RequestLimitNotice usage={usage()}><button onClick={() => setScreen("Settings")}>Open Settings</button></RequestLimitNotice>}</Show>
       <div hidden={screen() !== "Chat"} class="chat-screen-wrap"><ChatPane session={session} /></div>
+      <Show when={screen() === "Settings" ? session.bootstrap() : undefined}>{(state) =>
+        <SettingsPage csrf={state().csrf} usage={state().consoleUsage} onChanged={session.refreshStatus} />}</Show>
       <Show when={noteFor(screen())}>{(note) => <>
         <h1 class="shell-screen-title">{screen()}</h1>
         <div class="app-notice"><span class="tag">Preview shell</span><p>{note()}</p></div>

@@ -47,7 +47,7 @@
 .harness-connection { border-top: 1px solid var(--ink); padding-top: 16px; }
 .harness-connection .settings-rows { padding-left: 0; border-left: 0; }
 .harness-connection .settings-row { display: grid; grid-template-columns: minmax(100px, .7fr) minmax(0, 1.3fr); font: 11px var(--mono-font); }
-.harness-connection input, .harness-connection select { width: 100%; background: var(--input-fill); color: var(--ink); border: 1px solid var(--line); padding: 8px; font: 14px var(--body-font); border-radius: 0; }
+.harness-connection input:not([type="checkbox"]), .harness-connection select { width: 100%; background: var(--input-fill); color: var(--ink); border: 1px solid var(--line); padding: 8px; font: 14px var(--body-font); border-radius: 0; }
 .settings-key-status { font-size: 12px; color: var(--muted); }
 .request-usage { display: flex; align-items: center; gap: 16px; margin: 18px 0; font: 11px var(--mono-font); }
 .request-usage progress { flex: 1; min-width: 0; height: 12px; appearance: none; border: 0; background: var(--soft-line); }
