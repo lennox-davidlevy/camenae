@@ -32,7 +32,7 @@ def resolve(files: list[str], project: str) -> dict:
     return json.loads(result.stdout)
 
 
-for suite in ("foundation", "mcp", "opencode", "console", "chat-live"):
+for suite in ("foundation", "opencode", "console"):
     runner = (root / f"scripts/smoke-{suite}.sh").read_text()
     dc = next(line for line in runner.splitlines() if line.startswith("dc()"))
     files = re.findall(r"-f ([\w/.-]+)", dc)
@@ -51,7 +51,7 @@ for suite in ("foundation", "mcp", "opencode", "console", "chat-live"):
             assert resource["name"] != second[section][name]["name"]
     assert "sh scripts/cleanup-test-images.sh" in runner
 
-deployment = resolve(["compose.yaml", "compose.opencode.yaml"], "bob-camenae")
+deployment = resolve(["compose.yaml"], "camenae")
 for service in deployment["services"].values():
     assert not service.get("image", "").startswith("camenae-test-")
     assert "app.camenae.test-image" not in service.get("build", {}).get("labels", {})

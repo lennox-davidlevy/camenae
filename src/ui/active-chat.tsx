@@ -3,7 +3,7 @@ import { ComposerPrimitive, MessagePrimitive, ThreadPrimitive, useAuiState, type
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
 import { Activity, Turn, type ChatView } from "../chat-contract.js";
-import { McpApprovals, NativeApproval, NativeApprovalHistory } from "./chat-approvals.js";
+import { NativeApproval } from "./chat-approvals.js";
 import type { Screen } from "./layout-shell.js";
 import { SessionUsagePanel } from "./session-usage.js";
 import "./active-chat.css";
@@ -73,26 +73,22 @@ function AssistantMessage() {
     {!turn.answer && <p className="chat-turn-notice">{turn.status === "running" ? "Waiting for response text…" : "No response text was returned."}</p>}
     {turn.stop_reason && <p className="chat-turn-notice">Stop reason: {turn.stop_reason}</p>}
     <NativeApproval turn={turn} pending={actions.pending} onApprove={actions.onApprove} />
-    <NativeApprovalHistory turn={turn} />
   </MessagePrimitive.Root>;
 }
 
-export function ActiveChat({ title, mcp, pending, status, reconnect, onNativeApprove, onMcpApprove, onScreen, attachments }: {
+export function ActiveChat({ title, pending, status, reconnect, onNativeApprove, onScreen, attachments }: {
   attachments: ReactNode;
   title: string;
-  mcp: ChatView["mcp"];
   pending: boolean;
   status: ReactNode;
   reconnect: ReactNode;
   onNativeApprove: (turn: Turn, optionId: string | null) => void;
-  onMcpApprove: (permissionId: string, decision: "allow" | "deny") => void;
   onScreen: (screen: Screen) => void;
 }) {
   return <ApprovalActions.Provider value={{ pending, onApprove: onNativeApprove }}>
     <ThreadPrimitive.Viewport className="active-chat-viewport">
       <div className="active-chat-heading"><div><span className="active-chat-chip">Conversation</span><span className="active-chat-connection" role="status">{status}</span>{reconnect}</div><h1>{title}</h1></div>
       <div className="active-chat-timeline"><ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} /></div>
-      <McpApprovals mcp={mcp} pending={pending} onApprove={onMcpApprove} />
     </ThreadPrimitive.Viewport>
     <div className="active-chat-composer-dock">
       <ComposerPrimitive.Root className="active-chat-composer">

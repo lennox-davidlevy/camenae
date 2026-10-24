@@ -24,39 +24,40 @@ session history. Keep private delivery evidence and session journals outside it.
 
 ## Product and ownership
 
-Camenae is a single-user assistant application, not a harness SDK. Bob is the default
-harness; the experimental OpenCode path is documented in `docs/OPENCODE.md`.
-The intended product is a blank-slate personal app that users create and modify
-through conversation, including themes, views, functionality, and shareable
-plugins. That end state is not implemented. Pi, a new harness, and a json-render
-fork are not approved implementation work merely because they appear in planning.
-Use Camenae branding and neutral application wording; retain
-Bob names for actual credentials, native SDK types, metrics, and integration contracts.
-Do not claim planned integrations or preview UI controls work.
+Camenae is a single-user assistant application, not a harness SDK. OpenCode is the
+only implemented harness; see `docs/OPENCODE.md`. The intended product is a blank-slate
+personal app that users create and modify through conversation, including themes,
+views, functionality, and shareable plugins. That end state is not implemented. Pi,
+Claude, Codex, a new harness, and a json-render fork are not approved implementation
+work merely because they appear in planning. The UI is moving from React to SolidJS
+in stages; the React UI stays the working interface until the Solid one reaches parity.
+Use Camenae branding and neutral application wording; retain native SDK type names
+only at integration boundaries. Do not claim planned integrations or preview UI
+controls work.
 
 Application ownership: authentication, persistence, workspace provisioning, UI,
-approval preferences, and deployment policy. The packaged SDK owns transport,
-native mode/configuration management, and MCP gate semantics; Bob owns its agent
-loop. Trace a gap to its owner before proposing changes. Do not conceal SDK defects
+and deployment policy. The packaged SDK owns transport and native
+configuration management; the harness owns its agent loop. Trace a gap to its owner
+before proposing changes. Do not conceal SDK defects
 with alternate launchers, protocol implementations, output rewrites, sibling-source
 imports, or installed-package edits. SDK changes require separate authorization.
 
 Consume the exact approved package, never an arbitrary same-version archive.
 SDK updates must use its packaging tooling and change `package.json`, `bun.lock`,
-both Dockerfile paths/checksums, `.dockerignore`, the staging script, and the
-integration guide together. Keep concrete `Bob`/`Bob*` SDK contracts at boundaries;
-do not introduce aliases claiming universal harness support.
+the Dockerfile path/checksum, `.dockerignore`, the staging script, and the
+integration guide together. Keep concrete SDK contracts at boundaries; do not
+introduce aliases claiming universal harness support.
 
 ## Compatibility and safety
 
-Preserve persisted identifiers, migrations, native IDs, `bob-gateway/usage`,
-`BOB_GATEWAY_*`, encryption context, ownership markers, credential paths, and the
-Compose identity `bob-camenae`. Cosmetic naming is not a data migration.
+Preserve persisted identifiers, migrations, native IDs, encryption context strings,
+credential paths, and the Compose project identity `camenae`. Cosmetic naming is not
+a data migration, and changing the project name selects different volumes.
 
-Bob workers serve one connection. The entrypoint must exit after `serveOnce()` settles;
-Docker owns whole-worker teardown before reuse. Disconnect/EOF or an old healthy
-status is not cleanup proof: require a new lifetime and healthy readiness.
-Never silently adopt, delete, or overwrite conflicting managed native files.
+A worker accepts one application owner. Docker owns whole-worker teardown before
+reuse. Disconnect/EOF or an old healthy status is not cleanup proof: require a new
+lifetime and healthy readiness. Never silently adopt, delete, or overwrite
+conflicting managed native files.
 
 Never print secrets, session tokens, generated passwords, raw provider payloads,
 or argument-containing correlation IDs. Preserve `.env`, local auth, database,

@@ -32,11 +32,7 @@ export class Identity extends Context.Service<Identity, {
   readonly changePassword: (token: string, csrf: string, current: Redacted.Redacted<string>, password: Redacted.Redacted<string>) => Effect.Effect<string, IdentityError | AccessDenied | LoginLimited>;
   readonly session: (token: string) => Effect.Effect<string, IdentityError | AccessDenied>;
   readonly authorize: (token: string, csrf: string) => Effect.Effect<void, IdentityError | AccessDenied>;
-  readonly key: (token: string, csrf: string) => Effect.Effect<Redacted.Redacted<string>, IdentityError | AccessDenied>;
-  readonly status: (token: string) => Effect.Effect<boolean, IdentityError | AccessDenied>;
   readonly logout: (token: string, csrf: string) => Effect.Effect<void, IdentityError | AccessDenied>;
-  readonly replaceKey: (token: string, csrf: string, key: Redacted.Redacted<string>) => Effect.Effect<void, IdentityError | AccessDenied>;
-  readonly removeKey: (token: string, csrf: string) => Effect.Effect<void, IdentityError | AccessDenied>;
   readonly consoleStatus: (token: string) => Effect.Effect<ConsoleUsage & { stored: boolean }, IdentityError | AccessDenied>;
   readonly saveConsoleBudget: (token: string, input: z.infer<typeof SaveConsoleBudget>) => Effect.Effect<boolean, IdentityError | AccessDenied>;
   readonly consoleKey: () => Effect.Effect<Redacted.Redacted<string>, IdentityError>;
@@ -65,37 +61,25 @@ export class Identity extends Context.Service<Identity, {
       Credentials.parse(JSON.parse(await readFile(file, "utf8"))));
 
     const encryptionKey = Buffer.from(credentials.encryptionKey, "hex");
-    const aad = Buffer.from(`camenae:bob-key:v1:${installation.id}`);
-    const consoleAad = Buffer.from(`camenae:console-key:v1:${installation.id}`);
+    const aad = Buffer.from(`camenae:console-key:v1:${installation.id}`);
 
-    const decrypt = (encrypted: string, context = aad) => {
+    const decrypt = (encrypted: string) => {
       const bytes = Buffer.from(encrypted, "base64");
       const decipher = createDecipheriv("aes-256-gcm", encryptionKey, bytes.subarray(0, 12));
-      decipher.setAAD(context);
+      decipher.setAAD(aad);
       decipher.setAuthTag(bytes.subarray(12, 28));
 
       return Redacted.make(Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]).toString("utf8"));
     };
 
-    const encrypt = (key: string, context = aad) => {
+    const encrypt = (key: string) => {
       const nonce = randomBytes(12);
       const cipher = createCipheriv("aes-256-gcm", encryptionKey, nonce);
-      cipher.setAAD(context);
+      cipher.setAAD(aad);
       const ciphertext = Buffer.concat([cipher.update(key, "utf8"), cipher.final()]);
 
       return Buffer.concat([nonce, cipher.getAuthTag(), ciphertext]).toString("base64");
     };
-
-    const connectionRows = Effect.fn("Identity.connectionRows")(function* () {
-      const rows = yield* sql`SELECT encrypted_key FROM bob_connection WHERE singleton = true`;
-
-      return yield* Effect.try(() => Connections.parse(rows));
-    }, Effect.mapError(() => new IdentityError()));
-
-    // Fail closed on a lost/wrong encryption key; never silently overwrite unreadable data.
-    for (const row of yield* connectionRows()) {
-      yield* Effect.try(() => decrypt(row.encrypted_key));
-    }
 
     const consoleRow = Effect.fn("Identity.consoleRow")(function* () {
       const rows = yield* sql`SELECT encrypted_key, requests_used - requests_baseline AS used, requests_limit AS "limit",
@@ -106,7 +90,7 @@ export class Identity extends Context.Service<Identity, {
 
     const savedConsole = (yield* consoleRow()).encrypted_key;
 
-    if (savedConsole) yield* Effect.try(() => decrypt(savedConsole, consoleAad));
+    if (savedConsole) yield* Effect.try(() => decrypt(savedConsole));
 
     yield* sql`INSERT INTO local_account (password_hash) VALUES (${credentials.passwordHash}) ON CONFLICT DO NOTHING`;
 
@@ -130,15 +114,6 @@ export class Identity extends Context.Service<Identity, {
 
     const authorize = Effect.fn("Identity.authorize")(function* (token: string, csrf: string) {
       if ((yield* session(token)) !== csrf) return yield* new AccessDenied();
-    });
-
-    const key = Effect.fn("Identity.key")(function* (token: string, csrf: string) {
-      yield* authorize(token, csrf);
-      const row = (yield* connectionRows())[0];
-
-      if (!row) return yield* new IdentityError();
-
-      return yield* Effect.try(() => decrypt(row.encrypted_key)).pipe(Effect.mapError(() => new IdentityError()));
     });
 
     const admitPasswordAttempt = Effect.fn("Identity.admitPasswordAttempt")(function* () {
@@ -218,32 +193,9 @@ export class Identity extends Context.Service<Identity, {
       })).pipe(Effect.catchTag("SqlError", () => new IdentityError()));
     });
 
-    const status = Effect.fn("Identity.status")(function* (token: string) {
-      yield* session(token);
-
-      return (yield* connectionRows()).length > 0;
-    });
-
     const logout = Effect.fn("Identity.logout")(function* (token: string, csrf: string) {
       yield* authorize(token, csrf);
       yield* sql`DELETE FROM login_session WHERE token_hash = ${digest(token)}`
-        .pipe(Effect.mapError(() => new IdentityError()));
-    }, sql.withTransaction);
-
-    const replaceKey = Effect.fn("Identity.replaceKey")(function* (token: string, csrf: string, key: Redacted.Redacted<string>) {
-      yield* authorize(token, csrf);
-
-      const encrypted = yield* Effect.try(() => encrypt(Redacted.value(key)))
-        .pipe(Effect.mapError(() => new IdentityError()));
-
-      yield* sql`INSERT INTO bob_connection (encrypted_key) VALUES (${encrypted})
-        ON CONFLICT (singleton) DO UPDATE SET encrypted_key = EXCLUDED.encrypted_key`
-        .pipe(Effect.mapError(() => new IdentityError()));
-    }, sql.withTransaction);
-
-    const removeKey = Effect.fn("Identity.removeKey")(function* (token: string, csrf: string) {
-      yield* authorize(token, csrf);
-      yield* sql`DELETE FROM bob_connection WHERE singleton = true`
         .pipe(Effect.mapError(() => new IdentityError()));
     }, sql.withTransaction);
 
@@ -272,7 +224,7 @@ export class Identity extends Context.Service<Identity, {
 
       if (!encrypted) return yield* new IdentityError();
 
-      return yield* Effect.try(() => decrypt(encrypted, consoleAad));
+      return yield* Effect.try(() => decrypt(encrypted));
     }, Effect.mapError(() => new IdentityError()));
 
     const admitConsoleRequest = Effect.fn("Identity.admitConsoleRequest")(function* () {
@@ -283,12 +235,12 @@ export class Identity extends Context.Service<Identity, {
 
       const row = yield* Effect.try(() => Connections.length(1).parse(rows)[0]);
 
-      return yield* Effect.try(() => decrypt(row.encrypted_key, consoleAad));
+      return yield* Effect.try(() => decrypt(row.encrypted_key));
     }, Effect.mapError(() => new IdentityError()));
 
     const replaceConsoleKey = Effect.fn("Identity.replaceConsoleKey")(function* (token: string, csrf: string, key: Redacted.Redacted<string>) {
       yield* authorize(token, csrf);
-      const encrypted = yield* Effect.try(() => encrypt(Redacted.value(key), consoleAad)).pipe(Effect.mapError(() => new IdentityError()));
+      const encrypted = yield* Effect.try(() => encrypt(Redacted.value(key))).pipe(Effect.mapError(() => new IdentityError()));
       yield* sql`UPDATE console_connection SET encrypted_key = ${encrypted} WHERE singleton = true`.pipe(Effect.mapError(() => new IdentityError()));
     }, sql.withTransaction);
 
@@ -298,13 +250,11 @@ export class Identity extends Context.Service<Identity, {
     }, sql.withTransaction);
 
     return Identity.of({
-      origin, secureCookie: origin.startsWith("https:"), login, changePassword, session, authorize, key, status,
+      origin, secureCookie: origin.startsWith("https:"), login, changePassword, session, authorize,
       logout: (token, csrf) => logout(token, csrf).pipe(Effect.catchTag("SqlError", () => new IdentityError())),
       consoleStatus, consoleKey, admitConsoleRequest, saveConsoleBudget,
       replaceConsoleKey: (token, csrf, key) => replaceConsoleKey(token, csrf, key).pipe(Effect.catchTag("SqlError", () => new IdentityError())),
       removeConsoleKey: (token, csrf) => removeConsoleKey(token, csrf).pipe(Effect.catchTag("SqlError", () => new IdentityError())),
-      replaceKey: (token, csrf, key) => replaceKey(token, csrf, key).pipe(Effect.catchTag("SqlError", () => new IdentityError())),
-      removeKey: (token, csrf) => removeKey(token, csrf).pipe(Effect.catchTag("SqlError", () => new IdentityError())),
     });
   }).pipe(Effect.mapError(() => new IdentityError())));
 }

@@ -7,8 +7,8 @@ services:
   app:
     image: camenae-test-app:latest
     build: *test-build
-  worker:
-    image: camenae-test-worker:latest
+  opencode-worker:
+    image: camenae-test-opencode-worker:latest
     build: *test-build
   ingress:
     image: camenae-test-ingress:latest

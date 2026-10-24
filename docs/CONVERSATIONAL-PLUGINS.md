@@ -193,8 +193,8 @@ in [product direction](PRODUCT.md) and [roadmap](ROADMAP.md).
 - [Repository guidance](../AGENTS.md): ownership, preservation, authorization,
   and validation requirements for every implementation task.
 - [Current architecture](ARCHITECTURE.md): source ownership and current trust limits.
-- [Bob operations](BOB-OPERATIONS.md) and [OpenCode](OPENCODE.md): exact packaged
-  SDK delivery and native integration contracts. SDK changes require separate
+- [OpenCode](OPENCODE.md): exact packaged SDK delivery and native integration
+  contracts. SDK changes require separate
   authorization; no sibling-source imports or installed-package edits.
 - https://github.com/anishfn/shapeshift : interaction inspiration, not runtime.
 - https://github.com/vercel-labs/json-render : candidate UI renderer, not the

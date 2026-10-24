@@ -1,6 +1,6 @@
 import chat from "../src/ui/dev.html";
 
-// Local UI only: Bob and persistence remain owned by the Docker application.
+// Local UI only: the Docker application owns the harness and persistence.
 const backend = new URL(process.env.CAMENAE_DEV_BACKEND ?? "http://127.0.0.1:3000");
 
 const origin = "http://127.0.0.1:5173";

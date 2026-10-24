@@ -10,7 +10,7 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parent.parent
 ROOT_FILES = (".dockerignore", ".gitignore", ".oxlintrc.json", "AGENTS.md",
-              "README.md", "THIRD-PARTY-NOTICES.md", "bun.lock", "compose.yaml", "compose.opencode.yaml",
+              "README.md", "THIRD-PARTY-NOTICES.md", "bun.lock", "compose.yaml",
               "package.json", "tsconfig.json", "bunfig.toml")
 TREES = ("docker", "docs", "scripts", "src", "tests", "tools/oxlint")
 EXTENSIONS = {".ts", ".tsx", ".js", ".py", ".sh", ".css", ".html", ".md",

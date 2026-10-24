@@ -6,12 +6,6 @@ export class WorkspaceError extends Schema.TaggedError<WorkspaceError>()("Worksp
 
 export interface WorkspacePaths {
   readonly workspace: string;
-  readonly home: string;
-  readonly config: string;
-  readonly cache: string;
-  readonly data: string;
-  readonly state: string;
-  readonly runtime: string;
   readonly temporary: string;
 }
 
@@ -27,20 +21,9 @@ const prepare = Effect.fn("Workspace.prepare")(function* (root: string) {
 
       await directory(root);
       const base = await realpath(root);
-      // Preserve the existing state directory until an explicit storage migration.
-      const harnessState = join(base, "bob-state");
-      await directory(harnessState);
-
-      const paths: WorkspacePaths = {
-        workspace: join(base, "workspace"),
-        home: join(harnessState, "home"), config: join(harnessState, "config"),
-        cache: join(harnessState, "cache"), data: join(harnessState, "data"), state: join(harnessState, "state"),
-        runtime: join(base, "tmp", "runtime"), temporary: join(base, "tmp"),
-      };
+      const paths: WorkspacePaths = { workspace: join(base, "workspace"), temporary: join(base, "tmp") };
 
       // Check parents before children. Nothing here is a sandbox boundary.
-      await directory(paths.temporary);
-
       for (const path of Object.values(paths)) await directory(path);
 
       for (const name of ["inbox", "projects", "outputs", "scratch"]) {

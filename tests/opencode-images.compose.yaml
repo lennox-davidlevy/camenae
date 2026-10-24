@@ -1,6 +1,0 @@
-services:
-  opencode-worker:
-    image: camenae-test-opencode-worker:latest
-    build:
-      labels:
-        app.camenae.test-image: "true"

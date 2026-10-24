@@ -30,13 +30,12 @@ determine what work is authorized.
 | --- | --- |
 | Local owner account, sessions, encrypted credentials | `src/identity.ts`, auth routes, and installation migrations. No general registration, SSO, or multi-user isolation. |
 | Persistent conversations, streaming, tool activity, cancellation, native session reuse | `src/chat.ts`, chat routes/contracts, and runtime adapters. One active turn across tabs. |
-| Default Bob integration | `src/harness-runtime.ts`, `src/worker.ts`, and exact packaged `@camenae/bob`. Docker retires the whole one-connection worker. |
-| Experimental OpenCode integration | `src/opencode-runtime.ts`, worker/plugin files, and exact packaged `@camenae/opencode`. Separate native lifecycle, configured new-chat selection. |
-| Optional Console model selection and request allowance | `src/console-gateway.ts`, `src/console-contract.ts`, settings, and migrations 009/010. Fixed allowlist, persistent cap, no paid fallback. Provider availability/pricing is not guaranteed. |
-| Bob approval preferences and managed Context7 gates | `src/mcp-permissions.ts`, `src/managed-mcp.ts`, approval contracts/settings. Not general plugin authorization. |
+| OpenCode integration (the only harness) | `src/opencode-runtime.ts`, worker/plugin files, and exact packaged `@camenae/opencode`. Docker retires the whole worker. Live-provider use is not validated. |
+| Console model selection and request allowance | `src/console-gateway.ts`, `src/console-contract.ts`, settings, and migrations 009/010. Fixed allowlist, persistent cap, no paid fallback. Provider availability/pricing is not guaranteed. |
+| One-time native approvals | Approval cards in Chat for requests the harness makes. No persistent approval preferences, connector gates, or Context7/Playwright bundle yet. |
 | Workspace browsing and text uploads/attachments | `src/files.ts`, `src/file-contract.ts`, `src/ui/attachments.tsx`, and chat snapshot persistence. Shared workspace, not per-conversation isolation. |
 | Conversation sidebar and adjustable panels | `src/ui/thread-list.tsx`, `src/ui/panel-sizes.tsx`, and migration 011. Native headline display, activity metadata, collapsible groups, remembered widths. |
-| SolidJS preview shell | `src/app`, `scripts/dev-app.ts`. Source and local browser checks only: masthead, thread list, resizable panels, synthetic or proxied thread data. Not served by the application, not in the Docker images, no chat/skills/files/settings. The React UI remains the working interface. |
+| SolidJS preview shell | `src/app`, `scripts/dev-app.ts`. Source and local browser checks only: masthead, thread list, resizable panels, and a chat view (streaming, sanitized Markdown, tool activity, approvals, drafts, stop, new chat) against synthetic data, and once against an isolated OpenCode stack with a synthetic provider (new chat, streaming, approval, cancel, failure, reload). Not served by the application, not in the Docker images, and without attachments, model selection, usage, skills, files, or settings. The React UI remains the working interface. |
 | Fixed visual styling | `src/ui/theme.css` contains CSS tokens. No user-authored theme package/import engine or conversation-driven shell editor. |
 
 Chat attachments support four text files and 64 KiB total per message, with a
@@ -58,9 +57,9 @@ PDF/image attachments, drag-and-drop, and attachment-only messages are unsupport
 - Shared live plugin data, collaboration, multi-tenant hosting, or a marketplace.
 
 `package.json` has no json-render dependency. The harness discriminant currently
-contains Bob and OpenCode only. The trusted OpenCode application plugin is an
+contains OpenCode only. The trusted OpenCode application plugin is an
 integration detail, not the proposed user-installable plugin system. Skills,
-additional connections, and Pi preview controls must not be described as working
+additional connections, and preview controls must not be described as working
 management features.
 
 ## Evidence and acceptance

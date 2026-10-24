@@ -13,8 +13,4 @@ export default Effect.gen(function* () {
     csrf text NOT NULL,
     expires_at timestamptz NOT NULL
   )`;
-  yield* sql`CREATE TABLE bob_connection (
-    singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
-    encrypted_key text NOT NULL
-  )`;
 });

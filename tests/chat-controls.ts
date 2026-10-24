@@ -37,7 +37,7 @@ try {
     ? z.object({ id: z.uuid() }).parse(await (await request("/api/chat", { csrf })).json()).id : input.conversation;
 
   if (mode === "recovery") {
-    // Fail terminal database writes, not Bob or the application service. The
+    // Fail terminal database writes, not the worker or the application service. The
     // sequence records an attempted write despite transaction rollback.
     await database(Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;

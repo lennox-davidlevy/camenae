@@ -1,3 +1,4 @@
+import type { Plugin } from "vite";
 import { createServer, mergeConfig } from "vite";
 import { appConfig, repository } from "./app-vite.js";
 import { fixtureBackend } from "./dev-app-fixture.js";
@@ -27,8 +28,34 @@ if (backend && (backend.protocol !== "http:" || backend.hostname !== "127.0.0.1"
   throw new Error(`The backend must be a different loopback HTTP origin. ${usage}`);
 }
 
+const proxied = /^\/(api|auth)(\/|$)|^\/auth\.css$/;
+
+// The backend accepts writes only from its own origin. Refuse any other browser origin here, then
+// present the backend's origin for this page's own same-origin writes.
+const guard = (backendOrigin: string): Plugin => ({
+  name: "camenae-backend-guard",
+  configureServer(server) {
+    server.middlewares.use((request, response, next) => {
+      if (!proxied.test(new URL(request.url ?? "/", origin).pathname)) return next();
+      const source = request.headers.origin;
+      const write = !["GET", "HEAD"].includes(request.method ?? "GET");
+
+      if ((source !== undefined && source !== origin) || (write && source !== origin)) {
+        response.statusCode = 403;
+        response.end("Invalid origin");
+
+        return undefined;
+      }
+
+      if (source !== undefined) request.headers.origin = backendOrigin;
+
+      return next();
+    });
+  },
+});
+
 const server = await createServer(mergeConfig(appConfig, {
-  plugins: backend ? [] : [fixtureBackend],
+  plugins: backend ? [guard(backend.origin)] : [fixtureBackend],
   server: {
     host: "127.0.0.1",
     port,
@@ -36,7 +63,7 @@ const server = await createServer(mergeConfig(appConfig, {
     cors: false,
     allowedHosts: ["127.0.0.1"],
     fs: { strict: true, allow: [`${repository}src`, `${repository}node_modules`] },
-    proxy: backend ? { "^/(api|auth)(/|$)": { target: backend.origin, changeOrigin: false } } : undefined,
+    proxy: backend ? { [proxied.source]: { target: backend.origin, changeOrigin: false } } : undefined,
   },
 }));
 

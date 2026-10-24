@@ -81,7 +81,7 @@ try {
       const cookie = login.headers.get("set-cookie")?.split(";")[0];
       assert.ok(cookie);
 
-      const bootstrap = async () => z.object({ csrf: z.string(), readiness: z.object({ bob: z.boolean(), opencode: z.boolean() }),
+      const bootstrap = async () => z.object({ csrf: z.string(), readiness: z.object({ opencode: z.boolean() }),
         conversations: z.array(Conversation),
         consoleUsage: z.object({ used: z.number(), limit: z.number().nullable(), revision: z.number() }) }).parse(
         await (await fetchLocal(base + "/api/chat", { headers: { cookie } })).json());
@@ -136,7 +136,7 @@ try {
 
         const aad = `camenae:console-key:v1:${rows[0].id}`;
         assert.equal(decrypt(encrypted, aad), expectedKey);
-        assert.throws(() => decrypt(encrypted, `camenae:bob-key:v1:${rows[0].id}`));
+        assert.throws(() => decrypt(encrypted, `camenae:other-key:v1:${rows[0].id}`));
         const tampered = Buffer.from(encrypted);
         tampered[28] ^= 1;
         assert.throws(() => decrypt(tampered, aad));
@@ -144,7 +144,7 @@ try {
 
       assert.equal((await post("/api/chat", { harness: "invalid" })).status, 400);
 
-      const create = async (harness: "bob" | "opencode") => {
+      const create = async (harness: "opencode") => {
         const response = await post("/api/chat", { harness });
         assert.equal(response.status, 200);
 
@@ -154,15 +154,6 @@ try {
       const opencode = await create("opencode");
 
       const view = async (id: string) => ChatView.parse(await (await fetchLocal(`${base}/api/chat/${id}`, { headers: { cookie } })).json());
-
-      const bobKey = await fetchLocal(base + "/connection/bob", { method: "POST", redirect: "manual", headers: { cookie, origin },
-        body: new URLSearchParams({ csrf, key: "synthetic-bob-key" }) });
-
-      assert.equal(bobKey.status, 303);
-
-      const bob = await create("bob");
-      assert.equal((await view(bob)).harness, "bob");
-      assert.equal((await view(opencode)).harness, "opencode", "Creating Bob chat changed existing harness");
 
       assert.equal((await post(`/api/chat/${opencode}/prepare`, {})).status, 200);
       await writeFile("/data/workspace/inbox/console-attachment.txt", "Attachment receipt: quartz meadow 42");
@@ -209,7 +200,7 @@ try {
         return;
       }
 
-      const gate = `http://${process.env.CAMENAE_MCP_HOST}:3003`;
+      const gate = `http://${process.env.CAMENAE_GATEWAY_HOST}:3003`;
 
       const gateway = (body: CompletionRequest, path = "/v1/chat/completions", authorization = `Bearer ${process.env.CAMENAE_OPENCODE_PASSWORD}`) => fetchLocal(gate + path, {
         method: "POST", headers: { authorization, "content-type": "application/json" }, body: JSON.stringify(body),
@@ -280,7 +271,6 @@ try {
       assert.equal((await bootstrap()).readiness.opencode, false);
       assert.equal((await view(opencode)).harness, "opencode");
       assert.deepEqual((await bootstrap()).consoleUsage, { used: 20, limit: 20, revision: 0 }, "Unavailable chat must distinguish exhausted allowance from missing connection");
-      assert.equal((await view(bob)).harness, "bob");
 
       const budget = { limit: 0, refresh: false, revision: 0 };
       assert.equal((await post("/api/settings/opencode/budget", budget, { cookie: "" })).status, 401);
@@ -313,7 +303,6 @@ try {
       }).pipe(Effect.provide(DatabaseLive)));
 
       const originalNativeId = await nativeId();
-      assert.equal((await post(`/api/chat/${bob}/model`, { model: "big-pickle" })).status, 503);
       assert.equal((await post(`/api/chat/${opencode}/model`, { model: "big-pickle", csrf: "wrong" })).status, 401);
 
       for (const model of ["paid-model", "jev-1.13-free", "muse-spark-1.3-contributor-free"]) {
@@ -343,7 +332,6 @@ try {
         assert.equal(await nativeId(), originalNativeId);
       }
 
-      assert.equal((await view(bob)).model, null);
       assert.equal((await view(opencode)).harness, "opencode");
       await Effect.runPromise(Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient;
@@ -375,7 +363,7 @@ try {
           assert.deepEqual(rows[0], { requests_used: finalForwarded, requests_baseline: 20, requests_limit: finalForwarded - 20, budget_revision: 4 });
         }).pipe(Effect.provide(DatabaseLive)));
 
-        const response = await fetchLocal(`http://${process.env.CAMENAE_MCP_HOST}:3003/v1/chat/completions`, {
+        const response = await fetchLocal(`http://${process.env.CAMENAE_GATEWAY_HOST}:3003/v1/chat/completions`, {
           method: "POST", headers: { authorization: `Bearer ${process.env.CAMENAE_OPENCODE_PASSWORD}`, "content-type": "application/json" },
           body: JSON.stringify({ model: "longcat-2.5-preview-free", max_tokens: 10, messages: [{ role: "user", content: "after restart" }] }),
         });

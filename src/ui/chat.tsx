@@ -2,14 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AssistantRuntimeProvider, ThreadPrimitive, useExternalStoreRuntime, type ThreadMessageLike } from "@assistant-ui/react";
 import { z } from "zod";
-import { ConsoleModel, ConsoleUsage, consoleModels, consoleExhausted } from "../console-contract.js";
+import { ConsoleModel, consoleModels, consoleExhausted } from "../console-contract.js";
+import { Bootstrap } from "../bootstrap-contract.js";
 import { ChatView, Conversation, type Turn } from "../chat-contract.js";
 import "./theme.css";
 import "./chat.css";
 import { LayoutShell, type Screen } from "./layout-shell.js";
 import { FileInspector, uploadWorkspaceFile, useWorkspaceFiles, WorkspaceFiles } from "./files.js";
-import { McpToolSettings } from "./mcp-settings.js";
-import { ApprovalPreferences } from "./approval-settings.js";
 import { OpenCodeSettings } from "./opencode-settings.js";
 import { RequestLimitNotice, SettingsInspector, SettingsPage } from "./settings-layout.js";
 import { NewChat, NewChatInspector } from "./new-chat.js";
@@ -19,9 +18,8 @@ import { exampleSkills, SkillsInspector, SkillsPreview } from "./skills.js";
 import { AttachmentControl, type AttachmentUpload, type SelectedAttachment } from "./attachments.js";
 import { attachmentCountLimit, filePreviewLimit } from "../file-contract.js";
 
-const Bootstrap = z.object({ csrf: z.string(), stored: z.boolean(), readiness: z.object({ bob: z.boolean(), opencode: z.boolean() }), consoleUsage: ConsoleUsage.nullable(), harness: z.enum(["bob", "opencode"]).default("bob"), conversations: z.array(Conversation) });
 
-type ChatRequest = { csrf: string; model?: ConsoleModel; harness?: "bob" | "opencode"; prompt?: string; attachments?: string[]; turnId?: string; permissionId?: string; optionId?: string | null; decision?: "allow" | "deny" };
+type ChatRequest = { csrf: string; model?: ConsoleModel; harness?: "opencode"; prompt?: string; attachments?: string[]; turnId?: string; permissionId?: string; optionId?: string | null };
 
 async function request(path: string, body?: ChatRequest) {
   const response = await fetch(path, body ? {
@@ -55,21 +53,17 @@ function App() {
     });
   }, []);
 
-  const [newHarness, setNewHarness] = useState<"bob" | "opencode">("bob");
   const files = useWorkspaceFiles(screen === "Files" && Boolean(bootstrap), bootstrap?.csrf);
   const [conversation, setConversation] = useState<string>();
   const [conversationTitle, setConversationTitle] = useState("Conversation");
-  const [conversationHarness, setConversationHarness] = useState<ChatView["harness"]>();
   const [model, setModel] = useState<ChatView["model"]>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [usage, setUsage] = useState<ChatView["usage"]>(null);
-  const [mcp, setMcp] = useState<ChatView["mcp"]>({ decisions: [], pending: [], incomplete: false });
   const [requestPending, setPending] = useState(false);
-  const [applyingToolSettings, setApplyingToolSettings] = useState(false);
   const [uploads, setUploads] = useState<Record<string, AttachmentUpload | undefined>>({});
   const uploadPending = useRef(false);
   const uploading = Object.values(uploads).some((upload) => upload && !upload.error);
-  const pending = requestPending || applyingToolSettings;
+  const pending = requestPending;
   const [preparing, setPreparing] = useState(false);
   const [readyConversation, setReadyConversation] = useState<string>();
   const [error, setError] = useState("");
@@ -113,8 +107,8 @@ function App() {
   const onOpenCodeChanged = useCallback(async (connectionChanged: boolean) => {
     setBootstrap(Bootstrap.parse(await (await request("/api/chat")).json()));
 
-    if (connectionChanged && conversationHarness === "opencode") setReadyConversation(undefined);
-  }, [conversationHarness, setBootstrap]);
+    if (connectionChanged) setReadyConversation(undefined);
+  }, [setBootstrap]);
 
   const load = useCallback(async (id: string, state: z.infer<typeof Bootstrap>) => {
     const epoch = ++generation.current;
@@ -122,11 +116,9 @@ function App() {
     setError("");
     setConversation(id);
     setConversationTitle("Conversation");
-    setConversationHarness(undefined);
     setModel(null);
     setTurns([]);
     setUsage(null);
-    setMcp({ decisions: [], pending: [], incomplete: false });
     setReadyConversation(undefined);
     setPreparing(true);
     window.history.replaceState(null, "", `/chat#${id}`);
@@ -136,12 +128,10 @@ function App() {
 
       if (generation.current !== epoch) return;
 
-      setConversationHarness(snapshot.harness);
       updateConversation(snapshot.conversation);
       setModel(snapshot.model);
       setTurns(snapshot.turns);
       setUsage(snapshot.usage);
-      setMcp(snapshot.mcp);
 
       {
         const events = new EventSource(`/api/chat/${id}/events`);
@@ -162,7 +152,6 @@ function App() {
           updateConversation(update.data.conversation);
           setModel(update.data.model);
           setUsage(update.data.usage);
-          setMcp(update.data.mcp);
           const isRunning = update.data.turns.some((turn) => turn.status === "running");
 
           if (wasRunning && !isRunning) {
@@ -203,7 +192,6 @@ function App() {
       if (disposed) return;
 
       setBootstrap(state);
-      setNewHarness(state.harness);
       const fragment = z.uuid().safeParse(window.location.hash.slice(1));
       const id = fragment.success ? fragment.data : state.conversations[0]?.id;
 
@@ -229,9 +217,9 @@ function App() {
   };
 
   const current = turns.find((turn) => turn.status === "running");
-  const selectedStored = bootstrap?.readiness[conversationHarness ?? newHarness];
+  const selectedStored = bootstrap?.readiness.opencode;
   const exhausted = bootstrap?.consoleUsage && consoleExhausted(bootstrap.consoleUsage);
-  const isNewChat = turns.length === 0 && mcp.pending.length === 0 && mcp.decisions.length === 0 && !mcp.incomplete;
+  const isNewChat = turns.length === 0;
 
   const messages: ThreadMessageLike[] = turns.flatMap((turn) => [
     { id: `${turn.id}-user`, role: "user", metadata: { custom: { turn } }, content: [{ type: "text", text: turn.prompt }] },
@@ -292,28 +280,22 @@ function App() {
     onChange={(next) => { if (conversation) setAttachmentDrafts((previous) => ({ ...previous, [conversation]: next })); }} />;
 
   return <LayoutShell screen={screen} onScreen={setScreen} conversations={bootstrap?.conversations ?? []} selected={conversation}
-    newHarness={<label className="masthead-harness"><span>New chat harness</span><select aria-label="New chat harness" value={newHarness} disabled={pending || preparing || Boolean(current)}
-      onChange={(event) => setNewHarness(z.enum(["bob", "opencode"]).parse(event.target.value))}>
-      <option value="bob">Bob{bootstrap?.readiness.bob ? "" : " — setup required"}</option>
-      <option value="opencode">OpenCode{exhausted ? " — request limit reached" : bootstrap?.readiness.opencode ? "" : " — setup required"}</option>
-    </select></label>}
     selectionDisabled={pending || preparing || uploading} onSelect={(id) => { setScreen("Chat"); void perform(() => bootstrap ? load(id, bootstrap) : Promise.resolve()); }}
-    newDisabled={pending || preparing || uploading || Boolean(current) || !bootstrap?.readiness[newHarness]} onNew={() => void perform(async () => {
+    newDisabled={pending || preparing || uploading || Boolean(current) || !bootstrap?.readiness.opencode} onNew={() => void perform(async () => {
       if (!bootstrap) return;
-      const created = z.object({ id: z.uuid() }).parse(await (await request("/api/chat", { csrf: bootstrap.csrf, harness: newHarness })).json());
+      const created = z.object({ id: z.uuid() }).parse(await (await request("/api/chat", { csrf: bootstrap.csrf })).json());
       setBootstrap(Bootstrap.parse(await (await request("/api/chat")).json()));
       setScreen("Chat");
       await load(created.id, bootstrap);
     })} inspector={screen === "Chat" && isNewChat ? <NewChatInspector
       usage={usage}
-       status={preparing ? "Preparing conversation…" : exhausted && conversationHarness === "opencode" ? "Local request limit reached." : readyConversation ? "Camenae is ready." : "Choose or create a conversation."}
+       status={preparing ? "Preparing conversation…" : exhausted ? "Local request limit reached." : readyConversation ? "Camenae is ready." : "Choose or create a conversation."}
       reconnect={conversation && bootstrap && <button disabled={pending || preparing} onClick={() => void perform(() => load(conversation, bootstrap))}>Reconnect / refresh</button>}
-    /> : screen === "Chat" ? <ActiveChatInspector key={conversation} usage={usage} turn={turns.at(-1)} attachments={turns.flatMap((turn) => turn.attachments)} approvals={turns.filter((turn) => turn.permission).length + mcp.pending.length} onSettings={() => setScreen("Settings")} /> : screen === "Skills" ? <SkillsInspector key={selectedSkill.name} skill={selectedSkill} /> : screen === "Files" ? <FileInspector key={files.selected ?? "none"} path={files.selected} preview={files.preview} /> : <SettingsInspector />}>
+    /> : screen === "Chat" ? <ActiveChatInspector key={conversation} usage={usage} turn={turns.at(-1)} attachments={turns.flatMap((turn) => turn.attachments)} approvals={turns.filter((turn) => turn.permission).length} onSettings={() => setScreen("Settings")} /> : screen === "Skills" ? <SkillsInspector key={selectedSkill.name} skill={selectedSkill} /> : screen === "Files" ? <FileInspector key={files.selected ?? "none"} path={files.selected} preview={files.preview} /> : <SettingsInspector />}>
     <div className={`shell-content${screen === "Chat" ? isNewChat ? " shell-content-new" : " shell-content-active" : ""}${screen === "Skills" ? " shell-content-skills" : ""}${screen === "Files" ? " shell-content-files" : ""}${screen === "Settings" ? " shell-content-settings" : ""}`}>
       {error && <p role="alert">{error}</p>}
-      {screen === "Chat" && exhausted && bootstrap?.consoleUsage && (conversationHarness === "opencode" || newHarness === "opencode") && <RequestLimitNotice usage={bootstrap.consoleUsage}><button onClick={() => setScreen("Settings")}>Open Settings</button></RequestLimitNotice>}
-      {screen !== "Settings" && conversationHarness && <p role="status">This conversation uses {conversationHarness === "bob" ? "Bob" : "OpenCode"}. The New Chat selector does not change existing conversations.{conversationHarness === "opencode" && " Bob approval preferences and Context7 settings apply only to Bob; OpenCode requests one-time native approvals."}</p>}
-      {(current?.permission || mcp.pending.length > 0) && screen !== "Chat" && <p role="status">An approval is waiting in Chat. <button onClick={() => setScreen("Chat")}>Review approval</button></p>}
+      {screen === "Chat" && exhausted && bootstrap?.consoleUsage && <RequestLimitNotice usage={bootstrap.consoleUsage}><button onClick={() => setScreen("Settings")}>Open Settings</button></RequestLimitNotice>}
+      {current?.permission && screen !== "Chat" && <p role="status">An approval is waiting in Chat. <button onClick={() => setScreen("Chat")}>Review approval</button></p>}
       <div className={isNewChat ? undefined : "chat-screen-active"} hidden={screen !== "Chat"}>
        {model !== null && <section className="chat-model-picker" aria-label="Conversation model">
          <label>Model for this chat <select aria-label="Model for this chat" value={model} disabled={pending || preparing || Boolean(current)} onChange={(event) => {
@@ -332,22 +314,18 @@ function App() {
         <ThreadPrimitive.Root className={isNewChat ? "thread" : "active-chat"}>
           {isNewChat ? <NewChat key={conversation ?? "welcome"} attachments={attachmentControl} status={(!selectedStored || !conversation || preparing || readyConversation !== conversation) && <>
             {!bootstrap && <p>Loading your connection…</p>}
-             {bootstrap && !selectedStored && !(exhausted && (conversationHarness ?? newHarness) === "opencode") && <p><button onClick={() => setScreen("Settings")}>Open connection settings</button> to start chatting.</p>}
+             {bootstrap && !selectedStored && !exhausted && <p><button onClick={() => setScreen("Settings")}>Open connection settings</button> to start chatting.</p>}
             {selectedStored && !conversation && <p>Select New Chat above to prepare a conversation.</p>}
             {preparing && <p>Preparing conversation…</p>}
             {conversation && bootstrap && selectedStored && !preparing && readyConversation !== conversation && <p>Conversation is not ready. <button disabled={pending} onClick={() => void perform(() => load(conversation, bootstrap))}>Reconnect</button></p>}
           </>} /> : <ActiveChat
             title={conversationTitle} attachments={attachmentControl}
-            mcp={mcp} pending={pending} onScreen={setScreen}
-             status={<>{preparing ? "Preparing conversation…" : current ? "Working" : exhausted && conversationHarness === "opencode" ? "Local request limit reached." : readyConversation ? "Camenae is ready." : "Conversation not ready."}{!selectedStored && !(exhausted && conversationHarness === "opencode") && <> <button onClick={() => setScreen("Settings")}>Open connection settings</button></>}</>}
+            pending={pending} onScreen={setScreen}
+             status={<>{preparing ? "Preparing conversation…" : current ? "Working" : exhausted ? "Local request limit reached." : readyConversation ? "Camenae is ready." : "Conversation not ready."}{!selectedStored && !exhausted && <> <button onClick={() => setScreen("Settings")}>Open connection settings</button></>}</>}
             reconnect={conversation && bootstrap && <button disabled={pending || preparing} onClick={() => void perform(() => load(conversation, bootstrap))}>Reconnect / refresh</button>}
             onNativeApprove={(turn, optionId) => void perform(async () => {
               if (!bootstrap || !turn.permission) return;
               await request("/api/chat/approve", { csrf: bootstrap.csrf, turnId: turn.id, permissionId: turn.permission.id, optionId });
-            })}
-            onMcpApprove={(permissionId, decision) => void perform(async () => {
-              if (!bootstrap || !conversation) return;
-              await request(`/api/chat/${conversation}/mcp-approve`, { csrf: bootstrap.csrf, permissionId, decision });
             })}
           />}
         </ThreadPrimitive.Root>
@@ -356,13 +334,8 @@ function App() {
       <div hidden={screen !== "Skills"}><SkillsPreview selected={selectedSkill} onSelect={setSelectedSkill} /></div>
       <div hidden={screen !== "Files"}>{bootstrap && <WorkspaceFiles files={files} />}</div>
       <div hidden={screen !== "Settings"}>
-       {bootstrap && <SettingsPage csrf={bootstrap.csrf} conversationHarness={conversationHarness} newHarness={newHarness} onNewHarness={setNewHarness}
-         disabled={pending || preparing || Boolean(current)} readiness={bootstrap.readiness} consoleUsage={bootstrap.consoleUsage}
-       openCode={<OpenCodeSettings csrf={bootstrap.csrf} active={screen === "Settings"} usage={bootstrap.consoleUsage} onChanged={onOpenCodeChanged} />}
-       approvals={<ApprovalPreferences csrf={bootstrap.csrf} running={Boolean(current)} preparing={preparing} />}
-       tools={<McpToolSettings csrf={bootstrap.csrf} running={Boolean(current)} preparing={preparing} pending={pending} onApplyingChange={setApplyingToolSettings}
-         onApply={conversation && conversationHarness === "bob" && bootstrap.readiness.bob ? () => load(conversation, bootstrap) : undefined} />}
-       />}
+       {bootstrap && <SettingsPage csrf={bootstrap.csrf}
+         openCode={<OpenCodeSettings csrf={bootstrap.csrf} active={screen === "Settings"} usage={bootstrap.consoleUsage} onChanged={onOpenCodeChanged} />} />}
       </div>
     </div>
   </LayoutShell>;

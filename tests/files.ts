@@ -36,7 +36,7 @@ assert.match(download.headers.get("content-disposition") ?? "", /^attachment;/);
 
 assert.equal(await download.text(), "<script>not executable</script>");
 
-// Bob may create artifacts at the workspace root or in its own subdirectories.
+// The agent may create artifacts at the workspace root or in its own subdirectories.
 await mkdir("/data/workspace/examples/nested", { recursive: true });
 
 for (const path of ["HelloWorld.jsx", "examples/nested/hello.txt"]) {
@@ -79,7 +79,7 @@ await mkdir("/data/tmp/file-boundary", { recursive: true });
 await writeFile("/data/tmp/file-boundary/private.txt", "synthetic-private-data");
 
 const createConversation = async () => {
-  const response = await fetch(base + "/api/chat", { method: "POST", headers: { cookie, origin, "content-type": "application/json" }, body: JSON.stringify({ csrf, harness: "bob" }) });
+  const response = await fetch(base + "/api/chat", { method: "POST", headers: { cookie, origin, "content-type": "application/json" }, body: JSON.stringify({ csrf }) });
   assert.equal(response.status, 200);
 
   return z.object({ id: z.uuid() }).parse(await response.json()).id;

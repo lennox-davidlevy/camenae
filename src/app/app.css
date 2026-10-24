@@ -1,6 +1,9 @@
-a.masthead-new { align-items: center; text-decoration: none; }
-a.masthead-new:hover { color: var(--on-accent); }
 .app-notice { max-width: 640px; border-left: 1px solid var(--ink); padding: 4px 0 4px 16px; display: flex; flex-direction: column; gap: 10px; }
 .app-notice p { margin: 0; font-size: 17px; line-height: 1.45; color: var(--secondary-ink); }
 .app-notice .tag { align-self: flex-start; background: var(--deep-ink); color: var(--on-accent); padding: 3px 7px; font: 400 12px var(--mono-font); }
 .app-error { color: var(--accent); font: 400 12px var(--mono-font); }
+.active-chat { position: relative; }
+.chat-jump { position: absolute; right: 32px; bottom: 112px; background: var(--deep-ink); color: var(--on-accent); border: 0; padding: 6px 10px; font: 400 12px var(--mono-font); z-index: 2; }
+.chat-jump:hover { background: var(--ink); }
+.chat-screen-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.active-chat-viewport { overflow-anchor: none; }

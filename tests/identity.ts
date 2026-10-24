@@ -6,6 +6,7 @@ import { Config, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { z } from "zod";
 import { DatabaseLive } from "../src/database.js";
+import { consoleModel } from "../src/console-contract.js";
 
 const mode = z.enum(["seed", "verify"]).parse(process.argv[2]);
 
@@ -30,8 +31,22 @@ const post = (path: string, fields: URLSearchParams, origin = base) => fetch(bas
   redirect: "manual", signal: AbortSignal.timeout(10_000),
 });
 
+interface KeyRequest {
+  csrf: string;
+  provider: "console";
+  model: string;
+  key: string;
+}
+
+const postJson = (path: string, body: Partial<KeyRequest>, origin = base) => fetch(base + path, {
+  method: "POST", headers: { cookie, origin, "content-type": "application/json" }, body: JSON.stringify(body),
+  redirect: "manual", signal: AbortSignal.timeout(10_000),
+});
+
+const saveKey = (token: string, key: string, origin = base) => postJson("/api/settings/opencode", { csrf: token, provider: "console", model: consoleModel, key }, origin);
+
 const csrf = async () => {
-  const response = await get("/");
+  const response = await get("/auth/password");
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.match(response.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
@@ -62,10 +77,18 @@ const login = async () => {
   assert.ok(cookie.startsWith("camenae-local="));
 };
 
+// Provider-key behavior exists only when the deployment enables Console mode.
+let keysEnabled = false;
+
+const detectKeys = async () => {
+  keysEnabled = z.object({ enabled: z.boolean() }).parse(await (await get("/api/settings/opencode")).json()).enabled;
+};
+
 const status = async (stored: boolean) => {
-  const response = await get("/api/connection/bob");
+  if (!keysEnabled) return;
+  const response = await get("/api/settings/opencode");
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { stored, verified: false });
+  assert.equal(z.object({ stored: z.boolean() }).parse(await response.json()).stored, stored);
 };
 
 const inspectStorage = Effect.gen(function* () {
@@ -73,19 +96,21 @@ const inspectStorage = Effect.gen(function* () {
   const file = yield* Config.String("CAMENAE_CREDENTIALS_FILE");
   const secret = z.object({ encryptionKey: z.string() }).parse(JSON.parse(yield* Effect.promise(() => readFile(file, "utf8"))));
 
-  const rows = z.array(z.object({ encrypted_key: z.string(), id: z.string() })).parse(
-    yield* sql`SELECT encrypted_key, id FROM bob_connection CROSS JOIN installation`);
+  if (keysEnabled) {
+    const rows = z.array(z.object({ encrypted_key: z.string(), id: z.string() })).parse(
+      yield* sql`SELECT encrypted_key, id FROM console_connection CROSS JOIN installation`);
 
-  assert.equal(rows.length, 1);
-  const row = rows[0];
-  assert.ok(row);
-  assert.ok(!row.encrypted_key.includes(syntheticKey));
-  const bytes = Buffer.from(row.encrypted_key, "base64");
-  const decipher = createDecipheriv("aes-256-gcm", Buffer.from(secret.encryptionKey, "hex"), bytes.subarray(0, 12));
-  decipher.setAuthTag(bytes.subarray(12, 28));
-  decipher.setAAD(Buffer.from(`camenae:bob-key:v1:${row.id}`));
-  const plaintext = Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]).toString("utf8");
-  assert.equal(plaintext, syntheticKey);
+    assert.equal(rows.length, 1);
+    const row = rows[0];
+    assert.ok(row);
+    assert.ok(!row.encrypted_key.includes(syntheticKey));
+    const bytes = Buffer.from(row.encrypted_key, "base64");
+    const decipher = createDecipheriv("aes-256-gcm", Buffer.from(secret.encryptionKey, "hex"), bytes.subarray(0, 12));
+    decipher.setAuthTag(bytes.subarray(12, 28));
+    decipher.setAAD(Buffer.from(`camenae:console-key:v1:${row.id}`));
+    const plaintext = Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]).toString("utf8");
+    assert.equal(plaintext, syntheticKey);
+  }
 
   const sessions = z.array(z.object({ token_hash: z.string(), password_hash: z.string() })).parse(
     yield* sql`SELECT token_hash, password_hash FROM login_session CROSS JOIN local_account`);
@@ -102,7 +127,7 @@ const inspectStorage = Effect.gen(function* () {
 
 if (mode === "seed") {
   assert.equal((await get("/")).status, 303);
-  assert.equal((await get("/api/connection/bob")).status, 401);
+  assert.equal((await get("/api/settings/opencode")).status, 401);
   assert.equal((await get("/auth/login")).status, 200);
   assert.equal((await get("/auth/password")).headers.get("location"), "/auth/login");
 
@@ -153,18 +178,28 @@ if (mode === "seed") {
   assert.equal((await post("/auth/login", new URLSearchParams({ username: "owner", password: "wrong" }))).status, 401);
   assert.equal((await post("/auth/login", new URLSearchParams({ username: "owner", password }))).status, 429);
   await login();
+  await detectKeys();
   await status(false);
   const token = await csrf();
 
-  for (const path of ["/connection/bob", "/connection/bob/remove", "/auth/logout"]) {
-    assert.equal((await post(path, new URLSearchParams({ csrf: "a".repeat(43), key: syntheticKey }))).status, 401);
-    assert.equal((await post(path, new URLSearchParams({ csrf: token, key: syntheticKey }), "https://attacker.invalid")).status, 403);
+  assert.equal((await post("/auth/logout", new URLSearchParams({ csrf: "a".repeat(43) }))).status, 401);
+  assert.equal((await post("/auth/logout", new URLSearchParams({ csrf: token }), "https://attacker.invalid")).status, 403);
+
+  if (keysEnabled) {
+    const keyFields = { provider: "console", model: consoleModel, key: syntheticKey } as const;
+
+    // The removal route accepts only the CSRF field, so it gets no key fields.
+    for (const [path, fields] of [["/api/settings/opencode", keyFields], ["/api/settings/opencode/remove", {}]] as const) {
+      assert.equal((await postJson(path, { csrf: "a".repeat(43), ...fields })).status, 401);
+      assert.equal((await postJson(path, { csrf: token, ...fields }, "https://attacker.invalid")).status, 400);
+    }
+
+    assert.equal((await saveKey(token, "x".repeat(4097))).status, 400);
+    assert.equal((await saveKey(token, "first-synthetic-key")).status, 200);
+    await status(true);
+    assert.equal((await saveKey(token, syntheticKey)).status, 200);
   }
 
-  assert.equal((await post("/connection/bob", new URLSearchParams({ csrf: token, key: "x".repeat(4097) }))).status, 400);
-  assert.equal((await post("/connection/bob", new URLSearchParams({ csrf: token, key: "first-synthetic-key" }))).status, 303);
-  await status(true);
-  assert.equal((await post("/connection/bob", new URLSearchParams({ csrf: token, key: syntheticKey }))).status, 303);
   await Effect.runPromise(inspectStorage);
   await csrf();
 
@@ -206,7 +241,7 @@ if (mode === "seed") {
   const changed = attempts.find((response) => response.status === 303);
   assert.ok(changed);
   assert.equal(changed.headers.get("location"), "/auth/password?saved=1");
-  assert.equal((await get("/api/connection/bob")).status, 401);
+  assert.equal((await get("/api/settings/opencode")).status, 401);
   cookie = (changed.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
   assert.notEqual(cookie, originalCookie);
   password = nextPassword;
@@ -219,9 +254,10 @@ if (mode === "seed") {
   await Effect.runPromise(resetAdmission);
   assert.equal((await post("/auth/login", new URLSearchParams({ username: "owner", password: originalPassword }))).status, 401);
   await login();
-  // The shell captures this in a private host file, never in logs or Bob's volumes.
+  // The shell captures this in a private host file, never in logs or worker volumes.
   console.log(JSON.stringify({ password, cookie }));
 } else {
+  await detectKeys();
   await status(true);
   await csrf();
   await Effect.runPromise(inspectStorage);
@@ -229,21 +265,29 @@ if (mode === "seed") {
   await login();
   const currentCookie = cookie;
   cookie = oldCookie;
-  assert.equal((await get("/api/connection/bob")).status, 401);
+  assert.equal((await get("/api/settings/opencode")).status, 401);
   cookie = currentCookie;
   const token = await csrf();
-  assert.equal((await post("/connection/bob/remove", new URLSearchParams({ csrf: token }))).status, 303);
-  await status(false);
+
+  if (keysEnabled) {
+    assert.equal((await postJson("/api/settings/opencode/remove", { csrf: token })).status, 200);
+    await status(false);
+  }
+
+
   assert.equal((await post("/auth/logout", new URLSearchParams({ csrf: token }))).status, 303);
-  assert.equal((await get("/api/connection/bob")).status, 401);
-  assert.equal((await post("/connection/bob", new URLSearchParams({ csrf: token, key: syntheticKey }))).status, 401);
+  assert.equal((await get("/api/settings/opencode")).status, 401);
+
+  if (keysEnabled) assert.equal((await saveKey(token, syntheticKey)).status, 401);
+
   await login();
   const expiringCsrf = await csrf();
   await Effect.runPromise(Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`UPDATE login_session SET expires_at = now() - interval '1 second'`;
   }).pipe(Effect.provide(DatabaseLive)));
-  assert.equal((await get("/api/connection/bob")).status, 401);
-  assert.equal((await post("/connection/bob", new URLSearchParams({ csrf: expiringCsrf, key: syntheticKey }))).status, 401);
+  assert.equal((await get("/api/settings/opencode")).status, 401);
+
+  if (keysEnabled) assert.equal((await saveKey(expiringCsrf, syntheticKey)).status, 401);
   console.log("Identity smoke passed: login, password change, CSRF, encryption, replacement, retained passwords/sessions, expiry, and logout.");
 }

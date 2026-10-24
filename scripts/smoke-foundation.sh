@@ -12,45 +12,19 @@ mkdir -p .cache
 umask 077
 env_file=$(mktemp .cache/foundation.XXXXXX)
 project="camenae-check-$(date +%s)-$$"
-unset CAMENAE_DATABASE_PASSWORD CAMENAE_HTTP_PORT CAMENAE_ORIGIN CAMENAE_AUTH_FILE BOB_API_KEY
-bun -e 'console.log("CAMENAE_DATABASE_PASSWORD=" + require("node:crypto").randomBytes(32).toString("hex")); console.log("CAMENAE_HTTP_PORT=0");' > "$env_file"
+unset CAMENAE_DATABASE_PASSWORD CAMENAE_HTTP_PORT CAMENAE_ORIGIN CAMENAE_AUTH_FILE CAMENAE_OPENCODE_PASSWORD
+bun -e 'console.log("CAMENAE_DATABASE_PASSWORD=" + require("node:crypto").randomBytes(32).toString("hex")); console.log("CAMENAE_OPENCODE_PASSWORD=" + require("node:crypto").randomBytes(32).toString("hex")); console.log("CAMENAE_HTTP_PORT=0");' > "$env_file"
 auth_directory="$env_file-auth"
 bun scripts/auth-init.ts "$auth_directory"
 printf 'CAMENAE_AUTH_FILE=%s/%s/credentials.json\n' "$PWD" "$auth_directory" >> "$env_file"
 printf 'CAMENAE_INFERENCE_PREFIX=172.30.84\n' >> "$env_file"
-dc() { compose --env-file "$env_file" --project-name "$project" -f compose.yaml -f tests/worker-lifecycle.compose.yaml -f tests/images.compose.yaml "$@"; }
-wait_worker() {
-  # Docker marks a normally restarting one-connection worker unhealthy, and
-  # Compose's dependency gate fails immediately in that transient state.
-  # Observe Docker readiness without claiming the socket or restarting a listener.
-  # When given a consumed lifetime, require its replacement as well: a remote
-  # disconnect can return while that old lifetime still reports healthy.
-  attempt=0
-  while test "$attempt" -lt 90; do
-    worker_state=$(docker inspect --format '{{.State.Status}} {{.State.Health.Status}} {{.State.StartedAt}}' "$worker")
-    case "$worker_state" in
-      'running healthy '*)
-        if test "${worker_state#running healthy }" != "${1:-}"; then return 0; fi
-        ;;
-    esac
-    attempt=$((attempt + 1))
-    sleep 1
-  done
-  printf 'Worker did not reach the required running/healthy lifetime within 90 seconds.\n' >&2
-  return 1
-}
+dc() { compose --env-file "$env_file" --project-name "$project" -f compose.yaml -f tests/images.compose.yaml "$@"; }
 cleanup() {
   result=$?
-  exec 3>&- 4<&-
   if test "$result" -ne 0; then
     # Capture container state before deleting this disposable project. Never dump
     # environments or application logs, which may contain authentication data.
     dc ps -a >&2 || true
-    failed_worker=$(dc ps -a -q worker) || true
-    if test -n "${failed_worker:-}"; then
-      docker inspect --format '{{json .State}}' "$failed_worker" >&2 || true
-      dc logs --tail 50 worker >&2 || true
-    fi
   fi
   docker rm -f "$project-ip-holder" >/dev/null 2>&1 || true
   docker rm -f "$project-host-canary" >/dev/null 2>&1 || true
@@ -58,13 +32,12 @@ cleanup() {
   sh scripts/cleanup-test-images.sh
   rm -f "$env_file"
   rm -f "$auth_directory/credentials.json" "$auth_directory/login.txt" "$auth_directory/session.json"
-  rm -f "$auth_directory/worker-in" "$auth_directory/worker-out"
   rmdir "$auth_directory"
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
-dc up -d --build --wait --wait-timeout 90
+dc up -d --build --wait --wait-timeout 120
 docker run -d --name "$project-host-canary" --network host --read-only --cap-drop ALL \
   --security-opt no-new-privileges "$(docker inspect --format '{{.Image}}' "$(dc ps -q app)")" \
   node -e 'require("node:http").createServer((q,s)=>s.end("host-canary")).listen(48923,"0.0.0.0")' >/dev/null
@@ -78,48 +51,9 @@ dc exec -T app bun tests/network.ts "$frontend_ip"
 dc exec -T app bun tests/health.ts ready
 dc exec -T app bun tests/identity.ts seed < "$auth_directory/login.txt" > "$auth_directory/session.json"
 dc exec -T app bun tests/files.ts < "$auth_directory/session.json"
-# The running app owns a static inference address; a second service container
-# would claim that same address. Execute diagnostics in its existing lifetime.
-dc exec -T -e CAMENAE_SENTINEL_SECRET=must-not-reach-bob app bun tests/foundation.ts seed
-worker=$(dc ps -q worker)
-started=$(docker inspect --format '{{.State.StartedAt}}' "$worker")
-mkfifo "$auth_directory/worker-in" "$auth_directory/worker-out"
-dc exec -T -e CAMENAE_SENTINEL_SECRET=must-not-reach-bob app bun tests/worker-client.ts \
-  < "$auth_directory/worker-in" > "$auth_directory/worker-out" &
-client_pid=$!
-exec 3>"$auth_directory/worker-in"
-exec 4<"$auth_directory/worker-out"
-read -r marker <&4
-test "$marker" = worker_connected
-dc exec -T worker bun tests/worker-boundary.ts
-dc exec -T worker bun tests/egress.ts
-# The exec parent has exited: the pipe holder is now detached and reparented.
-dc exec -T worker sh -c 'kill -0 "$(cat /data/workspace/survivor-pid)"'
-exec 3>&-
-wait "$client_pid"
-exec 4<&-
-# Observe Docker's completed worker lifetime transition, not merely socket EOF.
-attempt=0
-while test "$(docker inspect --format '{{.State.StartedAt}}' "$worker")" = "$started"; do
-  attempt=$((attempt + 1))
-  if test "$attempt" -ge 30; then
-    dc logs worker
-    printf 'Worker failed to exit with detached output-pipe holder.\n' >&2
-    exit 1
-  fi
-  sleep 1
-done
-# A cleanup error also restarts the container, but does not prove the successful
-# completion path exits. This is the first connection in this fresh lifetime.
-worker_log=$(docker logs --since "$started" "$worker" 2>&1)
-test "$(printf '%s\n' "$worker_log" | grep -Fxc '{"event":"worker_stopped"}')" = 1
-if printf '%s\n' "$worker_log" | grep -q 'worker_failed'; then
-  printf '%s\n' "$worker_log" >&2
-  exit 1
-fi
-wait_worker
-# Opening conversations must initialize real Bob before any prompt is sent.
-dc exec -T app bun tests/chat-preparation.ts < "$auth_directory/session.json"
+dc exec -T app bun tests/foundation.ts seed
+# The worker may reach only the egress proxy, which refuses every destination for it.
+dc exec -T -e HTTPS_PROXY=http://172.30.84.2:3128 opencode-worker bun tests/egress.ts
 # Keep nginx alive while forcing a genuinely different app IP, rather than
 # mistaking an all-service restart for proof of upstream DNS refresh.
 old_app_ip=$(docker inspect --format "{{(index .NetworkSettings.Networks \"${project}_backend\").IPAddress}}" "$(dc ps -q app)")
@@ -130,11 +64,10 @@ dc rm -f app
 # replacement can miss DNS failure recovery and pass while ingress stays stale
 # after a longer outage. This is an outage stimulus, not a readiness wait.
 sleep 8
-wait_worker
 docker run -d --name "$project-ip-holder" --network "${project}_backend" \
   --read-only --cap-drop ALL --security-opt no-new-privileges \
   --entrypoint tail "$ingress_image" -f /dev/null >/dev/null
-dc up -d --wait --wait-timeout 90 app
+dc up -d --wait --wait-timeout 120 app
 new_app_ip=$(docker inspect --format "{{(index .NetworkSettings.Networks \"${project}_backend\").IPAddress}}" "$(dc ps -q app)")
 test "$old_app_ip" != "$new_app_ip"
 test "$ingress" = "$(dc ps -q ingress)"
@@ -143,25 +76,18 @@ test "$(curl --fail --silent --show-error --max-time 3 --retry 10 --retry-delay 
 docker rm -f "$project-ip-holder" >/dev/null
 old_app=$(dc ps -q app)
 old_db=$(dc ps -q postgres)
-dc up -d --force-recreate --wait --wait-timeout 90
+dc up -d --force-recreate --wait --wait-timeout 120
 published=$(dc port ingress 8080)
 test "$(curl --fail --silent --show-error --max-time 10 "http://$published/health/ready")" = ready
 test "$old_app" != "$(dc ps -q app)"
 test "$old_db" != "$(dc ps -q postgres)"
 dc exec -T app bun tests/identity.ts verify < "$auth_directory/session.json"
-dc exec -T -e CAMENAE_SENTINEL_SECRET=must-not-reach-bob app bun tests/foundation.ts verify
-worker=$(dc ps -a -q worker)
-started=$(docker inspect --format '{{.State.StartedAt}}' "$worker")
-dc exec -T app bun src/main.ts check-runtime
-# check-runtime disconnects its single-use worker. Let Docker finish replacing
-# that lifetime before the next Compose up evaluates service dependencies.
-wait_worker "$started"
-test "$(docker inspect --format '{{.State.StartedAt}}' "$worker")" != "$started"
+dc exec -T app bun tests/foundation.ts verify
 dc stop postgres
 dc exec -T app bun tests/health.ts database-down
-dc up -d --wait --wait-timeout 90
+dc up -d --wait --wait-timeout 120
 dc exec -T app bun tests/health.ts ready
 app=$(dc ps -q app)
 dc stop app
 test "$(docker inspect --format '{{.State.ExitCode}}' "$app")" = 0
-printf 'Foundation smoke passed: container replacement, retained Postgres/workspace/state, filtered Bob environment, scope interruption, health, and SIGTERM.\n'
+printf 'Foundation smoke passed: container replacement, retained Postgres and workspace, ingress DNS recovery, worker egress denial, health, and SIGTERM.\n'

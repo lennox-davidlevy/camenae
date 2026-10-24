@@ -4,7 +4,7 @@ import { ThreadList, threadGroups } from "../src/ui/thread-list.js";
 import type { Conversation } from "../src/chat-contract.js";
 
 const thread = (id: string, date: Date, toolCount = 0): Conversation => ({
-  id, title: "Review quarterly figures", harness: "bob", createdAt: date.getTime(), updatedAt: date.getTime(), toolCount,
+  id, title: "Review quarterly figures", harness: "opencode", createdAt: date.getTime(), updatedAt: date.getTime(), toolCount,
 });
 
 const cases = [

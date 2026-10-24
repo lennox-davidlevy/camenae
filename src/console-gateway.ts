@@ -27,7 +27,7 @@ export const ConsoleGatewayLive = Layer.effectDiscard(Effect.gen(function* () {
   if (!settings.url || !Redacted.value(settings.password)) return yield* new IdentityError();
   const identity = yield* Identity;
   // Private inference-network listener. Never published by ingress.
-  const host = yield* Config.String("CAMENAE_MCP_HOST").pipe(Config.withDefault("127.0.0.1"));
+  const host = yield* Config.String("CAMENAE_GATEWAY_HOST").pipe(Config.withDefault("127.0.0.1"));
   const expected = Buffer.from(`Bearer ${Redacted.value(settings.password)}`);
   yield* Effect.acquireRelease(Effect.try(() => Bun.serve({
     hostname: host, port: 3003, maxRequestBodySize: 2_000_000, idleTimeout: 120,

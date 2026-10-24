@@ -14,6 +14,9 @@ interface ShellProps {
   conversations: readonly Conversation[];
   selected?: string;
   onSelect: (id: string) => void;
+  onNew: () => void;
+  newDisabled: boolean;
+  selectionDisabled: boolean;
   inspector: JSX.Element;
   children: JSX.Element;
 }
@@ -38,13 +41,13 @@ export function Shell(props: ShellProps) {
           <span>{["I", "II", "III", "IV"][index()]}</span>{name}
         </button>}</For>
       </nav>
-      <div class="masthead-actions"><a class="masthead-new" href="/chat">Open current Chat ↗</a></div>
+      <div class="masthead-actions"><button class="masthead-new" disabled={props.newDisabled} onClick={props.onNew}><span>+</span>New Chat</button></div>
     </header>
     <div class="shell-columns" ref={panels.setContainer} style={{ "grid-template-columns": panels.columns() }}>
       <aside class="thread-sidebar" id={`${id}-left`} aria-label="Conversation sidebar">
         <div class="thread-sidebar-label">⁚ <span>Threads</span></div>
-        <ThreadList conversations={props.conversations} selected={props.selected} disabled={false} onSelect={props.onSelect} />
-        <div class="thread-sidebar-footer"><a href="/auth/password">Account</a><a href="/">Connection</a></div>
+        <ThreadList conversations={props.conversations} selected={props.selected} disabled={props.selectionDisabled} onSelect={props.onSelect} />
+        <div class="thread-sidebar-footer"><a href="/auth/password">Account</a><a href="/chat">Classic chat ↗</a></div>
       </aside>
       {separator("left")}
       <main class="shell-center">{props.children}</main>

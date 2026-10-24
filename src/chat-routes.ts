@@ -5,8 +5,6 @@ import { z } from "zod";
 import { Identity } from "./identity.js";
 import { Chat, type ChatFailure } from "./chat.js";
 import { ChatAction, StartTurn } from "./chat-contract.js";
-import { DisabledTools, McpPolicies } from "./mcp-contract.js";
-import { ApprovalPolicy } from "./approval-contract.js";
 import { OpenCodeRuntime } from "./opencode-runtime.js";
 import { ConsoleModel, consoleModel, SaveConsoleBudget, SaveConsoleSettings } from "./console-contract.js";
 
@@ -20,7 +18,7 @@ const headers = {
 const respond = (handler: Effect.Effect<HttpServerResponse.HttpServerResponse, ChatFailure | InvalidChatRequest,
   HttpServerRequest.HttpServerRequest | HttpRouter.RouteContext>) => handler.pipe(Effect.catchTags({
   AccessDenied: () => Effect.succeed(HttpServerResponse.text("Sign in again", { status: 401, headers })),
-  IdentityError: () => Effect.succeed(HttpServerResponse.text("Save a valid API key for the connected harness in connection settings", { status: 503, headers })),
+  IdentityError: () => Effect.succeed(HttpServerResponse.text("Save a valid provider key in connection settings", { status: 503, headers })),
   ChatBusy: () => Effect.succeed(HttpServerResponse.text("Another turn is still running", { status: 409, headers })),
   ChatError: () => Effect.succeed(HttpServerResponse.text("Chat unavailable; check the connection or start a new conversation", { status: 503, headers })),
   AttachmentError: () => Effect.succeed(HttpServerResponse.text("Attachment unavailable or too large. Choose up to four supported UTF-8 text files, 64 KiB total; remove or reselect changed files and try again.", { status: 400, headers })),
@@ -58,7 +56,7 @@ export const ChatRoutes = HttpRouter.use(Effect.fn("Chat.routes")(function* (rou
   });
 
   const create = Effect.gen(function* () {
-    const parsed = z.strictObject({ csrf: z.string(), harness: z.enum(["bob", "opencode"]).optional() }).safeParse(yield* body);
+    const parsed = z.strictObject({ csrf: z.string(), harness: z.enum(["opencode"]).optional() }).safeParse(yield* body);
 
     if (!parsed.success) return yield* new InvalidChatRequest();
 
@@ -110,38 +108,7 @@ export const ChatRoutes = HttpRouter.use(Effect.fn("Chat.routes")(function* (rou
     return json(yield* chat.view(session, conversation));
   });
 
-  const settings = Effect.gen(function* () { return json(yield* chat.mcpSettings(yield* token)); });
-
-  const saveSettings = Effect.gen(function* () {
-    const parsed = z.strictObject({ csrf: z.string(), disabledTools: DisabledTools, permissions: McpPolicies.optional() }).safeParse(yield* body);
-
-    if (!parsed.success) return yield* new InvalidChatRequest();
-    yield* chat.saveMcpSettings(yield* token, parsed.data.csrf, parsed.data.disabledTools, parsed.data.permissions);
-
-    return json(yield* chat.mcpSettings(yield* token));
-  });
-
   const view = Effect.gen(function* () { return json(yield* chat.view(yield* token, yield* id)); });
-
-  const approveMcp = Effect.gen(function* () {
-    const parsed = z.strictObject({ csrf: z.string(), permissionId: z.uuid(), decision: z.enum(["allow", "deny"]) }).safeParse(yield* body);
-
-    if (!parsed.success) return yield* new InvalidChatRequest();
-    yield* chat.approveMcp(yield* token, parsed.data.csrf, yield* id, parsed.data.permissionId, parsed.data.decision);
-
-    return json({ accepted: true });
-  });
-
-  const approvalSettings = Effect.gen(function* () { return json(yield* chat.approvalSettings(yield* token)); });
-
-  const saveApprovalSettings = Effect.gen(function* () {
-    const parsed = z.strictObject({ csrf: z.string(), policy: ApprovalPolicy }).safeParse(yield* body);
-
-    if (!parsed.success) return yield* new InvalidChatRequest();
-    yield* chat.saveApprovalSettings(yield* token, parsed.data.csrf, parsed.data.policy);
-
-    return json(yield* chat.approvalSettings(yield* token));
-  });
 
   const prepare = Effect.gen(function* () {
     const parsed = z.object({ csrf: z.string() }).safeParse(yield* body);
@@ -202,13 +169,10 @@ export const ChatRoutes = HttpRouter.use(Effect.fn("Chat.routes")(function* (rou
     ["GET", "/api/settings/opencode", consoleSettings], ["POST", "/api/settings/opencode", saveConsoleSettings],
     ["POST", "/api/settings/opencode/remove", removeConsoleSettings],
     ["POST", "/api/settings/opencode/budget", saveConsoleBudget],
-    ["GET", "/api/settings/mcp", settings], ["POST", "/api/settings/mcp", saveSettings],
-    ["GET", "/api/settings/approvals", approvalSettings], ["POST", "/api/settings/approvals", saveApprovalSettings],
     ["GET", "/api/chat", bootstrap], ["POST", "/api/chat", create],
     ["GET", "/api/chat/:id", view], ["POST", "/api/chat/:id", start],
     ["POST", "/api/chat/:id/prepare", prepare],
     ["POST", "/api/chat/:id/model", selectModel],
-    ["POST", "/api/chat/:id/mcp-approve", approveMcp],
     ["GET", "/api/chat/:id/events", events], ["POST", "/api/chat/cancel", action("cancel")],
     ["POST", "/api/chat/approve", action("approve")],
   ] as const) {
