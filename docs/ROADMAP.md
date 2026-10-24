@@ -61,11 +61,14 @@ by this plan.
 
 ## UI framework note
 
-The October 24 spike used synthetic data in an isolated directory with jsdom, not a
-browser, and has not been added to this repository. It supports trying SolidJS but
-does not prove it. Before committing to the rewrite, check the filtered-list gap
-against a real catalog and add an application-owned props check. Keep the current
-UI working until a Solid chat reaches parity.
+The October 24 spike used synthetic data in an isolated directory and is not in
+this repository. It ran under jsdom and then in a real Chromium page through Vite.
+Both agreed: a repeat container's `$item` filter rendered no rows in
+`@json-render/solid` 0.21.3, while the same condition on the child row rendered
+the matching rows. Catalog validation did not reject a wrong prop type, so add an
+application-owned props check. This supports trying SolidJS but does not prove the
+rewrite: it used a toy catalog and no user acceptance. Keep the current UI working
+until a Solid chat reaches parity.
 
 ## Preserved integration acceptance
 

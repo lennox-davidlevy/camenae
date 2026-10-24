@@ -108,6 +108,21 @@ The proxy is loopback-only, checks Host/Origin, translates same-origin writes, a
 forwards streaming. Do not expose it through tunnels or use it in production.
 Only dev HTML uses the HMR policy; the deployed page retains its production CSP.
 
+### SolidJS preview shell
+
+`bun run dev:app` serves the in-progress SolidJS UI (`src/app`) at
+`http://127.0.0.1:5174/` with hot reload, no Docker, and no image builds. By default
+it answers `GET /api/chat` with synthetic conversations, so no backend, sign-in, or
+user state is involved. `bun run dev:app -- --backend http://127.0.0.1:3000` instead
+proxies `/api` and `/auth` to a separate loopback instance; that is not a sandbox,
+and the backend must be a different loopback HTTP origin. The server is
+loopback-only, refuses other Host headers, and serves only `src/` and `node_modules`.
+`bun run build:app` writes a production build to `public/app/` (gitignored). The
+application does not serve that build yet, and the Docker images do not use it.
+The shell shows real thread grouping and resizable panels; chat, skills, files, and
+settings are not built in it. Close any browser you opened and stop the server when
+finished.
+
 For no-inference browser checks, start a separate disposable Compose project with
 its own generated auth/env, unused port/subnet, `tests/mcp.compose.yaml`, and
 `tests/images.compose.yaml`. Build

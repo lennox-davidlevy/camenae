@@ -36,6 +36,7 @@ determine what work is authorized.
 | Bob approval preferences and managed Context7 gates | `src/mcp-permissions.ts`, `src/managed-mcp.ts`, approval contracts/settings. Not general plugin authorization. |
 | Workspace browsing and text uploads/attachments | `src/files.ts`, `src/file-contract.ts`, `src/ui/attachments.tsx`, and chat snapshot persistence. Shared workspace, not per-conversation isolation. |
 | Conversation sidebar and adjustable panels | `src/ui/thread-list.tsx`, `src/ui/panel-sizes.tsx`, and migration 011. Native headline display, activity metadata, collapsible groups, remembered widths. |
+| SolidJS preview shell | `src/app`, `scripts/dev-app.ts`. Source and local browser checks only: masthead, thread list, resizable panels, synthetic or proxied thread data. Not served by the application, not in the Docker images, no chat/skills/files/settings. The React UI remains the working interface. |
 | Fixed visual styling | `src/ui/theme.css` contains CSS tokens. No user-authored theme package/import engine or conversation-driven shell editor. |
 
 Chat attachments support four text files and 64 KiB total per message, with a
@@ -88,12 +89,11 @@ verification; old finding counts are not a present audit.
 
 ## Worktree and continuity
 
-The latest inspected commit was `430d8e4`, dated October 7. That is a source
-checkpoint, not an assertion that the worktree or a deployment matches it.
-At inspection, existing uncommitted changes affected development instructions,
-package scripts, smoke runners, and test Compose image handling. Additional
-test-image cleanup/verification files were untracked. Preserve and inspect this
-work before editing those areas; it was not implemented or accepted by this docs task.
+The test-image reuse and cleanup work (stable `camenae-test-*` tags, cleanup script,
+`test:images`) was committed as `44c905e`. The product, status, and roadmap
+documents followed in `468d067`. Both are source checkpoints, not an assertion
+that any deployment matches them, and neither was pushed by this task. Test-image
+checks resolve Compose stacks only; the smoke suites were not rerun for them.
 
 Run `git status --short` and inspect the relevant diff at pickup. Do not assume
 older conversation claims that all work is uncommitted still describe the tree.
