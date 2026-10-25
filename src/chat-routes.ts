@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { Effect, Redacted, Schedule, Schema, Stream } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { z } from "zod";
@@ -179,10 +179,13 @@ export const ChatRoutes = HttpRouter.use(Effect.fn("Chat.routes")(function* (rou
     yield* router.add(method, path, respond(handler));
   }
 
+  // The production build of the Solid application (`bun run build:app`): one page and fixed-name hashed assets.
+  const shell = yield* Effect.tryPromise(() => readFile("public/app/index.html"));
+
   const page = Effect.gen(function* () {
     yield* identity.session(yield* token);
 
-    return HttpServerResponse.text('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Camenae · Chat</title><link rel="stylesheet" href="/fonts.css"><link rel="stylesheet" href="/chat.css"></head><body><div id="root"></div><script type="module" src="/chat.js"></script></body></html>', { contentType: "text/html", headers });
+    return HttpServerResponse.uint8Array(shell, { contentType: "text/html", headers });
   }).pipe(Effect.catchTags({
     AccessDenied: () => Effect.succeed(HttpServerResponse.empty({ status: 303, headers: { ...headers, location: "/auth/login" } })),
     IdentityError: () => Effect.succeed(HttpServerResponse.text("Unavailable", { status: 503, headers })),
@@ -196,9 +199,11 @@ export const ChatRoutes = HttpRouter.use(Effect.fn("Chat.routes")(function* (rou
   const coin = yield* Effect.tryPromise(() => readFile("src/ui/assets/camenae-coin.png"));
   yield* router.add("GET", "/assets/camenae-coin.png", HttpServerResponse.uint8Array(coin, { contentType: "image/png", headers }));
 
-  for (const [file, contentType] of [["chat.js", "text/javascript"], ["chat.css", "text/css"]] as const) {
-    const content = yield* Effect.tryPromise(() => readFile(`public/${file}`));
-    yield* router.add("GET", `/${file}`, HttpServerResponse.uint8Array(content, { contentType, headers }));
+  for (const file of yield* Effect.tryPromise(() => readdir("public/app/assets"))) {
+    const content = yield* Effect.tryPromise(() => readFile(`public/app/assets/${file}`));
+    const contentType = file.endsWith(".js") ? "text/javascript" : file.endsWith(".css") ? "text/css" : undefined;
+
+    if (contentType) yield* router.add("GET", `/assets/${file}`, HttpServerResponse.uint8Array(content, { contentType, headers }));
   }
 
   for (const font of ["gloock", "geist", "geist-medium", "geist-semibold", "geist-italic", "geist-mono", "geist-mono-medium"]) {

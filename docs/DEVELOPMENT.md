@@ -20,7 +20,6 @@ bun install --frozen-lockfile
 bun run lint
 bun run typecheck
 bun run check:docs
-bun run build:ui
 bun run build:app
 bun run test:provisioning
 bun run test:dev-ui
@@ -50,8 +49,8 @@ image tags and test subnets are shared. All suites use only synthetic provider d
 | lint/typecheck/build | Configured rules (including vendored plugins), TS/TSX contracts, production browser bundles |
 | check:docs | Relative Markdown file/anchor links throughout selected source |
 | test:provisioning | Actual init entrypoints with no pre-existing cache, private file modes, and byte-preserving refusal to overwrite |
-| test:dev-ui | Real loopback proxy, Host/Origin guards, cookies, forwarding, SSE streaming with synthetic backend |
-| test:threads | Local-calendar thread grouping across week/year/DST boundaries and safe headline/metadata rendering |
+| test:dev-ui | `dev:app --backend` loopback proxy: Host/Origin guards, cookies, forwarding, SSE streaming with a synthetic backend |
+| test:threads | Local-calendar thread grouping across week/year/DST boundaries |
 | test:images | Resolve all smoke Compose stacks: stable test tags/cleanup labels, isolated project state, unchanged deployment images; no services started |
 | smoke:foundation | Real Docker/Postgres: authentication, file boundaries, ingress/app network isolation, worker egress denial, DNS recovery, state retention across replacement, readiness and shutdown |
 | smoke:opencode | Real Docker/Postgres/native OpenCode with a local model fixture: streaming, one-time approval, workspace tool, cancellation, failed requests, session reopening, old-worker retirement |
@@ -76,7 +75,7 @@ inspector panels; focused separators also support arrow keys, Shift for larger
 steps, and Home/End. Double-click resets a panel. Width preferences stay in browser
 storage; narrow layouts retain their responsive panel visibility.
 
-Both composers provide **+ File → Upload from computer** or **Choose from workspace**.
+The composer provides **+ File → Upload from computer** or **Choose from workspace**.
 Local text uploads are saved in that chat's inbox folder and automatically selected;
 existing workspace files are selected in place, with folder navigation and preview.
 Chips show filenames, with full paths on hover. An uploading chip blocks sending;
@@ -84,23 +83,14 @@ failed uploads offer Retry or Remove, and cannot silently be omitted from a send
 Draft selections and failed uploads are isolated per conversation
 in page memory and clear after an accepted send; a rejected send retains the text
 and selection. Reloading clears unsent selections, while sent snapshots remain in
-history and the inspector. The React UI allows 64 KiB text files, four per message,
-saved as before. Removing a chip does not delete
+history and the inspector. Removing a chip does not delete
 the workspace file. PDFs, images, drag-and-drop, and attachment-only messages
 are not supported. The picker estimates size from preview; server validation at
 send time is authoritative if a file changes.
 
-For a deliberately selected backend, `CAMENAE_DEV_BACKEND=http://127.0.0.1:3000
-bun run dev` serves `http://127.0.0.1:5173/chat`. Default backend is port 3000. This
-is **not a sandbox**: sign-in/settings/files affect that backend. Cookies are shared
-across loopback ports; separate installations need separate browser profiles.
-The proxy is loopback-only, checks Host/Origin, translates same-origin writes, and
-forwards streaming. Do not expose it through tunnels or use it in production.
-Only dev HTML uses the HMR policy; the deployed page retains its production CSP.
+### SolidJS application
 
-### SolidJS preview shell
-
-`bun run dev:app` serves the in-progress SolidJS UI (`src/app`) at
+`bun run dev:app` serves the SolidJS UI (`src/app`) at
 `http://127.0.0.1:5174/` with hot reload, no Docker, and no image builds. By default
 it answers `GET /api/chat` with synthetic conversations, so no backend, sign-in, or
 user state is involved. `bun run dev:app -- --backend http://127.0.0.1:3000` instead
@@ -112,7 +102,7 @@ presents the backend's origin for the page's own writes. Sign in through the pro
 `/auth/login`; its redirect to `/chat` is a 404 here, so open `/` afterwards. The server is
 loopback-only, refuses other Host headers, and serves only `src/` and `node_modules`.
 `bun run build:app` writes a production build to `public/app/` (gitignored). The
-application does not serve that build yet, and the Docker images do not use it.
+application serves that build at `/chat`, and the Docker image runs `build:app`.
 The shell has thread grouping, resizable panels, and a chat view: message list with
 sanitized Markdown, tool activity, approval cards, a composer with per-conversation
 drafts, stop, new chat, a per-conversation model picker, a usage panel, a server-sent-event stream with follow-the-bottom

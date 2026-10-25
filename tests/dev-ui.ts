@@ -9,7 +9,7 @@ const backend = Bun.serve({
   async fetch(request) {
     calls += 1;
 
-    if (new URL(request.url).pathname === "/stream") {
+    if (new URL(request.url).pathname === "/api/stream") {
       return new Response(new ReadableStream({
         start(controller) { controller.enqueue(new TextEncoder().encode("first\n")); },
       }), { headers: { "content-type": "text/event-stream" } });
@@ -22,17 +22,25 @@ const backend = Bun.serve({
   },
 });
 
-const child = Bun.spawn([process.execPath, "scripts/dev-ui.ts"], {
-  env: { ...process.env, CAMENAE_DEV_BACKEND: backend.url.origin },
+const child = Bun.spawn([process.execPath, "scripts/dev-app.ts", "--backend", backend.url.origin], {
+  env: process.env,
   stdout: "pipe", stderr: "inherit",
 });
 
-const origin = "http://127.0.0.1:5173";
+const origin = "http://127.0.0.1:5174";
 
 try {
   const reader = child.stdout.getReader();
-  const startup = await reader.read();
-  assert.match(new TextDecoder().decode(startup.value), /Camenae UI:/);
+  let startup = "";
+
+  while (!startup.includes("Proxying")) {
+    const chunk = await reader.read();
+
+    if (chunk.done) break;
+    startup += new TextDecoder().decode(chunk.value);
+  }
+
+  assert.match(startup, /Proxying \/api and \/auth to/);
   reader.releaseLock();
 
   for (const source of [null, "null", "http://untrusted.invalid"]) {
@@ -58,7 +66,7 @@ try {
   });
   assert.match(response.headers.get("set-cookie") ?? "", /camenae-local=fixture; HttpOnly; SameSite=Strict; Path=\//);
 
-  const stream = await fetch(`${origin}/stream`, { signal: AbortSignal.timeout(5000) });
+  const stream = await fetch(`${origin}/api/stream`, { signal: AbortSignal.timeout(5000) });
   const body = stream.body?.getReader();
   assert.ok(body);
   assert.equal(new TextDecoder().decode((await body.read()).value), "first\n", "stream must arrive without waiting for upstream EOF");

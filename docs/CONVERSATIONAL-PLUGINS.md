@@ -164,6 +164,33 @@ explicit grants and versioned contracts, not ambient access to a common database
 - Build imported source in isolation, preserving identity/lineage; hashes identify
   contents, not author trust. No automatic fork merging in MVP.
 
+## Workspace layout across harnesses (proposal)
+
+Status: proposed on 2026-10-25; nothing here is implemented beyond the current four
+folders. It is application-owned: the packaged SDK takes the workspace path from the
+caller, so no SDK change is needed.
+
+- **The workspace is user-facing and harness-neutral.** It holds only what the user
+  would recognize: `inbox`, `projects`, `outputs`, `scratch` (see
+  `src/workspace.ts`). Whichever harness or model is active sees the same tree.
+- **Native harness state lives outside it.** Each harness keeps its configuration,
+  sessions, and caches under its own state root (today `opencode-state`, selected via
+  HOME/XDG in `src/opencode-worker.ts`). A second harness gets a second state root
+  beside it, never a hidden folder in the workspace.
+- **The application does not write harness configuration into the workspace.**
+  Per-harness or per-model instructions, tools, and skills reach a harness through
+  its native configuration in its state root. A harness may still create its own
+  project files in its working directory; those are the harness's, shown under
+  "Show hidden", and never provisioned, migrated, or deleted by Camenae.
+- **Unknown top-level entries are left alone.** The application provisions its four
+  folders and does not remove anything else. Retired-harness leftovers such as the old
+  `.bob` folder are removed by the owner, not by a migration.
+
+Open questions: whether Skills are application-owned data (shared across harnesses)
+or native configuration translated per harness; whether `projects` should ever be
+split per conversation or harness; and how concurrent harnesses would share one
+workspace, since a single active turn is the only supported case today.
+
 ## Unresolved technical work
 
 Choose/prove sandbox backend, browser egress containment (iframe alone is not a

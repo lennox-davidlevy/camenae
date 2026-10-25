@@ -34,10 +34,10 @@ determine what work is authorized.
 | Console model selection and request allowance | `src/console-gateway.ts`, `src/console-contract.ts`, settings, and migrations 009/010. Fixed allowlist, persistent cap, no paid fallback. Provider availability/pricing is not guaranteed. |
 | One-time native approvals | Approval cards in Chat for requests the harness makes. No persistent approval preferences, connector gates, or Context7/Playwright bundle yet. |
 | Workspace files, uploads, and attachment paths | `src/files.ts`, `src/workspace-files.ts`, `src/file-contract.ts`, and chat path persistence. Shared workspace, not per-conversation isolation. |
-| Conversation sidebar and adjustable panels | `src/ui/thread-list.tsx`, `src/ui/panel-sizes.tsx`, and migration 011. Native headline display, activity metadata, collapsible groups, remembered widths. |
-| SolidJS preview shell | `src/app`, `scripts/dev-app.ts`. Source and local browser checks only: masthead, thread list, resizable panels, and a chat view (streaming, sanitized Markdown, tool activity, approvals, drafts, stop, new chat, per-conversation model picker, usage panel), and Settings (provider key, request cap, refresh, request-limit notice) against synthetic data, and once against an isolated OpenCode stack with a synthetic provider (new chat, streaming, approval, cancel, failure, reload). Not served by the application and not in the Docker images. An empty conversation shows a welcome screen (banner, headline, quote), and Skills is a UI-only preview of example skills, not connected to the assistant. The React UI remains the working interface. |
+| Conversation sidebar and adjustable panels | `src/app/threads.tsx`, `src/app/panel-sizes.ts`, and migration 011. Native headline display, activity metadata, collapsible groups, remembered widths. |
+| SolidJS application (the chat UI) | `src/app`, built by `bun run build:app` into the image and served at `/chat` behind the session check (`src/chat-routes.ts`); `scripts/dev-app.ts` is the fast no-Docker loop. Source and local browser checks only: masthead, thread list, resizable panels, and a chat view (streaming, sanitized Markdown, tool activity, approvals, drafts, stop, new chat, per-conversation model picker, usage panel), and Settings (provider key, request cap, refresh, request-limit notice) against synthetic data, and once against an isolated OpenCode stack with a synthetic provider (new chat, streaming, approval, cancel, failure, reload). Served by the application and built into the Docker image since the React UI was retired; sign-in, a first turn, and the shell were checked in a browser on a disposable stack with a synthetic provider. Not yet deployed to the installed stack or accepted by the user. An empty conversation shows a welcome screen (banner, headline, quote), and Skills is a UI-only preview of example skills, not connected to the assistant. |
 | Quotes dataset pipeline | `tools/quotes`, `data/quotes`. 179 curated quotes from 17 authors, each verified against a pinned Project Gutenberg edition. A separate private set of 871 Warhammer 40,000 quotes (from locally saved Lexicanum pages) lives in gitignored `data/private/`. The sign-in page and `GET /api/quote` (session required) serve a random quote with a link to its source: `src/quotes.ts`, `src/quotes-service.ts`, `src/quote-routes.ts`. The image holds only the public set; the private set is an optional read-only mount (`compose.private-quotes.yaml`). The Solid welcome screen uses the same route. Verified on an isolated stack only, not yet on the installed deployment. |
-| Fixed visual styling | `src/ui/theme.css` contains CSS tokens. No user-authored theme package/import engine or conversation-driven shell editor. |
+| Fixed visual styling | `src/ui/theme.css` contains CSS tokens (`src/ui` now holds only shared CSS, fonts, and artwork). No user-authored theme package/import engine or conversation-driven shell editor. |
 
 Attachments are saved as workspace files in `inbox/` when a message is sent (up to
 10 files, 15 MiB each, any type) and the turn stores path references; the agent is
@@ -45,8 +45,7 @@ told the paths. Files can be previewed and edited as text up to 1 MiB. In the
 Solid preview, the Files screen (browse, edit, upload, new folder, rename/move,
 delete), composer attachments, `@` path mentions, and "Ask about this file" were
 verified in a browser against synthetic fixtures. The Files screen was also checked against an isolated real stack (upload, clash, 15 MB limit, edit/save, move, delete); sending a message with attachments was not, because no model connection was configured. The
-server routes and tests passed on isolated stacks. The React UI keeps a smaller
-text-only upload policy.
+server routes and tests passed on isolated stacks.
 
 ## Not implemented
 
@@ -117,6 +116,15 @@ two-installation acceptance case without a product decision.
 Before changing code, state the intended observable outcome, test scope, and
 deployment authorization. Do not begin the entire roadmap merely because this
 page describes it.
+
+## Pending pickup (UI migration)
+
+The React UI is retired: `/chat` serves the Solid build, and `src/ui/*.tsx`, the React
+dev server, `tests/thread-list.tsx`, and the react/assistant-ui dependencies are gone.
+The installed stack was rebuilt on 2026-10-25 under project `camenae` with new volumes
+(fresh account; workspace files copied from the retired `bob-camenae_workspace`). It
+serves the Solid UI at `/chat`; readiness and the sign-in redirect were checked.
+Awaiting the user's sign-in, provider-key entry in Settings, and acceptance.
 
 ## Updating this record
 

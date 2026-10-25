@@ -48,6 +48,18 @@ the Dockerfile path/checksum, `.dockerignore`, the staging script, and the
 integration guide together. Keep concrete SDK contracts at boundaries; do not
 introduce aliases claiming universal harness support.
 
+## Two repositories
+
+Camenae spans this repository and the sibling SDK repository at
+`/home/david/Projects/github/camenae-sdk`. Anything that must change for a package
+globally (a harness integration's transport, native configuration, protocol,
+packaging, or its own tests and docs) is changed in `camenae-sdk`, in a session
+started there under that repository's own `AGENTS.md`. Anything specific to the
+application (UI, authentication, persistence, workspace layout, deployment) is
+changed here. Do not edit `camenae-sdk` from a session in this repository, and do
+not work around an SDK gap here. Record it, then bring the updated archive in
+through the approved packaging path below.
+
 ## Compatibility and safety
 
 Preserve persisted identifiers, migrations, native IDs, encryption context strings,
@@ -66,6 +78,15 @@ Use distinct test-owned projects, volumes, credentials, ports, and subnets for
 acceptance; do not point test fixtures at user state. `down --volumes` is for
 explicitly disposable projects only. Do not commit, push, publish, change remotes,
 or select/change licensing without explicit authorization.
+
+## Quotes and third-party text
+
+Games Workshop (Lexicanum) text is copyrighted. Keep it only in gitignored
+locations (`data/private/`, `.cache/quotes/lexicanum/`); never commit, export, or
+bake it into an image. Do not circumvent Lexicanum's bot protection; the user
+saves pages from their own browser. Public quotes must be verbatim substrings of a
+pinned Project Gutenberg edition (`tools/quotes`). Never chain `curate.ts decide`
+without reading the batch it applies to.
 
 ## Validation and delivery
 

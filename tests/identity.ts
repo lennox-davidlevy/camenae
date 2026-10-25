@@ -127,6 +127,9 @@ const inspectStorage = Effect.gen(function* () {
 
 if (mode === "seed") {
   assert.equal((await get("/")).status, 303);
+  const anonymous = await get("/chat");
+  assert.equal(anonymous.status, 303);
+  assert.equal(anonymous.headers.get("location"), "/auth/login");
   assert.equal((await get("/api/settings/opencode")).status, 401);
   assert.equal((await get("/auth/login")).status, 200);
   assert.equal((await get("/auth/password")).headers.get("location"), "/auth/login");
@@ -178,6 +181,15 @@ if (mode === "seed") {
   assert.equal((await post("/auth/login", new URLSearchParams({ username: "owner", password: "wrong" }))).status, 401);
   assert.equal((await post("/auth/login", new URLSearchParams({ username: "owner", password }))).status, 429);
   await login();
+  const shell = await get("/chat");
+  assert.equal(shell.status, 200);
+  assert.ok(shell.headers.get("content-type")?.startsWith("text/html"));
+  const page = await shell.text();
+  const script = page.match(/src="(\/assets\/[\w-]+\.js)"/)?.[1];
+  const style = page.match(/href="(\/assets\/[\w-]+\.css)"/)?.[1];
+  assert.ok(script && style, "The chat page must reference the built application assets");
+  assert.ok((await get(script)).headers.get("content-type")?.startsWith("text/javascript"));
+  assert.ok((await get(style)).headers.get("content-type")?.startsWith("text/css"));
   await detectKeys();
   await status(false);
   const token = await csrf();

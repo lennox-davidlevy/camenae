@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
-import { renderToStaticMarkup } from "react-dom/server";
-import { ThreadList, threadGroups } from "../src/ui/thread-list.js";
+import { threadGroups } from "../src/thread-groups.js";
 import type { Conversation } from "../src/chat-contract.js";
 
 const thread = (id: string, date: Date, toolCount = 0): Conversation => ({
@@ -24,25 +23,4 @@ for (const sample of cases) {
   assert.deepEqual(groups.flatMap((group) => group.conversations.map((item) => item.id)), sample.dates.map((_, index) => String(index)));
 }
 
-const now = new Date();
-
-now.setHours(12, 40, 0, 0);
-
-const html = renderToStaticMarkup(<ThreadList conversations={[thread("selected", now, 3), { ...thread("escaped", now, 1), title: "<script>bad()</script>" }]}
-  selected="selected" disabled={false} onSelect={() => { throw new Error("Static render must not navigate"); }} />);
-
-assert.ok(html.includes('aria-expanded="true"'));
-
-assert.ok(html.includes('aria-current="true"'));
-
-assert.ok(html.includes('3 tools · <time'));
-
-assert.ok(html.includes('1 tool · <time'));
-
-assert.ok(html.includes('>12:40</time>'));
-
-assert.ok(html.includes('&lt;script&gt;bad()&lt;/script&gt;'));
-
-assert.equal(html.includes('<script>bad()'), false);
-
-console.log("Thread grouping, calendar boundaries, ordering, metadata and safe title rendering passed.");
+console.log("Thread grouping, calendar boundaries and ordering passed.");

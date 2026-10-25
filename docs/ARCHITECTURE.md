@@ -7,7 +7,7 @@ and [target plugin architecture](CONVERSATIONAL-PLUGINS.md) for proposed capabil
 ## Topology
 
 ```text
-browser → loopback nginx ingress → Camenae (Bun / Effect / React)
+browser → loopback nginx ingress → Camenae (Bun / Effect, SolidJS UI)
                                   ├─ PostgreSQL
                                   ├─ @camenae/opencode → private HTTP → opencode-worker
                                   └─ Console gateway → restricted Squid CONNECT proxy → provider
@@ -93,6 +93,8 @@ in retained native state; the app does not replay transcripts.
 | `workspace` | `/data/workspace` | Shared inputs, projects, outputs, scratch |
 | `opencode-state` | `/data/opencode-state` | Native OpenCode HOME and XDG configuration/data/state (worker only) |
 
+Harness-specific files stay in each harness's state volume, not the workspace (see
+[the layout proposal](CONVERSATIONAL-PLUGINS.md#workspace-layout-across-harnesses-proposal)).
 `/data/tmp` and `/tmp` are disposable tmpfs. Workspace folders are conventions,
 not conversation sandboxes. Startup rejects symbolic links in provisioned
 directories; that alone is not race-proof isolation. `src/workspace-files.ts`

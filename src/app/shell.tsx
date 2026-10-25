@@ -47,7 +47,7 @@ export function Shell(props: ShellProps) {
       <aside class="thread-sidebar" id={`${id}-left`} aria-label="Conversation sidebar">
         <div class="thread-sidebar-label">⁚ <span>Threads</span></div>
         <ThreadList conversations={props.conversations} selected={props.selected} disabled={props.selectionDisabled} onSelect={props.onSelect} />
-        <div class="thread-sidebar-footer"><a href="/auth/password">Account</a><a href="/chat">Classic chat ↗</a></div>
+        <div class="thread-sidebar-footer"><a href="/auth/password">Account</a></div>
       </aside>
       {separator("left")}
       <main class="shell-center">{props.children}</main>
