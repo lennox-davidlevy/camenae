@@ -1,12 +1,11 @@
 # Quotes pipeline
 
 An offline pipeline that builds a dataset of short quotations from antiquity, each tied to
-a pinned [Project Gutenberg](https://www.gutenberg.org) edition. It is not part of the
-application, is not in any Docker image, and makes no model calls. `src/quotes.ts` reads
-the output (committed set, plus the private 40k set when present, with the 40k share capped at
-one pick in three) and the Solid welcome screen shows one. Only the dev fixture serves it so far:
-the real server has no quote route and the images do not contain `data/`, which is deferred
-until the Solid UI is served by the application.
+a pinned [Project Gutenberg](https://www.gutenberg.org) edition. The pipeline itself is not part
+of the application, is in no Docker image, and makes no model calls. Its committed output,
+`data/quotes/quotes.jsonl`, is: `src/quotes.ts` reads it (plus the private 40k set when present,
+with the 40k share capped at one pick in three), and the sign-in page and `GET /api/quote` serve
+it. See `docs/OPERATIONS.md` for what the image contains and how to mount the private set.
 
 ## Rule
 

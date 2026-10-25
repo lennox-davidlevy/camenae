@@ -57,6 +57,18 @@ Console gateway binds, port 3003; loopback outside Compose, never published on t
 host). Use the Compose topology rather than running a
 privileged host backend/worker.
 
+### Quotes on the sign-in page
+
+The sign-in page shows a random quotation chosen on the server, and the signed-in app can
+request one from `GET /api/quote`. The image contains the committed public-domain set
+(`/app/data/quotes/quotes.jsonl`); `CAMENAE_QUOTES_DIRECTORY` (default `data`, relative to
+`/app`) names where it is read, separate from the storage directory. Files are read once at
+start-up, and missing or unreadable files just mean no quote. To also show the private
+Warhammer 40,000 set, build it locally and start with
+`docker compose -f compose.yaml -f compose.private-quotes.yaml up -d`; it is mounted
+read-only and never copied into an image. Build it first: Docker creates a directory where
+a missing bind-mount file should be.
+
 For a different local port, change both `CAMENAE_HTTP_PORT` and `CAMENAE_ORIGIN`.
 Use a separate browser profile for a separate installation: cookies on `127.0.0.1`
 are shared across ports. HTTP origins are loopback-only. HTTPS cookie support is

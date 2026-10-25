@@ -23,7 +23,7 @@
     "quotes:build": "bun tools/quotes/build.ts",
     "quotes:lore": "bun tools/quotes/lexicanum.ts",
     "quotes:build-lore": "bun tools/quotes/lore-build.ts",
-    "test:quotes": "bun tests/quotes.ts",
+    "test:quotes": "bun tools/quotes/test.ts",
     "test:dev-ui": "bun tests/dev-ui.ts",
     "test:threads": "TZ=America/New_York bun tests/thread-list.tsx",
     "test:provisioning": "bun tests/provisioning.ts",

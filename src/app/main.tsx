@@ -10,29 +10,26 @@ import { FileInspector, FilesScreen } from "./files-view.js";
 import { createFiles } from "./files-state.js";
 import { RequestLimitNotice, SettingsInspector, SettingsPage } from "./settings.js";
 import { Shell, type Screen } from "./shell.js";
+import { createSkills, SkillsInspector, SkillsScreen } from "./skills.js";
 import { SessionUsagePanel } from "./usage.js";
 import "../ui/theme.css";
 import "../ui/layout-shell.css";
 import "./app.css";
 
-const notes = {
-  Skills: "Skills are not built in this view yet.",
-} as const;
-
 const contentClass = (screen: Screen) => Match.value(screen).pipe(
   Match.when("Chat", () => "shell-content shell-content-active"),
   Match.when("Settings", () => "shell-content shell-content-settings"),
   Match.when("Files", () => "shell-content shell-content-files"),
+  Match.when("Skills", () => "shell-content shell-content-skills"),
   Match.orElse(() => "shell-content"),
 );
-
-const noteFor = (screen: Screen) => screen === "Skills" ? notes[screen] : undefined;
 
 function App() {
   const session = createChatSession();
   const [screen, setScreen] = createSignal<Screen>("Chat");
   const [insertion, setInsertion] = createSignal<{ text: string; nonce: number }>();
   const files = createFiles({ csrf: () => session.bootstrap()?.csrf, active: () => screen() === "Files" });
+  const skills = createSkills();
 
   // "Ask about this file": the reference goes into the message being written.
   const ask = (path: string) => {
@@ -66,6 +63,7 @@ function App() {
   const rail = () => Match.value(screen()).pipe(
     Match.when("Settings", () => <SettingsInspector />),
     Match.when("Files", () => <FileInspector files={files} onAsk={ask} />),
+    Match.when("Skills", () => <SkillsInspector skill={skills.selected()} />),
     Match.orElse(() => inspector),
   );
 
@@ -80,10 +78,7 @@ function App() {
       <Show when={screen() === "Files"}><FilesScreen files={files} /></Show>
       <Show when={screen() === "Settings" ? session.bootstrap() : undefined}>{(state) =>
         <SettingsPage csrf={state().csrf} usage={state().consoleUsage} onChanged={session.refreshStatus} />}</Show>
-      <Show when={noteFor(screen())}>{(note) => <>
-        <h1 class="shell-screen-title">{screen()}</h1>
-        <div class="app-notice"><span class="tag">Preview shell</span><p>{note()}</p></div>
-      </>}</Show>
+      <Show when={screen() === "Skills"}><SkillsScreen skills={skills} /></Show>
     </div>
   </Shell>;
 }

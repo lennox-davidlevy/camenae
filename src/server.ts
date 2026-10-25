@@ -7,6 +7,7 @@ import { Workspace } from "./workspace.js";
 import { AuthRoutes } from "./auth-routes.js";
 import { ChatRoutes } from "./chat-routes.js";
 import { FileRoutes } from "./files.js";
+import { QuoteRoutes } from "./quote-routes.js";
 import { ConsoleGatewayLive } from "./console-gateway.js";
 
 const Routes = HttpRouter.use(Effect.fn("Health.routes")(function* (router) {
@@ -55,6 +56,6 @@ const Transport = Layer.unwrap(Effect.gen(function* () {
   });
 }));
 
-export const ServerLive = HttpRouter.serve(Layer.mergeAll(Routes, AuthRoutes, ChatRoutes, FileRoutes, ConsoleGatewayLive), { disableLogger: true }).pipe(
+export const ServerLive = HttpRouter.serve(Layer.mergeAll(Routes, AuthRoutes, ChatRoutes, FileRoutes, QuoteRoutes, ConsoleGatewayLive), { disableLogger: true }).pipe(
   Layer.provide(Transport),
 );

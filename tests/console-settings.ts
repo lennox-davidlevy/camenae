@@ -6,6 +6,8 @@ import { Effect, Layer, Schedule } from "effect";
 import { SqlClient } from "effect/sql";
 import { z } from "zod";
 import { ChatLive, FoundationLive, IdentityLive } from "../src/runtime.js";
+import { WelcomeQuote } from "../src/quotes-contract.js";
+import { Quotes } from "../src/quotes-service.js";
 import { ServerLive } from "../src/server.js";
 import { DatabaseLive } from "../src/database.js";
 import { ChatView, Conversation } from "../src/chat-contract.js";
@@ -67,7 +69,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   return new Response(`data: ${JSON.stringify(delta)}\n\ndata: ${JSON.stringify(finish)}\n\ndata: [DONE]\n\n`, { headers: { "content-type": "text/event-stream", "content-encoding": "gzip" } });
 }, { preconnect: fetchLocal.preconnect });
 
-const server = ServerLive.pipe(Layer.provide(ChatLive), Layer.provide(IdentityLive), Layer.provide(FoundationLive));
+const server = ServerLive.pipe(Layer.provide(ChatLive), Layer.provide(IdentityLive), Layer.provide(FoundationLive), Layer.provide(Quotes.layer));
 
 try {
   await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
@@ -87,6 +89,12 @@ try {
         await (await fetchLocal(base + "/api/chat", { headers: { cookie } })).json());
 
       const { csrf } = await bootstrap();
+
+      // The sign-in page carries a server-chosen quote with a source link; the app's quote route needs a session.
+      const signIn = await (await fetchLocal(base + "/auth/login")).text();
+      assert.ok(signIn.includes('class="art-quote"') && signIn.includes('rel="noopener noreferrer"'));
+      assert.equal((await fetchLocal(base + "/api/quote")).status, 401);
+      assert.ok(WelcomeQuote.parse(await (await fetchLocal(base + "/api/quote", { headers: { cookie } })).json()).href.startsWith("https://"));
 
       const post = (path: string, body: SettingsRequest, override: Record<string, string> = {}) => fetchLocal(base + path, {
         method: "POST", headers: { cookie, origin, "content-type": "application/json", ...override }, body: JSON.stringify({ csrf, ...body }),

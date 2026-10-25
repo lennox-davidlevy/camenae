@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { LoreQuote, Quote, Sources } from "../tools/quotes/schema.js";
-import { cellLines, loreRows, pageText } from "../tools/quotes/lore.js";
-import { bookBody, headerField, paragraphs, quoteId, sentences, squash, withoutHeading, withoutNumeral, withoutSpeaker } from "../tools/quotes/text.js";
-import { lorePath, quotesPath, sourcesPath } from "../tools/quotes/paths.js";
-import type { WelcomeQuote } from "../src/quotes-contract.js";
-import { loreShare, pickQuote, readQuotes } from "../src/quotes.js";
+import { LoreQuote, Quote, Sources } from "./schema.js";
+import { cellLines, loreRows, pageText } from "./lore.js";
+import { bookBody, headerField, paragraphs, quoteId, sentences, squash, withoutHeading, withoutNumeral, withoutSpeaker } from "./text.js";
+import { lorePath, quotesPath, sourcesPath } from "./paths.js";
+import type { WelcomeQuote } from "../../src/quotes-contract.js";
+import { loreShare, pickQuote, readQuotes } from "../../src/quotes.js";
+import { loginPage } from "../../src/auth-pages.js";
 
 const raw = [
   "Title: A Book", "Translator: Jane Doe", "", "*** START OF THE PROJECT GUTENBERG EBOOK A BOOK ***", "",
@@ -102,7 +103,20 @@ assert.equal(pickQuote({ antiquity: oldQuotes, lore: warQuotes }, draws(0, 0.999
 
 assert.deepEqual(await readQuotes("/nonexistent-camenae-data"), { antiquity: [], lore: [] });
 
-const real = await readQuotes(new URL("../data", import.meta.url).pathname);
+// The sign-in page escapes everything it prints and only links to https.
+const hostile = { ...entry("antiquity", "<script>alert(1)</script> & \"quoted\""), attribution: "<b>x</b>", href: "https://example.com/?a=1&b=\"2\"" };
+
+const page = loginPage("", hostile);
+
+assert.ok(!page.includes("<script>alert") && !page.includes("<b>x</b>") && page.includes("&#60;script&#62;"));
+
+assert.ok(page.includes('href="https://example.com/?a=1&#38;b=&#34;2&#34;"'));
+
+assert.ok(!loginPage("", { ...hostile, href: "javascript:alert(1)" }).includes("javascript:"));
+
+assert.ok(loginPage("", { ...hostile, href: "javascript:alert(1)" }).includes("An assistant with its tools"));
+
+const real = await readQuotes(new URL("../../data", import.meta.url).pathname);
 
 assert.equal(real.antiquity.length, lines.length);
 

@@ -13,7 +13,11 @@ const Lore = z.object({ text: z.string(), speaker: z.string(), reference: z.stri
 // That set is much larger, so without a weight it would crowd out everything else.
 export const loreShare = 1 / 3;
 
-const records = async (path: string) => (await readFile(path, "utf8").catch(() => "")).split("\n").filter((line) => line !== "");
+// A missing file or a line that is not JSON is skipped: the quotes are decoration, never a reason to fail.
+const records = async (path: string) => (await readFile(path, "utf8").catch(() => "")).split("\n").flatMap((line) => {
+  try { return line === "" ? [] : [JSON.parse(line)]; }
+  catch { return []; }
+});
 
 export interface QuoteSets {
   antiquity: readonly WelcomeQuote[];
@@ -26,13 +30,13 @@ export async function readQuotes(dataDirectory: string): Promise<QuoteSets> {
   const lore: WelcomeQuote[] = [];
 
   for (const line of await records(join(dataDirectory, "quotes", "quotes.jsonl"))) {
-    const record = Antiquity.safeParse(JSON.parse(line));
+    const record = Antiquity.safeParse(line);
 
     if (record.success) antiquity.push({ text: record.data.text, attribution: record.data.author, source: record.data.translator ? `${record.data.work} · trans. ${record.data.translator}` : record.data.work, href: record.data.links.text, kind: "antiquity" });
   }
 
   for (const line of await records(join(dataDirectory, "private", "quotes-40k.jsonl"))) {
-    const record = Lore.safeParse(JSON.parse(line));
+    const record = Lore.safeParse(line);
 
     if (record.success) lore.push({ text: record.data.text, attribution: record.data.speaker || record.data.category, source: record.data.reference.split(" · ")[0] || record.data.category, href: record.data.links.page, kind: "lore" });
   }

@@ -4,6 +4,8 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { z } from "zod";
 import { AccessDenied, Identity, IdentityError, LoginLimited } from "./identity.js";
 import { loginPage, passwordPage } from "./auth-pages.js";
+import { pickQuote } from "./quotes.js";
+import { Quotes } from "./quotes-service.js";
 
 class InvalidForm extends Schema.TaggedError<InvalidForm>()("InvalidForm", {}) {}
 
@@ -45,6 +47,7 @@ const respond = (handler: Effect.Effect<HttpServerResponse.HttpServerResponse,
 
 export const AuthRoutes = HttpRouter.use(Effect.fn("Auth.routes")(function* (router) {
   const identity = yield* Identity;
+  const quotes = yield* Quotes;
   const cookieName = identity.secureCookie ? "__Host-camenae" : "camenae-local";
   const cookieOptions = { httpOnly: true, secure: identity.secureCookie, sameSite: "strict", path: "/" } as const;
   const token = Effect.map(HttpServerRequest.HttpServerRequest, (request) => request.cookies[cookieName] ?? "");
@@ -65,6 +68,9 @@ export const AuthRoutes = HttpRouter.use(Effect.fn("Auth.routes")(function* (rou
     return Object.fromEntries(new URLSearchParams(body));
   });
 
+  // Each sign-in page carries a fresh quote, chosen on the server: the page itself runs no script.
+  const signIn = (message = "", status = 200) => authPage(loginPage(message, pickQuote(quotes, Math.random)), status);
+
   const login = Effect.gen(function* () {
     const parsed = Login.safeParse(yield* form);
 
@@ -76,10 +82,10 @@ export const AuthRoutes = HttpRouter.use(Effect.fn("Auth.routes")(function* (rou
       ...cookieOptions, maxAge: "8 hours",
     });
   }).pipe(Effect.catchTags({
-    InvalidForm: () => Effect.succeed(authPage(loginPage("Enter your password to sign in."), 400)),
-    AccessDenied: () => Effect.succeed(authPage(loginPage("That password was not accepted. Please try again."), 401)),
-    LoginLimited: () => Effect.succeed(authPage(loginPage("Please wait at least five seconds before trying again."), 429)),
-    IdentityError: () => Effect.succeed(authPage(loginPage("Sign-in is temporarily unavailable. Please try again shortly."), 503)),
+    InvalidForm: () => Effect.sync(() => signIn("Enter your password to sign in.", 400)),
+    AccessDenied: () => Effect.sync(() => signIn("That password was not accepted. Please try again.", 401)),
+    LoginLimited: () => Effect.sync(() => signIn("Please wait at least five seconds before trying again.", 429)),
+    IdentityError: () => Effect.sync(() => signIn("Sign-in is temporarily unavailable. Please try again shortly.", 503)),
   }));
 
   const account = (message = "", status = 200, saved = false) => Effect.gen(function* () {
@@ -128,7 +134,7 @@ export const AuthRoutes = HttpRouter.use(Effect.fn("Auth.routes")(function* (rou
     return HttpServerResponse.setCookieUnsafe(redirect("/auth/login"), cookieName, "", { ...cookieOptions, maxAge: 0 });
   });
 
-  yield* router.add("GET", "/auth/login", authPage(loginPage()));
+  yield* router.add("GET", "/auth/login", Effect.sync(() => signIn()));
   const css = yield* Effect.tryPromise(() => readFile("src/ui/auth.css"));
   yield* router.add("GET", "/auth.css", HttpServerResponse.uint8Array(css, { contentType: "text/css", headers }));
 

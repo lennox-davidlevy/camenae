@@ -29,6 +29,12 @@ input:focus-visible { outline: none; border-bottom: 2px solid #b4412c; padding-b
 .art-footer { padding: 22px 0 28px; display: flex; justify-content: space-between; gap: 24px; align-items: baseline; }
 .art-footer p { margin: 0; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.4; max-width: 36ch; color: #3b362e; }
 .art-footer > span { color: #6b6255; white-space: nowrap; }
+.art-quote { margin: 0; max-width: 44ch; display: flex; flex-direction: column; gap: 10px; border-left: 1px solid #23201b; padding-left: 14px; }
+.art-quote blockquote { margin: 0; }
+.art-quote p { max-width: none; font: italic 400 clamp(16px, 1.5vw, 20px)/1.45 Geist, sans-serif; white-space: pre-line; text-wrap: pretty; }
+.art-quote figcaption { display: flex; flex-wrap: wrap; gap: 2px 12px; font: 11px/1.5 'Geist Mono', monospace; color: #3b362e; }
+.art-quote figcaption a { color: #23201b; text-underline-offset: 3px; }
+.art-quote figcaption small { color: #6b6255; font: inherit; }
 .auth-panel { display: flex; align-items: center; justify-content: center; padding: 48px clamp(24px, 5vw, 80px); }
 .auth-content { width: 100%; max-width: 440px; }
 .eyebrow { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; font: 12px 'Geist Mono', monospace; }
