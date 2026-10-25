@@ -4,6 +4,8 @@ import { LoreQuote, Quote, Sources } from "../tools/quotes/schema.js";
 import { cellLines, loreRows, pageText } from "../tools/quotes/lore.js";
 import { bookBody, headerField, paragraphs, quoteId, sentences, squash, withoutHeading, withoutNumeral, withoutSpeaker } from "../tools/quotes/text.js";
 import { lorePath, quotesPath, sourcesPath } from "../tools/quotes/paths.js";
+import type { WelcomeQuote } from "../src/quotes-contract.js";
+import { loreShare, pickQuote, readQuotes } from "../src/quotes.js";
 
 const raw = [
   "Title: A Book", "Translator: Jane Doe", "", "*** START OF THE PROJECT GUTENBERG EBOOK A BOOK ***", "",
@@ -76,6 +78,33 @@ assert.deepEqual(loreRows(sample), [
 ]);
 
 assert.ok(pageText(sample).includes("Hate! Hate! Let it flow, let it run free!"));
+
+// The picker: the private set is optional and weighted, never crowding out the rest.
+const entry = (kind: WelcomeQuote["kind"], text: string): WelcomeQuote => ({ text, attribution: "Someone", source: "", href: "https://example.com/", kind });
+
+const oldQuotes = [entry("antiquity", "a1"), entry("antiquity", "a2")];
+
+const warQuotes = [entry("lore", "l1"), entry("lore", "l2"), entry("lore", "l3")];
+
+const draws = (...values: number[]) => () => values.shift() ?? 0;
+
+assert.equal(pickQuote({ antiquity: oldQuotes, lore: [] }, draws(0.99, 0.99))?.kind, "antiquity");
+
+assert.equal(pickQuote({ antiquity: [], lore: warQuotes }, draws(0.99))?.kind, "lore");
+
+assert.equal(pickQuote({ antiquity: [], lore: [] }, draws(0.5)), undefined);
+
+assert.equal(pickQuote({ antiquity: oldQuotes, lore: warQuotes }, draws(loreShare - 0.01, 0.5))?.kind, "lore");
+
+assert.equal(pickQuote({ antiquity: oldQuotes, lore: warQuotes }, draws(loreShare + 0.01, 0.5))?.kind, "antiquity");
+
+assert.equal(pickQuote({ antiquity: oldQuotes, lore: warQuotes }, draws(0, 0.999))?.text, "l3");
+
+assert.deepEqual(await readQuotes("/nonexistent-camenae-data"), { antiquity: [], lore: [] });
+
+const real = await readQuotes(new URL("../data", import.meta.url).pathname);
+
+assert.equal(real.antiquity.length, lines.length);
 
 // The private Games Workshop dataset is not committed; check it only where it exists.
 const lore = (await readFile(lorePath, "utf8").catch(() => "")).split("\n").filter((line) => line !== "");

@@ -5,6 +5,8 @@ import { filesRoute, fixtureFileSize } from "./dev-app-files.js";
 import { z } from "zod";
 import type { ChatView, Conversation, Turn } from "../src/chat-contract.js";
 import { ConsoleModel, consoleExhausted, consoleModel, SaveConsoleBudget, SaveConsoleSettings } from "../src/console-contract.js";
+import type { WelcomeQuote } from "../src/quotes-contract.js";
+import { pickQuote, readQuotes } from "../src/quotes.js";
 
 const minute = 60_000;
 
@@ -153,7 +155,7 @@ interface BootstrapReply {
   conversations: Conversation[];
 }
 
-type Reply = ChatView | BootstrapReply | SettingsReply | { id: string } | { error: string } | { ok: true };
+type Reply = ChatView | BootstrapReply | SettingsReply | WelcomeQuote | { id: string } | { error: string } | { ok: true };
 
 const json = (response: ServerResponse, value: Reply, status = 200) => {
   response.statusCode = status;
@@ -293,11 +295,27 @@ const route = async (request: IncomingMessage, response: ServerResponse, path: s
   return json(response, { error: "Not found" }, 404);
 };
 
+// Quotes come from the repository's data directory: the committed set, plus the private 40k set when this
+// checkout has it. Read on each request so a rebuilt dataset shows up without restarting the dev server.
+const quoteData = new URL("../data", import.meta.url).pathname;
+
+const quoteRoute = async (response: ServerResponse) => {
+  const quote = pickQuote(await readQuotes(quoteData), Math.random);
+
+  return quote ? json(response, quote) : json(response, { error: "No quotes" }, 404);
+};
+
 export const fixtureBackend: Plugin = {
   name: "camenae-fixture-backend",
   configureServer(server) {
     server.middlewares.use((request, response, next) => {
       const path = new URL(request.url ?? "/", "http://localhost").pathname;
+
+      if (path === "/api/quote") {
+        void quoteRoute(response);
+
+        return undefined;
+      }
 
       if (path.startsWith("/api/files")) {
         void filesRoute(request, response, path);

@@ -39,3 +39,38 @@
 .mention-empty { margin: 0; padding: 8px 12px; color: var(--muted); font-size: 13px; }
 .chat-user-attachments { display: flex; flex-wrap: wrap; gap: 5px; padding: 0; margin: 6px 0 0; list-style: none; }
 .chat-user-attachments li { padding: 3px 8px; border: 1px solid var(--line); background: var(--surface); font: 400 11px var(--mono-font); }
+
+.welcome-banner { width: 100%; max-width: 980px; height: 190px; display: flex; align-items: flex-end; border-bottom: 1px solid var(--ink); }
+.welcome-coin { width: clamp(150px,19%,184px); height: 190px; flex: none; background: var(--deep-ink); border-radius: 92px 92px 0 0; position: relative; overflow: hidden; }
+.welcome-coin img { position: absolute; left: 50%; top: 14px; width: 160px; height: 164px; transform: translateX(-50%); filter: invert(1); mix-blend-mode: screen; opacity: .94; }
+.welcome-banner-panel { flex: 1; min-width: 0; height: 150px; background: var(--accent); position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; padding: 14px 20px; }
+.welcome-banner-panel > img { position: absolute; right: -60px; top: -70px; width: 280px; height: 286px; mix-blend-mode: multiply; opacity: .14; }
+.welcome-banner-caption { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 12px; font: 400 10px var(--mono-font); letter-spacing: .1em; color: var(--on-accent); text-transform: uppercase; }
+.welcome-banner-caption span { white-space: nowrap; }
+.welcome-banner-name { position: relative; border-top: 1px solid rgba(248,243,234,.5); padding-top: 10px; font: 400 clamp(30px,9cqw,78px)/.82 var(--display-font); letter-spacing: -.01em; color: var(--on-accent); white-space: nowrap; }
+.welcome-column { width: clamp(90px,14%,130px); height: 190px; flex: none; display: flex; flex-direction: column; }
+.welcome-column i:nth-child(1) { height: 14px; background: var(--ink); }
+.welcome-column i:nth-child(2) { height: 6px; border-bottom: 1px solid var(--ink); }
+.welcome-column i:nth-child(3) { flex: 1; margin: 0 10px; background: repeating-linear-gradient(90deg,var(--stone) 0 8px,var(--ink) 8px 9px,#d8cfbf 9px 13px,var(--ink) 13px 14px); border-left: 1px solid var(--ink); border-right: 1px solid var(--ink); }
+.welcome-column i:nth-child(4) { height: 10px; background: var(--ink); }
+.welcome-heading { position: relative; width: 100%; max-width: 880px; margin-top: 56px; padding: 22px 30px 34px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.welcome-heading > i { position: absolute; width: 9px; height: 9px; border-color: var(--ink); border-style: solid; }
+.welcome-heading > i:nth-child(1) { left: 0; top: 0; border-width: 1px 0 0 1px; }
+.welcome-heading > i:nth-child(2) { right: 0; top: 0; border-width: 1px 1px 0 0; }
+.welcome-heading > i:nth-child(3) { left: 0; bottom: 0; border-width: 0 0 1px 1px; }
+.welcome-heading > i:nth-child(4) { right: 0; bottom: 0; border-width: 0 1px 1px 0; }
+.welcome-label { background: var(--secondary-ink); color: #f1ebe0; font: 400 14px var(--mono-font); padding: 3px 6px; }
+.welcome-heading time { font: 400 12px var(--mono-font); color: var(--secondary-ink); }
+.welcome-heading h1 { margin: 10px 0 0; font: 400 clamp(40px, 11cqw, 96px)/.92 var(--display-font); letter-spacing: -.035em; text-align: center; text-wrap: balance; }
+.welcome { padding: 32px 32px 24px; display: flex; flex-direction: column; align-items: center; container-type: inline-size; }
+.welcome-quote { width: 100%; max-width: 720px; margin: 8px 0 0; padding: 4px 0 4px 18px; border-left: 1px solid var(--ink); display: flex; flex-direction: column; gap: 12px; }
+.welcome-quote blockquote { margin: 0; }
+.welcome-quote p { margin: 0; font: italic 400 clamp(18px, 2vw, 24px)/1.45 var(--body-font); white-space: pre-line; text-wrap: pretty; }
+.welcome-quote figcaption { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; font: 400 12px var(--mono-font); color: var(--secondary-ink); }
+.welcome-quote figcaption a { color: var(--ink); text-underline-offset: 3px; }
+.welcome-quote figcaption small { color: var(--muted); font: inherit; }
+.welcome-quote figcaption button { margin-left: auto; background: transparent; border: 1px solid var(--line); padding: 3px 8px; font: inherit; color: var(--secondary-ink); }
+.welcome-status { margin: 28px 0 0; font: 400 12px var(--mono-font); color: var(--muted); }
+.welcome-status button { margin-left: 8px; background: transparent; border: 0; padding: 0; font: inherit; color: var(--secondary-ink); text-decoration: underline; text-underline-offset: 3px; }
+@container (max-width: 600px) { .welcome-column, .welcome-banner-caption span:last-child { display: none; } .welcome-coin { width: 108px; height: 150px; border-radius: 54px 54px 0 0; } .welcome-coin img { width: 100px; height: 102px; } .welcome-banner { height: 150px; } .welcome-banner-panel { height: 112px; padding: 10px 14px; } }
+

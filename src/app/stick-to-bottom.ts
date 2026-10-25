@@ -30,6 +30,15 @@ export function createStickToBottom() {
     setUnseen(false);
   };
 
+  // An empty conversation reads from the top; it stays there until the reader or a send moves it.
+  const toTop = () => {
+    if (!element) return;
+    element.scrollTo({ top: 0 });
+    following = false;
+    top = 0;
+    setUnseen(false);
+  };
+
   // Content changes arrive in bursts (a streamed reply); settle once per frame.
   const changed = () => {
     cancelAnimationFrame(frame);
@@ -83,7 +92,7 @@ export function createStickToBottom() {
     // resize): a follower stays at the bottom.
     resizes = new ResizeObserver(() => { if (following) toBottom(); });
     resizes.observe(value);
-    requestAnimationFrame(() => toBottom());
+    requestAnimationFrame(() => { if (following) toBottom(); });
   };
 
   onCleanup(() => {
@@ -98,5 +107,5 @@ export function createStickToBottom() {
     window.removeEventListener("pointercancel", released);
   });
 
-  return { ref, unseen, jump: () => toBottom("smooth"), follow: () => toBottom() };
+  return { ref, unseen, jump: () => toBottom("smooth"), follow: () => toBottom(), top: toTop };
 }

@@ -2,8 +2,11 @@
 
 An offline pipeline that builds a dataset of short quotations from antiquity, each tied to
 a pinned [Project Gutenberg](https://www.gutenberg.org) edition. It is not part of the
-application, is not in any Docker image, and makes no model calls. The welcome and
-sign-in screens are expected to read its output later; nothing in the app does yet.
+application, is not in any Docker image, and makes no model calls. `src/quotes.ts` reads
+the output (committed set, plus the private 40k set when present, with the 40k share capped at
+one pick in three) and the Solid welcome screen shows one. Only the dev fixture serves it so far:
+the real server has no quote route and the images do not contain `data/`, which is deferred
+until the Solid UI is served by the application.
 
 ## Rule
 
