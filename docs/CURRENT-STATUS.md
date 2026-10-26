@@ -31,11 +31,12 @@ determine what work is authorized.
 | Local owner account, sessions, encrypted credentials | `src/identity.ts`, auth routes, and installation migrations. No general registration, SSO, or multi-user isolation. |
 | Persistent conversations, streaming, tool activity, cancellation, native session reuse | `src/chat.ts`, chat routes/contracts, and runtime adapters. One active turn across tabs. |
 | OpenCode integration (the only harness) | `src/opencode-runtime.ts`, worker/plugin files, and exact packaged `@camenae/opencode`. Docker retires the whole worker. Live-provider use is not validated. |
-| Console model selection and request allowance | `src/console-gateway.ts`, `src/console-contract.ts`, settings, and migrations 009/010. Fixed allowlist, persistent cap, no paid fallback. Provider availability/pricing is not guaranteed. |
+| Console model selection and request allowance | `src/console-gateway.ts`, `src/console-contract.ts`, settings, and migrations 009/010. Fixed allowlist of free models plus one paid model (Claude Haiku 5.5, admitted only while a request cap is set, verified with a synthetic provider only), persistent cap, no fallback. Provider availability/pricing is not guaranteed. |
 | One-time native approvals | Approval cards in Chat for requests the harness makes. No persistent approval preferences, connector gates, or Context7/Playwright bundle yet. |
 | Workspace files, uploads, and attachment paths | `src/files.ts`, `src/workspace-files.ts`, `src/file-contract.ts`, and chat path persistence. Shared workspace, not per-conversation isolation. |
 | Conversation sidebar and adjustable panels | `src/app/threads.tsx`, `src/app/panel-sizes.ts`, and migration 011. Native headline display, activity metadata, collapsible groups, remembered widths. |
-| SolidJS application (the chat UI) | `src/app`, built by `bun run build:app` into the image and served at `/chat` behind the session check (`src/chat-routes.ts`); `scripts/dev-app.ts` is the fast no-Docker loop. Source and local browser checks only: masthead, thread list, resizable panels, and a chat view (streaming, sanitized Markdown, tool activity, approvals, drafts, stop, new chat, per-conversation model picker, usage panel), and Settings (provider key, request cap, refresh, request-limit notice) against synthetic data, and once against an isolated OpenCode stack with a synthetic provider (new chat, streaming, approval, cancel, failure, reload). Served by the application and built into the Docker image since the React UI was retired; sign-in, a first turn, and the shell were checked in a browser on a disposable stack with a synthetic provider. Not yet deployed to the installed stack or accepted by the user. An empty conversation shows a welcome screen (banner, headline, quote), and Skills is a UI-only preview of example skills, not connected to the assistant. |
+| SolidJS application (the chat UI) | `src/app`, built by `bun run build:app` into the image and served at `/chat` behind the session check (`src/chat-routes.ts`); `scripts/dev-app.ts` is the fast no-Docker loop. Source and local browser checks only: masthead, thread list, resizable panels, and a chat view (streaming, sanitized Markdown, tool activity, approvals, drafts, stop, new chat, per-conversation model picker, usage panel), and Settings (provider key, request cap, refresh, request-limit notice) against synthetic data, and once against an isolated OpenCode stack with a synthetic provider (new chat, streaming, approval, cancel, failure, reload). Served by the application and built into the Docker image since the React UI was retired; sign-in, a first turn, and the shell were checked in a browser on a disposable stack with a synthetic provider. Not yet deployed to the installed stack or accepted by the user. An empty conversation shows a welcome screen (banner, headline, quote), Skills is a real library (see the next row), not the earlier example preview. |
+| Skills library | `src/skills-*.ts`, `src/app/skills*.ts(x)`. Skills are `SKILL.md` folders in a dedicated application-owned `skills` volume (`/data/skills`, outside the workspace): `active/` is exposed read-only to the OpenCode worker through its `skills` configuration entry, `disabled/` is not. The Skills screen lists, creates (starting switched off), edits, switches on/off, and deletes them; routes are authenticated, Origin- and CSRF-guarded, and bounded. Verified in `smoke:foundation` on a disposable stack (guards, validation, and that OpenCode lists an active skill and not a disabled one after reloading its workspace location) and in a browser against the dev fixture. **Not live:** the SDK starts OpenCode with its file watcher off, so a change reaches the assistant only when OpenCode reloads the workspace location, in practice after the worker restarts; a native `skill.list` is empty of new skills until then. Whether a model chooses to use a skill was not checked. No import, sharing, or other harness yet; not yet deployed to the installed stack. |
 | Quotes dataset pipeline | `tools/quotes`, `data/quotes`. 179 curated quotes from 17 authors, each verified against a pinned Project Gutenberg edition. A separate private set of 871 Warhammer 40,000 quotes (from locally saved Lexicanum pages) lives in gitignored `data/private/`. The sign-in page and `GET /api/quote` (session required) serve a random quote with a link to its source: `src/quotes.ts`, `src/quotes-service.ts`, `src/quote-routes.ts`. The image holds only the public set; the private set is an optional read-only mount (`compose.private-quotes.yaml`). The Solid welcome screen uses the same route. Verified on an isolated stack only, not yet on the installed deployment. |
 | Fixed visual styling | `src/ui/theme.css` contains CSS tokens (`src/ui` now holds only shared CSS, fonts, and artwork). No user-authored theme package/import engine or conversation-driven shell editor. |
 
@@ -59,8 +60,7 @@ server routes and tests passed on isolated stacks.
 
 `package.json` has no json-render dependency. The harness discriminant currently
 contains OpenCode only. The trusted OpenCode application plugin is an
-integration detail, not the proposed user-installable plugin system. Skills,
-additional connections, and preview controls must not be described as working
+integration detail, not the proposed user-installable plugin system. Skill changes that apply live, additional connections, and preview controls must not be described as working
 management features.
 
 ## Evidence and acceptance
@@ -125,6 +125,16 @@ The installed stack was rebuilt on 2026-10-25 under project `camenae` with new v
 (fresh account; workspace files copied from the retired `bob-camenae_workspace`). It
 serves the Solid UI at `/chat`; readiness and the sign-in redirect were checked.
 Awaiting the user's sign-in, provider-key entry in Settings, and acceptance.
+
+## Follow-ups noted 2026-10-26
+
+- When the provider refuses a request, OpenCode retries silently (up to nine attempts) and
+  the chat shows nothing. Surface the retry and its reason in the chat.
+- Borrow quality-of-life details from `bob-workspace` later: easy thread deletion,
+  richer detail views, and similar polish. Ideas, not code ports.
+- The Skills editor (a plain text box) is a stopgap; tested live by the owner 2026-10-26.
+  Replace it, likely with an editor modeled on the `bob-workspace` files view.
+- Claude Haiku 5.5 works live on the installed stack (first real chats 2026-10-26).
 
 ## Updating this record
 

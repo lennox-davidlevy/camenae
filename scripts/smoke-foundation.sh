@@ -51,6 +51,7 @@ dc exec -T app bun tests/network.ts "$frontend_ip"
 dc exec -T app bun tests/health.ts ready
 dc exec -T app bun tests/identity.ts seed < "$auth_directory/login.txt" > "$auth_directory/session.json"
 dc exec -T app bun tests/files.ts < "$auth_directory/session.json"
+dc exec -T app bun tests/skills.ts < "$auth_directory/session.json"
 dc exec -T app bun tests/foundation.ts seed
 # The worker may reach only the egress proxy, which refuses every destination for it.
 dc exec -T -e HTTPS_PROXY=http://172.30.84.2:3128 opencode-worker bun tests/egress.ts

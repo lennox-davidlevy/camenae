@@ -186,6 +186,22 @@ caller, so no SDK change is needed.
   folders and does not remove anything else. Retired-harness leftovers such as the old
   `.bob` folder are removed by the owner, not by a migration.
 
+Switching harness within a project keeps the files but not the agent's memory: each
+harness retains its own native session, so a handover of context would be an
+application feature that is not designed. Harnesses also read different
+project-instruction files from the working directory (for example `AGENTS.md` versus
+`CLAUDE.md`); the likely shape is one application-owned source given to each harness
+in its native form at run time.
+
+The UI should render a harness-neutral message contract (text, reasoning, tool
+activity, usage), with a per-harness adapter at the boundary mapping native output
+into it, so model- or harness-specific quirks are handled once there and never in the UI.
+
+Direction (2026-10-26): skills should be common across harnesses, kept as one
+application-owned set and exposed to each harness in its native form (see the
+competitive notes in [product direction](PRODUCT.md#competitive-notes)); the mechanism
+is undecided.
+
 Open questions: whether Skills are application-owned data (shared across harnesses)
 or native configuration translated per harness; whether `projects` should ever be
 split per conversation or harness; and how concurrent harnesses would share one

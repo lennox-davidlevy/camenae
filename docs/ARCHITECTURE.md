@@ -91,6 +91,7 @@ in retained native state; the app does not replay transcripts.
 | --- | --- | --- |
 | `postgres-data` | `/var/lib/postgresql/data` | Identity, conversations, turns, Console credential and request allowance |
 | `workspace` | `/data/workspace` | Shared inputs, projects, outputs, scratch |
+| `skills` | `/data/skills` (app, read-write), `/data/skills` (worker, read-only) | `active/` and `disabled/` skill folders, each holding a `SKILL.md`; only `active/` is in the worker's skill configuration |
 | `opencode-state` | `/data/opencode-state` | Native OpenCode HOME and XDG configuration/data/state (worker only) |
 
 Harness-specific files stay in each harness's state volume, not the workspace (see
@@ -154,9 +155,9 @@ nonce, and tag enter Postgres. Wrong encryption keys fail startup rather than
 overwriting unreadable data. Deleting a credential row does not erase backups/WAL.
 Saving a key reports **saved, not verified**, and performs no inference.
 
-The [Console setup](OPENCODE.md#console-free-only-setup) gateway on the private
+The [Console setup](OPENCODE.md#console-setup) gateway on the private
 inference network requires the worker credential rather than browser cookies/Origin.
-It supplies the Console key outside the worker, restricts endpoint/model/output, and
+It supplies the Console key outside the worker, restricts endpoint/model/output (paid models only while a cap is set), and
 atomically counts requests against a persistent safety cap. Key removal clears the
 live credential, not historical database backups or the request counter.
 

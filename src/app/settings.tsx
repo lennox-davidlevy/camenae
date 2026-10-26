@@ -160,15 +160,15 @@ function ProviderSettings(props: SettingsPageProps) {
   };
 
   return <section class="settings-section harness-connection" aria-label="OpenCode connection">
-    <div class="settings-section-heading"><h3>OpenCode connection</h3><span>Console · free-only</span></div>
+    <div class="settings-section-heading"><h3>OpenCode connection</h3><span>Console</span></div>
     <Show when={exhausted() ? allowance() : undefined}>{(usage) => <RequestLimitNotice usage={usage()} />}</Show>
     <Show when={!settings() && !error()}><p role="status">Loading OpenCode connection…</p></Show>
     <Show when={settings()}>{(saved) => <>
-      <Show when={!saved().enabled}><p role="status">The Console/free-only worker is not enabled for this installation. Deployment setup is required before saving a key.</p></Show>
+      <Show when={!saved().enabled}><p role="status">The Console worker is not enabled for this installation. Deployment setup is required before saving a key.</p></Show>
       <form onSubmit={(event) => { event.preventDefault(); void saveKey(); }}>
         <div class="settings-rows">
-          <label class="settings-row">Provider <select aria-label="OpenCode provider" disabled><option>Console (free-only)</option></select></label>
-          <div class="settings-row"><span>Model</span><span>Choose a free model inside each OpenCode chat, including existing chats, between turns.</span></div>
+          <label class="settings-row">Provider <select aria-label="OpenCode provider" disabled><option>Console</option></select></label>
+          <div class="settings-row"><span>Model</span><span>Choose a model inside each OpenCode chat, including existing chats, between turns.</span></div>
           <label class="settings-row">Console API key <input type="password" autocomplete="new-password" value={key()} maxLength={4096}
             disabled={busy() || !saved().enabled} onInput={(event) => setKey(event.currentTarget.value)} placeholder={saved().stored ? "Key saved — enter a replacement" : "Enter API key"} /></label>
         </div>
@@ -181,7 +181,7 @@ function ProviderSettings(props: SettingsPageProps) {
       <Show when={allowance()}>{(usage) => <For each={[usage().revision]}>{() =>
         <ConsoleBudget usage={usage()} disabled={busy() || !saved().enabled} onSave={saveBudget} />}</For>}</Show>
       <ol class="settings-connection-notes">
-        <li>Only the listed free chat models are allowed, with no fallback. Provider pricing and availability can change. Jev is not a chat model; Muse's Responses API is not supported here.</li>
+        <li>Only the listed chat models are allowed, with no fallback. Claude Haiku 5.5 is billed per token and is refused unless a request cap is set. Provider pricing and availability can change. Jev is not a chat model; Muse's Responses API is not supported here.</li>
         <li>The local request cap is shared across all Console chats, including failed and background requests. Saving or removing a key does not reset it.</li>
         <li>Replacing or removing the key disconnects an existing OpenCode session and may stop its running turn. The key is never sent to the worker or returned to this page.</li>
       </ol>

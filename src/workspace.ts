@@ -7,6 +7,8 @@ export class WorkspaceError extends Schema.TaggedError<WorkspaceError>()("Worksp
 export interface WorkspacePaths {
   readonly workspace: string;
   readonly temporary: string;
+  // Application-owned skills, outside the workspace: `active/` is what the harness reads, `disabled/` is not exposed.
+  readonly skills: string;
 }
 
 const prepare = Effect.fn("Workspace.prepare")(function* (root: string) {
@@ -21,7 +23,7 @@ const prepare = Effect.fn("Workspace.prepare")(function* (root: string) {
 
       await directory(root);
       const base = await realpath(root);
-      const paths: WorkspacePaths = { workspace: join(base, "workspace"), temporary: join(base, "tmp") };
+      const paths: WorkspacePaths = { workspace: join(base, "workspace"), temporary: join(base, "tmp"), skills: join(base, "skills") };
 
       // Check parents before children. Nothing here is a sandbox boundary.
       for (const path of Object.values(paths)) await directory(path);
@@ -29,6 +31,8 @@ const prepare = Effect.fn("Workspace.prepare")(function* (root: string) {
       for (const name of ["inbox", "projects", "outputs", "scratch"]) {
         await directory(join(paths.workspace, name));
       }
+
+      for (const name of ["active", "disabled"]) await directory(join(paths.skills, name));
 
       return paths;
     },

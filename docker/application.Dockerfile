@@ -20,7 +20,7 @@ COPY tsconfig.json ./
 COPY data/quotes/quotes.jsonl data/quotes/quotes.jsonl
 RUN bun run typecheck
 RUN bun run build:app
-RUN mkdir -p /data/workspace /data/opencode-state /data/tmp && chown -R node:node /data
+RUN mkdir -p /data/workspace /data/skills /data/opencode-state /data/tmp && chown -R node:node /data
 USER node
 ENV NODE_ENV=production
 CMD ["bun", "src/main.ts"]

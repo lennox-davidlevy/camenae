@@ -113,6 +113,38 @@ need bespoke developer repair, or recipients cannot use shared tools independent
 A narrow domain product may be better than a general platform. Security failures
 and data loss are hard blockers, not errors to average into a good success rate.
 
+## Project isolation, toolchains, and previews (proposed port)
+
+Status: recorded 2026-10-25 as a wish and a proposed order, not an approved plan.
+Deferred on 2026-10-26: this comes after the personal assistant; borrow from
+`bob-workspace` where it helps rather than porting it.
+Nothing here is implemented. The earlier `bob-workspace` project (outside this
+repository, `/home/david/Projects/github/bob-workspace`) has working designs and code
+for these; `docs/OPENSHIFT_CODE.md` there maps them. Camenae today has one worker for
+one owner, no Docker socket in the app or worker, shared workspace folders that are
+conventions rather than sandboxes, and no toolchains beyond Node and Bun.
+
+Proposed order, each step needing its own scoped task and authorization:
+
+1. **Decide the provisioner model.** One worker per project created by a small
+   privileged provisioner, versus one worker with per-project workspace subtrees.
+   This is a security-boundary decision and it gates the rest. It must reconcile with
+   the rule that a worker accepts one application owner and Docker retires the whole
+   worker before reuse.
+2. **Per-project egress allowlist.** Extend the existing egress service; project hosts
+   visible and removable by the owner.
+3. **Language toolchains.** An approved catalog (official images pinned by digest,
+   mounted read-only), requested by the agent and approved by the owner, with package
+   hosts allowed alongside. The Docker-only image mounts would need a replacement for
+   other platforms.
+4. **Rendered previews.** Isolated preview containers behind a gateway with a strict
+   CSP, no registry access, and sharing as a separate decision. Depends on 1 and 2 and
+   overlaps the custom-code containment experiment in Phase 1.
+
+Application work belongs here; changes to a harness integration, such as a toolchain
+tool exposed through the SDK, belong in `camenae-sdk`. Re-derive each design against
+current requirements rather than copying `bob-workspace` code wholesale.
+
 ## Open decisions and risks
 
 - Prove catalog expressiveness without creating an unnecessarily general language

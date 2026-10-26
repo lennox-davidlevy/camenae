@@ -55,6 +55,9 @@ clear save state, and predictable error recovery are part of usefulness.
 | Persistent functional plugins and friend-to-friend editable sharing | User-stated end-state requirement. |
 | Reliability, efficiency, and ease of use | User-stated priorities. |
 | json-render UI catalog plus app-owned backend capability catalog | User-selected direction to investigate; no integration installed here. |
+| Per-project isolation, language toolchains, egress control, and rendered previews | User-stated wish (2026-10-25), deferred behind the personal assistant (2026-10-26), carried over from the earlier `bob-workspace` project (design and code map in its `docs/TOOLCHAINS.md`, `docs/NETWORK_ACCESS.md`, `docs/OPENSHIFT_CODE.md`; outside this repository). Not implemented here. The provisioner model is undecided; see the [roadmap](ROADMAP.md#project-isolation-toolchains-and-previews-proposed-port). |
+| Multi-harness through `camenae-sdk` | User decision (2026-10-26): the SDK is the one entry point for any harness; the personal assistant is its first application. |
+| How to judge readiness | User decision (2026-10-26): build to the owner's taste; user interviews and demand tests are not a gate for now. A reliable model for testing is needed, since the free models made live checks ambiguous. |
 | Jev or other decision models for bounded choices | Desired technical direction; exact placement and measurable benefit remain unproven. |
 | Themes inspired by Omarchy theme packages and OpenCode semantic tokens | User-selected direction; not an implemented theme-import system. |
 | New executable code, scoped connections, no-write previews, explicit activation | Preserved requirements from the earlier plugin design discussion; see [target architecture](CONVERSATIONAL-PLUGINS.md). |
@@ -83,6 +86,45 @@ clear save state, and predictable error recovery are part of usefulness.
   action are different operations. Do not promise universal undo.
 - The final ambition does not authorize a whole-application rewrite or removal
   of the current assistant. Deliver verifiable increments under a current task.
+
+## Competitive notes
+
+**Cindy** (`github.com/makecindy/cindy`, Apache-2.0, XD Inc.). Read from a local clone on
+2026-10-26: source search only, nothing run, so absences below mean "not found", not
+"proven absent".
+
+- An Electron and mobile client with a hosted cloud backend (separate repository).
+  About 10,000 commits since 2026-07-24 and about 35 packages, so a funded team moving
+  quickly. Breadth: Claude Code, Codex, and Pi harnesses, browser/computer/phone
+  control, IM bots, schedules, skills, plugins, remote SSH.
+- Posture: the agent runs on the user's machine with their files and logged-in apps.
+  Its sandbox setting is Codex's own passed through; no container isolation, network
+  egress policy, exact-operation approvals, or OpenTelemetry were found.
+- Harnesses: a shared `BaseAgent` interface with declared capabilities and
+  `NotSupportedError`, over each harness's native path (Claude Agent SDK, Codex
+  app-server, a Pi manager). A session has one fixed harness. "Switching" is a
+  cross-agent converter for project configuration (`CLAUDE.md` and `AGENTS.md`,
+  subagent definitions, hooks, MCP config); skills are reused through shared links
+  rather than converted. No live conversation transfer between harnesses was found.
+
+Implications (corrected 2026-10-26 after the owner restated the product):
+
+- The product remains the blank-slate personal assistant that works with any
+  harness, with dynamic UI and integrations as part of its design, in the spirit of
+  Meta's Muse (`ai.meta.com/muse`) as a personal agent that connects to anything.
+  What sets it apart is being owned, self-hosted, open to any harness and model, and
+  made with taste. Contained, governed execution in the style of `bob-workspace` is a
+  later layer, not the lead.
+- Multi-harness use goes through `camenae-sdk` as the single entry point (its
+  `AGENTS.md` sets the unified layer as the end goal, extracted once two harnesses
+  work). The application renders a harness-neutral message contract over it; see
+  [the layout proposal](CONVERSATIONAL-PLUGINS.md#workspace-layout-across-harnesses-proposal).
+- Worth designing, not copying: **common skills** shared across harnesses, and
+  **instruction and MCP conversion** between harness formats from one
+  application-owned source. Cindy's code is Apache-2.0 and may be studied; designs here
+  are re-derived against this product's trust model.
+- Conversation handover on a harness switch (summary, transcript, or native fork where
+  supported) is unclaimed by what was found and is an application feature to design.
 
 ## Value and viability hypotheses
 

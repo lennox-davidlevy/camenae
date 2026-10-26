@@ -29,7 +29,7 @@ function App() {
   const [screen, setScreen] = createSignal<Screen>("Chat");
   const [insertion, setInsertion] = createSignal<{ text: string; nonce: number }>();
   const files = createFiles({ csrf: () => session.bootstrap()?.csrf, active: () => screen() === "Files" });
-  const skills = createSkills();
+  const skills = createSkills({ csrf: () => session.bootstrap()?.csrf, active: () => screen() === "Skills" });
 
   // "Ask about this file": the reference goes into the message being written.
   const ask = (path: string) => {
@@ -63,7 +63,7 @@ function App() {
   const rail = () => Match.value(screen()).pipe(
     Match.when("Settings", () => <SettingsInspector />),
     Match.when("Files", () => <FileInspector files={files} onAsk={ask} />),
-    Match.when("Skills", () => <SkillsInspector skill={skills.selected()} />),
+    Match.when("Skills", () => <SkillsInspector skills={skills} />),
     Match.orElse(() => inspector),
   );
 

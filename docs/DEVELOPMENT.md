@@ -52,7 +52,7 @@ image tags and test subnets are shared. All suites use only synthetic provider d
 | test:dev-ui | `dev:app --backend` loopback proxy: Host/Origin guards, cookies, forwarding, SSE streaming with a synthetic backend |
 | test:threads | Local-calendar thread grouping across week/year/DST boundaries |
 | test:images | Resolve all smoke Compose stacks: stable test tags/cleanup labels, isolated project state, unchanged deployment images; no services started |
-| smoke:foundation | Real Docker/Postgres: authentication, file boundaries, ingress/app network isolation, worker egress denial, DNS recovery, state retention across replacement, readiness and shutdown |
+| smoke:foundation | Real Docker/Postgres: authentication, file boundaries, ingress/app network isolation, worker egress denial, DNS recovery, state retention across replacement, readiness and shutdown; skill routes, guards, and harness visibility after a location reload |
 | smoke:opencode | Real Docker/Postgres/native OpenCode with a local model fixture: streaming, one-time approval, workspace tool, cancellation, failed requests, session reopening, old-worker retirement |
 | smoke:console | Real HTTP/Postgres/native OpenCode: encrypted Settings credential, strict free-only gateway, atomic persistent request cap; synthetic provider, no egress service |
 
@@ -108,7 +108,7 @@ sanitized Markdown, tool activity, approval cards, a composer with per-conversat
 drafts, stop, new chat, a per-conversation model picker, a usage panel, a server-sent-event stream with follow-the-bottom
 scrolling, and a Settings screen for the provider key and request allowance. In fixture mode the dev server simulates turns in memory: any message
 streams a reply; include `approve` to trigger an approval card and `markdown` for
-hostile Markdown. Attachments, skills, and files are not built in it. Close any browser you opened and stop the server when
+hostile Markdown. Attachments and files are not built in it; its Skills use the real storage code over a throwaway directory. Close any browser you opened and stop the server when
 finished.
 
 For browser checks against a real backend without inference, start a separate

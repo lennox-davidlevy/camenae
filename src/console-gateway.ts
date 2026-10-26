@@ -3,12 +3,12 @@ import { Config, Effect, Layer, Redacted } from "effect";
 import { z } from "zod";
 import { Identity, IdentityError } from "./identity.js";
 import { openCodeSettings } from "./opencode-runtime.js";
-import { ConsoleModel } from "./console-contract.js";
+import { FreeConsoleModel, PaidConsoleModel } from "./console-contract.js";
 
 // Explicitly admit only Chat Completions fields; routing/fallback extensions
 // must never turn a free-model request into a different billed operation.
 const Completion = z.strictObject({
-  model: ConsoleModel, messages: z.array(z.unknown()).min(1),
+  model: FreeConsoleModel, messages: z.array(z.unknown()).min(1),
   max_tokens: z.number().int().min(1).max(2048), stream: z.boolean().optional(),
   max_completion_tokens: z.number().int().min(1).max(2048).optional(), store: z.literal(false).optional(),
   stream_options: z.strictObject({ include_usage: z.boolean() }).optional(),
@@ -18,6 +18,50 @@ const Completion = z.strictObject({
   stop: z.union([z.string(), z.array(z.string())]).optional(), seed: z.number().int().optional(),
   parallel_tool_calls: z.boolean().optional(), n: z.literal(1).optional(),
 });
+
+// Billed models: OpenCode owns the Anthropic Messages format, so this checks only what sets the bill.
+// Output (and any thinking budget, which must stay below max_tokens) is capped, and billed extras are refused.
+const Messages = z.looseObject({
+  model: PaidConsoleModel, max_tokens: z.number().int().min(1).max(2048), messages: z.array(z.unknown()).min(1),
+  tools: z.array(z.looseObject({ type: z.literal("custom").optional() })).optional(),
+  service_tier: z.never().optional(), mcp_servers: z.never().optional(), container: z.never().optional(),
+});
+
+// About 100K tokens of input, the boundary above which the paid model's price rises.
+const paidBodyLimit = 400_000;
+
+// The betas OpenCode's Anthropic protocol sends. They shape thinking and compaction, not billing;
+// Console rejects a request that uses one of these features without its header, so none may be stripped.
+const betas = new Set(["interleaved-thinking-2025-05-14", "compact-2026-01-12", "mid-conversation-output-config-2026-07-01", "thinking-binding-controls-2026-08-01"]);
+
+const forwarded = ["user-agent", "x-opencode-session", "x-opencode-session-id", "x-opencode-parent-session-id", "x-session-affinity", "x-session-id", "x-parent-session-id", "x-opencode-project", "x-opencode-client"];
+
+interface Route {
+  upstream: string;
+  paid: boolean;
+  admit: (bytes: string) => boolean;
+  headers: (request: Request, key: string) => Headers;
+}
+
+const routes = new Map<string, Route>([
+  ["/v1/chat/completions", {
+    upstream: "https://opencode.ai/zen/v1/chat/completions", paid: false,
+    admit: (bytes) => Completion.safeParse(JSON.parse(bytes)).success,
+    headers: (_request, key) => new Headers({ "content-type": "application/json", authorization: `Bearer ${key}` }),
+  }],
+  ["/anthropic/v1/messages", {
+    upstream: "https://opencode.ai/inference/anthropic/v1/messages", paid: true,
+    admit: (bytes) => Buffer.byteLength(bytes) <= paidBodyLimit && Messages.safeParse(JSON.parse(bytes)).success,
+    headers: (request, key) => {
+      const headers = new Headers({ "content-type": "application/json", authorization: `Bearer ${key}`, "x-api-key": key, "anthropic-version": "2023-06-01" });
+      const requested = (request.headers.get("anthropic-beta") ?? "").split(",").map((beta) => beta.trim()).filter((beta) => betas.has(beta));
+
+      if (requested.length > 0) headers.set("anthropic-beta", requested.join(","));
+
+      return headers;
+    },
+  }],
+]);
 
 export const ConsoleGatewayLive = Layer.effectDiscard(Effect.gen(function* () {
   const settings = yield* openCodeSettings;
@@ -37,26 +81,27 @@ export const ConsoleGatewayLive = Layer.effectDiscard(Effect.gen(function* () {
       if (authorization.length !== expected.length || !timingSafeEqual(authorization, expected)) return new Response("Unauthorized", { status: 401 });
 
       const url = new URL(request.url);
+      const route = routes.get(url.pathname);
 
-      if (request.method !== "POST" || url.pathname !== "/v1/chat/completions" || url.search) return new Response("Endpoint not permitted", { status: 403 });
+      if (request.method !== "POST" || !route || url.search) return new Response("Endpoint not permitted", { status: 403 });
 
       try {
         const bytes = await request.text();
 
-        if (!Completion.safeParse(JSON.parse(bytes)).success) return new Response("Free-only policy refused request", { status: 403 });
+        if (!route.admit(bytes)) return new Response("Console policy refused request", { status: 403 });
 
         // Atomic persistent admission counts failed upstream requests too. Saving
         // or removing a credential never resets the installation allowance.
-        const key = await Effect.runPromise(identity.admitConsoleRequest());
-        const headers = new Headers({ "content-type": "application/json", authorization: `Bearer ${Redacted.value(key)}` });
+        const key = Redacted.value(await Effect.runPromise(identity.admitConsoleRequest(route.paid)));
+        const headers = route.headers(request, key);
 
-        for (const name of ["user-agent", "x-opencode-session", "x-opencode-session-id", "x-opencode-parent-session-id", "x-session-affinity", "x-session-id", "x-parent-session-id", "x-opencode-project", "x-opencode-client"]) {
+        for (const name of forwarded) {
           const value = request.headers.get(name);
 
           if (value) headers.set(name, value);
         }
 
-        const response = await fetch("https://opencode.ai/zen/v1/chat/completions", {
+        const response = await fetch(route.upstream, {
           method: "POST", headers, body: bytes, redirect: "error",
           signal: AbortSignal.any([request.signal, AbortSignal.timeout(90_000)]),
         });

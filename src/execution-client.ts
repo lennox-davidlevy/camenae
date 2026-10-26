@@ -1,7 +1,7 @@
 import type { OpenCodeConnection } from "@camenae/opencode";
 import type { SessionUsage, Permission } from "./chat-contract.js";
 import { Match } from "effect";
-import type { ConsoleModel } from "./console-contract.js";
+import { type ConsoleModel, consoleProvider } from "./console-contract.js";
 
 export type Harness = "opencode";
 
@@ -32,7 +32,7 @@ export function openCodeExecution(client: OpenCodeConnection): ExecutionClient {
     async openSession(id, model) {
       const sessionID = await client.openSession(id);
 
-      if (model) await client.native.session.switchModel({ sessionID, model: { providerID: "camenae", id: model } });
+      if (model) await client.native.session.switchModel({ sessionID, model: { providerID: consoleProvider(model), id: model } });
 
       return sessionID;
     },

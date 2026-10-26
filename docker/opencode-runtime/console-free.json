@@ -2,9 +2,11 @@
   "$schema": "https://opencode.ai/config.json",
   "model": "camenae/longcat-2.5-preview-free",
   "default_agent": "camenae",
+  "skills": ["/data/skills/active"],
   "experimental": { "policies": [
     { "action": "provider.use", "resource": "*", "effect": "deny" },
-    { "action": "provider.use", "resource": "camenae", "effect": "allow" }
+    { "action": "provider.use", "resource": "camenae", "effect": "allow" },
+    { "action": "provider.use", "resource": "camenae-anthropic", "effect": "allow" }
   ] },
   "agents": {
     "camenae": {
@@ -34,6 +36,14 @@
           "capabilities": { "tools": true },
           "cost": { "input": 0, "output": 0 }
         }
+      }
+    },
+    "camenae-anthropic": {
+      "package": "@opencode/ai/providers/anthropic-compatible",
+      "settings": { "baseURL": "http://app:3003/anthropic/v1", "authToken": "{env:CAMENAE_OPENCODE_GATE_TOKEN}", "timeout": 90000 },
+      "body": { "max_tokens": 2048 },
+      "models": {
+        "claude-haiku-5-5": { "name": "Claude Haiku 5.5", "limit": { "context": 100000, "output": 2048 }, "capabilities": { "tools": true }, "cost": { "input": 0.1, "output": 0.5 } }
       }
     }
   }

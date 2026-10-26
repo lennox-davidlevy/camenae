@@ -36,7 +36,7 @@ export class Identity extends Context.Service<Identity, {
   readonly consoleStatus: (token: string) => Effect.Effect<ConsoleUsage & { stored: boolean }, IdentityError | AccessDenied>;
   readonly saveConsoleBudget: (token: string, input: z.infer<typeof SaveConsoleBudget>) => Effect.Effect<boolean, IdentityError | AccessDenied>;
   readonly consoleKey: () => Effect.Effect<Redacted.Redacted<string>, IdentityError>;
-  readonly admitConsoleRequest: () => Effect.Effect<Redacted.Redacted<string>, IdentityError>;
+  readonly admitConsoleRequest: (paid: boolean) => Effect.Effect<Redacted.Redacted<string>, IdentityError>;
   readonly replaceConsoleKey: (token: string, csrf: string, key: Redacted.Redacted<string>) => Effect.Effect<void, IdentityError | AccessDenied>;
   readonly removeConsoleKey: (token: string, csrf: string) => Effect.Effect<void, IdentityError | AccessDenied>;
 }>()("camenae/Identity") {
@@ -227,10 +227,11 @@ export class Identity extends Context.Service<Identity, {
       return yield* Effect.try(() => decrypt(encrypted));
     }, Effect.mapError(() => new IdentityError()));
 
-    const admitConsoleRequest = Effect.fn("Identity.admitConsoleRequest")(function* () {
-      // The budget survives key replacement/removal and application restarts.
+    const admitConsoleRequest = Effect.fn("Identity.admitConsoleRequest")(function* (paid: boolean) {
+      // The budget survives key replacement/removal and application restarts. A billed model is
+      // admitted only while a cap is set, so an uncapped installation can never run up a bill.
       const rows = yield* sql`UPDATE console_connection SET requests_used = requests_used + 1
-        WHERE singleton = true AND encrypted_key IS NOT NULL
+        WHERE singleton = true AND encrypted_key IS NOT NULL AND (${!paid} OR requests_limit IS NOT NULL)
         AND (requests_limit IS NULL OR requests_used - requests_baseline < requests_limit) RETURNING encrypted_key`;
 
       const row = yield* Effect.try(() => Connections.length(1).parse(rows)[0]);

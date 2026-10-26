@@ -33,6 +33,10 @@ const providerRequests: { model: string; messages: string }[] = [];
 
 let finalForwarded = 0;
 
+const paidBetas: string[] = [];
+
+let paidStreams = 0;
+
 type SettingsRequest = { provider?: string; model?: string; key?: string; csrf?: string; endpoint?: string; harness?: string; prompt?: string; attachments?: string[]; turnId?: string; permissionId?: string; optionId?: string; limit?: number | null; refresh?: boolean; revision?: number };
 
 type CompletionRequest = { model: string; max_tokens: number; max_completion_tokens?: number; store?: boolean; messages: { role: string; content: string }[]; stream?: boolean; models?: string[]; n?: number };
@@ -41,6 +45,37 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   const url = input instanceof Request ? input.url : String(input);
 
   if (!url.startsWith("https://opencode.ai/")) return fetchLocal(input, init);
+
+  // The paid route: a capped Anthropic Messages request with the key in both Console header forms.
+  if (url === "https://opencode.ai/inference/anthropic/v1/messages") {
+    const headers = new Headers(init?.headers);
+    assert.equal(init?.redirect, "error");
+    assert.equal(headers.get("x-api-key"), expectedKey);
+    assert.equal(headers.get("authorization"), `Bearer ${expectedKey}`);
+    assert.equal(headers.get("anthropic-version"), "2023-06-01");
+    paidBetas.push(headers.get("anthropic-beta") ?? "");
+    const body = z.object({ model: z.literal("claude-haiku-5-5"), max_tokens: z.number().max(2048), stream: z.boolean().optional() }).parse(JSON.parse(String(init?.body)));
+    forwarded++;
+
+    if (body.stream) {
+      paidStreams++;
+
+      const events = [
+        ["message_start", { type: "message_start", message: { id: "msg_synthetic", type: "message", role: "assistant", model: body.model, content: [], stop_reason: null, usage: { input_tokens: 1, output_tokens: 0 } } }],
+        ["content_block_start", { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }],
+        ["content_block_delta", { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Synthetic paid answer" } }],
+        ["content_block_stop", { type: "content_block_stop", index: 0 }],
+        ["message_delta", { type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 3 } }],
+        ["message_stop", { type: "message_stop" }],
+      ] as const;
+
+      return new Response(events.map(([name, data]) => `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`).join(""), { headers: { "content-type": "text/event-stream" } });
+    }
+
+    return Response.json({ id: "msg_synthetic", type: "message", role: "assistant", model: body.model, content: [{ type: "text", text: "Synthetic paid answer" }],
+      stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } });
+  }
+
   assert.equal(url, "https://opencode.ai/zen/v1/chat/completions");
   assert.equal(init?.redirect, "error");
   assert.equal(new Headers(init?.headers).get("authorization"), `Bearer ${expectedKey}`);
@@ -195,6 +230,17 @@ try {
       assert.equal((await post(`/api/chat/${opencode}/prepare`, {})).status, 200);
       assert.equal((await view(opencode)).conversation.title, "Synthetic greeting summary", "Reopening must read the existing native title");
       assert.equal(forwarded, beforeReopen, "Reading a title must not generate another provider request");
+
+      // A real native turn on the paid model: OpenCode's Anthropic provider reaches the gateway's paid route.
+      assert.equal((await post(`/api/chat/${other}/model`, { model: "claude-haiku-5-5" })).status, 200);
+      assert.equal((await post(`/api/chat/${other}`, { prompt: "synthetic paid turn" })).status, 200);
+
+      const paidTurn = await Effect.runPromise(Effect.tryPromise(() => view(other)).pipe(
+        Effect.repeat({ schedule: Schedule.spaced("50 millis"), while: (snapshot) => snapshot.turns.at(-1)?.status === "running" }), Effect.timeout("30 seconds")));
+
+      assert.equal(paidTurn.turns.at(-1)?.status, "completed");
+      assert.equal(paidTurn.turns.at(-1)?.answer, "Synthetic paid answer");
+      assert.ok(paidStreams > 0, "The paid turn did not stream through the Anthropic route");
       assert.ok(forwarded > 0, "Native request did not reach the guarded gateway");
       assert.deepEqual((await bootstrap()).consoleUsage, { used: forwarded, limit: 20, revision: 0 }, "Chat must expose actual request consumption without visiting Settings");
 
@@ -232,6 +278,36 @@ try {
       assert.equal(refused.status, 502);
       assert.equal((await refused.text()).includes("upstream-private-error"), false);
       failUpstream = false;
+
+      // The paid model has its own route, and the free route never admits it.
+      const paid = { model: "claude-haiku-5-5", max_tokens: 10, messages: [{ role: "user", content: "synthetic" }] };
+
+      type PaidRequest = { model: string; max_tokens: number; messages: { role: string; content: string }[]; tools?: { type?: string; name: string; input_schema?: { type: string } }[];
+        service_tier?: string; mcp_servers?: string[]; container?: string };
+
+      const messages = (body: PaidRequest, beta?: string) => {
+        const headers = new Headers({ authorization: `Bearer ${process.env.CAMENAE_OPENCODE_PASSWORD}`, "content-type": "application/json" });
+
+        if (beta !== undefined) headers.set("anthropic-beta", beta);
+
+        return fetchLocal(`${gate}/anthropic/v1/messages`, { method: "POST", body: JSON.stringify(body), headers });
+      };
+
+      const beforePaid = forwarded;
+      assert.equal((await gateway({ ...completion, model: "claude-haiku-5-5" })).status, 403, "The free route must refuse the paid model");
+
+      for (const invalid of [{ ...paid, model: "longcat-2.5-preview-free" }, { ...paid, model: "claude-opus-5-5" }, { ...paid, max_tokens: 2049 },
+        { ...paid, tools: [{ type: "web_search_20250305", name: "web_search" }] }, { ...paid, service_tier: "priority" }, { ...paid, mcp_servers: [] },
+        { ...paid, container: "x" }, { ...paid, messages: [{ role: "user", content: "x".repeat(400_001) }] }]) {
+        assert.equal((await messages(invalid)).status, 403);
+      }
+
+      assert.equal(forwarded, beforePaid, "A refused paid request contacted upstream");
+      const answered = await messages({ ...paid, tools: [{ name: "shell", input_schema: { type: "object" } }] }, "interleaved-thinking-2025-05-14, thinking-binding-controls-2026-08-01, billed-extra-2026-01-01");
+      assert.equal(answered.status, 200);
+      assert.equal(z.object({ content: z.array(z.object({ text: z.string() })) }).parse(await answered.json()).content[0]?.text, "Synthetic paid answer");
+      assert.equal(paidBetas.at(-1), "interleaved-thinking-2025-05-14,thinking-binding-controls-2026-08-01", "Known betas must pass and unknown ones must not");
+      assert.ok(paidStreams > 0 && paidBetas.some((beta) => beta.includes("thinking-binding-controls-2026-08-01")), "OpenCode's own thinking beta must reach the provider");
       const nativeSettings = z.object({ CAMENAE_OPENCODE_URL: z.string(), CAMENAE_OPENCODE_PASSWORD: z.string() }).parse(process.env);
 
       const lifetime = async () => {
@@ -304,6 +380,10 @@ try {
       assert.deepEqual((await bootstrap()).consoleUsage, { used: 3, limit: 3, revision: 2 });
       assert.equal((await post("/api/settings/opencode/budget", { limit: null, refresh: false, revision: 2 })).status, 200);
       assert.deepEqual((await bootstrap()).consoleUsage, { used: 3, limit: null, revision: 3 });
+      const uncapped = forwarded;
+      assert.equal((await messages(paid)).status, 503, "Without a request cap a paid model must be refused");
+      assert.equal(forwarded, uncapped, "An uncapped paid request contacted upstream");
+      assert.deepEqual((await bootstrap()).consoleUsage, { used: 3, limit: null, revision: 3 }, "A refused paid request must not consume allowance");
       assert.equal((await bootstrap()).readiness.opencode, true);
 
       const nativeId = () => Effect.runPromise(Effect.gen(function* () {

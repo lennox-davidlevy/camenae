@@ -60,7 +60,7 @@ the SDK archive's native lifecycle path has separately passed under Node 24.
 Full task sandbox orchestration, dynamic skills/capability management and a
 mandatory cross-harness SDK API remain out of scope.
 
-## Console free-only setup
+## Console setup
 
 `compose.yaml` runs a private OpenCode worker and an application-owned Console
 gateway. They share a dedicated `CAMENAE_OPENCODE_PASSWORD`, generated into `.env`
@@ -79,6 +79,19 @@ Nemotron 3.5 Lightning and Space Bunny. These use the free model IDs listed in t
 Console catalog. Jev is a structured-decision model, not a chat model. Muse Spark's
 Responses endpoint is not supported by this gateway. Neither is selectable.
 Arbitrary endpoints, other models and fallback routes are not accepted.
+
+One paid model is also selectable: **Claude Haiku 5.5** (`claude-haiku-5-5`), billed per
+token to the saved Console key. OpenCode reaches it through a second provider entry,
+`camenae-anthropic` (OpenCode's `anthropic-compatible` package), pointed at the
+gateway's `/anthropic/v1/messages` route, which forwards to Console's Anthropic
+endpoint. OpenCode owns the Messages format; the gateway checks only what sets the
+bill: the model is on the paid list, `max_tokens` is at most 2048 (which also bounds
+any thinking budget), billed extras (`service_tier`, `mcp_servers`, `container`,
+server tools) are refused, the body is at most about 100K tokens (the price boundary),
+and only known `anthropic-beta` values pass. **A paid request is refused unless a request
+cap is set**; the free models still work uncapped. Within the 100K-token tier a request
+costs about a cent at most, so a cap bounds spend roughly. The free route never
+admits the paid model.
 
 Switching sends the existing conversation history to the selected provider.
 Some free providers use submitted data to improve their models. Nemotron trials
@@ -118,11 +131,13 @@ missing connection. New Chat and the composer remain disabled until the owner ch
 the allowance. This installation counter does not migrate or reset any temporary
 live-test gateway counter.
 
-The listed models are advertised as free for a limited time. The allowlist prevents
+The free models are advertised as free for a limited time. The allowlist prevents
 selecting other models, but cannot guarantee future provider pricing or account
-billing. Recheck the upstream free listing before authorized live use. No paid
+billing. Recheck the upstream free listing before authorized live use. No
 fallback or automatic model substitution is implemented.
 
 `bun run smoke:console` validates settings, encryption and the
 real native worker/gateway path with a synthetic external provider and no egress
-service. It does not establish live-provider availability or billing.
+service. It also runs a native turn on the paid model through the Anthropic route against a
+synthetic streamed response, and checks the paid route's refusals and that it is
+refused without a cap. It does not establish live-provider availability or billing.

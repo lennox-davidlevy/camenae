@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { AttachmentPaths } from "../src/file-contract.js";
 import { filesRoute, fixtureFileSize } from "./dev-app-files.js";
+import { skillsRoute } from "./dev-app-skills.js";
 import { z } from "zod";
 import type { ChatView, Conversation, Turn } from "../src/chat-contract.js";
 import { ConsoleModel, consoleExhausted, consoleModel, SaveConsoleBudget, SaveConsoleSettings } from "../src/console-contract.js";
@@ -313,6 +314,12 @@ export const fixtureBackend: Plugin = {
 
       if (path === "/api/quote") {
         void quoteRoute(response);
+
+        return undefined;
+      }
+
+      if (path.startsWith("/api/skills")) {
+        void skillsRoute(request, response, path);
 
         return undefined;
       }
