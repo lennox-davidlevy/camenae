@@ -54,7 +54,8 @@ clear save state, and predictable error recovery are part of usefulness.
 | Blank slate, “Do anything,” conversational creation and extensive UI customization | User-stated end-state requirement. |
 | Persistent functional plugins and friend-to-friend editable sharing | User-stated end-state requirement. |
 | Reliability, efficiency, and ease of use | User-stated priorities. |
-| json-render UI catalog plus app-owned backend capability catalog | User-selected direction to investigate; no integration installed here. |
+| json-render UI catalog plus app-owned backend capability catalog | User decision (2026-10-26): `@json-render/solid` with an application-owned catalog and props check for the [first app slice](FIRST-TOOL-SLICE.md); not installed yet. |
+| How the assistant reaches apps | User decision (2026-10-26): a `camenae` command in the worker's shell, backed by an application broker, so every harness can use it. Full assistant control of entries; destructive actions approved once or for that kind of action from then on. Not implemented. |
 | Per-project isolation, language toolchains, egress control, and rendered previews | User-stated wish (2026-10-25), deferred behind the personal assistant (2026-10-26), carried over from the earlier `bob-workspace` project (design and code map in its `docs/TOOLCHAINS.md`, `docs/NETWORK_ACCESS.md`, `docs/OPENSHIFT_CODE.md`; outside this repository). Not implemented here. The provisioner model is undecided; see the [roadmap](ROADMAP.md#project-isolation-toolchains-and-previews-proposed-port). |
 | Multi-harness through `camenae-sdk` | User decision (2026-10-26): the SDK is the one entry point for any harness; the personal assistant is its first application. |
 | How to judge readiness | User decision (2026-10-26): build to the owner's taste; user interviews and demand tests are not a gate for now. A reliable model for testing is needed, since the free models made live checks ambiguous. |
@@ -125,6 +126,13 @@ Implications (corrected 2026-10-26 after the owner restated the product):
   are re-derived against this product's trust model.
 - Conversation handover on a harness switch (summary, transcript, or native fork where
   supported) is unclaimed by what was found and is an application feature to design.
+
+**wshobson/agents and cc-switch** (MIT, read 2026-10-26; see
+[reference projects](REFERENCE-PROJECTS.md)). Both are popular multi-harness tools for
+coding (about 42,000 and 149,000 stars): one converts a library of add-ons for seven
+harnesses, the other configures twelve from a desktop app. Neither runs an assistant for
+the user. They show strong demand for one setup across harnesses, and they supply
+designs for the SDK's message format and capability table.
 
 ## Value and viability hypotheses
 

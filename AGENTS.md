@@ -29,8 +29,10 @@ only implemented harness; see `docs/OPENCODE.md`. The intended product is a blan
 personal app that users create and modify through conversation, including themes,
 views, functionality, and shareable plugins. That end state is not implemented. Pi,
 Claude, Codex, a new harness, and a json-render fork are not approved implementation
-work merely because they appear in planning. The UI is moving from React to SolidJS
-in stages; the React UI stays the working interface until the Solid one reaches parity.
+work merely because they appear in planning; other harnesses arrive through
+`camenae-sdk`. The UI is SolidJS (`src/app`); React is retired. The next build is the
+[first app slice](docs/FIRST-TOOL-SLICE.md), which uses json-render (not a fork); each of
+its steps needs the owner's go-ahead.
 Use Camenae branding and neutral application wording; retain native SDK type names
 only at integration boundaries. Do not claim planned integrations or preview UI
 controls work.

@@ -1,6 +1,6 @@
 # Current status and session pickup
 
-Last source/document inspection: **2026-10-24**. This page records capability
+Last source/document inspection: **2026-10-26**. This page records capability
 status, not a fresh deployment or user-acceptance certificate.
 
 ## Read this first
@@ -31,12 +31,12 @@ determine what work is authorized.
 | Local owner account, sessions, encrypted credentials | `src/identity.ts`, auth routes, and installation migrations. No general registration, SSO, or multi-user isolation. |
 | Persistent conversations, streaming, tool activity, cancellation, native session reuse | `src/chat.ts`, chat routes/contracts, and runtime adapters. One active turn across tabs. |
 | OpenCode integration (the only harness) | `src/opencode-runtime.ts`, worker/plugin files, and exact packaged `@camenae/opencode`. Docker retires the whole worker. Live-provider use is not validated. |
-| Console model selection and request allowance | `src/console-gateway.ts`, `src/console-contract.ts`, settings, and migrations 009/010. Fixed allowlist of free models plus one paid model (Claude Haiku 5.5, admitted only while a request cap is set, verified with a synthetic provider only), persistent cap, no fallback. Provider availability/pricing is not guaranteed. |
+| Console model selection and request allowance | `src/console-gateway.ts`, `src/console-contract.ts`, settings, and migrations 009/010. Fixed allowlist of free models plus one paid model (Claude Haiku 5.5, admitted only while a request cap is set, through the gateway's Anthropic route; tested with a synthetic provider and used live on the installed stack on 2026-10-26), persistent cap, no fallback. Provider availability/pricing is not guaranteed. |
 | One-time native approvals | Approval cards in Chat for requests the harness makes. No persistent approval preferences, connector gates, or Context7/Playwright bundle yet. |
 | Workspace files, uploads, and attachment paths | `src/files.ts`, `src/workspace-files.ts`, `src/file-contract.ts`, and chat path persistence. Shared workspace, not per-conversation isolation. |
 | Conversation sidebar and adjustable panels | `src/app/threads.tsx`, `src/app/panel-sizes.ts`, and migration 011. Native headline display, activity metadata, collapsible groups, remembered widths. |
-| SolidJS application (the chat UI) | `src/app`, built by `bun run build:app` into the image and served at `/chat` behind the session check (`src/chat-routes.ts`); `scripts/dev-app.ts` is the fast no-Docker loop. Source and local browser checks only: masthead, thread list, resizable panels, and a chat view (streaming, sanitized Markdown, tool activity, approvals, drafts, stop, new chat, per-conversation model picker, usage panel), and Settings (provider key, request cap, refresh, request-limit notice) against synthetic data, and once against an isolated OpenCode stack with a synthetic provider (new chat, streaming, approval, cancel, failure, reload). Served by the application and built into the Docker image since the React UI was retired; sign-in, a first turn, and the shell were checked in a browser on a disposable stack with a synthetic provider. Not yet deployed to the installed stack or accepted by the user. An empty conversation shows a welcome screen (banner, headline, quote), Skills is a real library (see the next row), not the earlier example preview. |
-| Skills library | `src/skills-*.ts`, `src/app/skills*.ts(x)`. Skills are `SKILL.md` folders in a dedicated application-owned `skills` volume (`/data/skills`, outside the workspace): `active/` is exposed read-only to the OpenCode worker through its `skills` configuration entry, `disabled/` is not. The Skills screen lists, creates (starting switched off), edits, switches on/off, and deletes them; routes are authenticated, Origin- and CSRF-guarded, and bounded. Verified in `smoke:foundation` on a disposable stack (guards, validation, and that OpenCode lists an active skill and not a disabled one after reloading its workspace location) and in a browser against the dev fixture. **Not live:** the SDK starts OpenCode with its file watcher off, so a change reaches the assistant only when OpenCode reloads the workspace location, in practice after the worker restarts; a native `skill.list` is empty of new skills until then. Whether a model chooses to use a skill was not checked. No import, sharing, or other harness yet; not yet deployed to the installed stack. |
+| SolidJS application (the chat UI) | `src/app`, built by `bun run build:app` into the image and served at `/chat` behind the session check (`src/chat-routes.ts`); `scripts/dev-app.ts` is the fast no-Docker loop. Source and local browser checks only: masthead, thread list, resizable panels, and a chat view (streaming, sanitized Markdown, tool activity, approvals, drafts, stop, new chat, per-conversation model picker, usage panel), and Settings (provider key, request cap, refresh, request-limit notice) against synthetic data, and once against an isolated OpenCode stack with a synthetic provider (new chat, streaming, approval, cancel, failure, reload). Served by the application and built into the Docker image since the React UI was retired; sign-in, a first turn, and the shell were checked in a browser on a disposable stack with a synthetic provider. Deployed to the installed stack on 2026-10-25 and in daily use by the owner since (live chats with Claude Haiku 5.5 on 2026-10-26); not yet formally accepted. An empty conversation shows a welcome screen (banner, headline, quote), Skills is a real library (see the next row), not the earlier example preview. |
+| Skills library | `src/skills-*.ts`, `src/app/skills*.ts(x)`. Skills are `SKILL.md` folders in a dedicated application-owned `skills` volume (`/data/skills`, outside the workspace): `active/` is exposed read-only to the OpenCode worker through its `skills` configuration entry, `disabled/` is not. The Skills screen lists, creates (starting switched off), edits, switches on/off, and deletes them; routes are authenticated, Origin- and CSRF-guarded, and bounded. Verified in `smoke:foundation` on a disposable stack (guards, validation, and that OpenCode lists an active skill and not a disabled one after reloading its workspace location) and in a browser against the dev fixture. **Not live:** the SDK starts OpenCode with its file watcher off, so a change reaches the assistant only when OpenCode reloads the workspace location, in practice after the worker restarts; a native `skill.list` is empty of new skills until then. Whether a model chooses to use a skill was not checked. No import, sharing, or other harness yet. Deployed to the installed stack and tried by the owner on 2026-10-26; the text-box editor is a stopgap (see follow-ups). |
 | Quotes dataset pipeline | `tools/quotes`, `data/quotes`. 179 curated quotes from 17 authors, each verified against a pinned Project Gutenberg edition. A separate private set of 871 Warhammer 40,000 quotes (from locally saved Lexicanum pages) lives in gitignored `data/private/`. The sign-in page and `GET /api/quote` (session required) serve a random quote with a link to its source: `src/quotes.ts`, `src/quotes-service.ts`, `src/quote-routes.ts`. The image holds only the public set; the private set is an optional read-only mount (`compose.private-quotes.yaml`). The Solid welcome screen uses the same route. Verified on an isolated stack only, not yet on the installed deployment. |
 | Fixed visual styling | `src/ui/theme.css` contains CSS tokens (`src/ui` now holds only shared CSS, fonts, and artwork). No user-authored theme package/import engine or conversation-driven shell editor. |
 
@@ -106,12 +106,17 @@ Compose project name. Do not reprovision or send model requests to check readine
 
 ## Recommended next action
 
-**Advice, not authorization:** review the product and proposed roadmap, then select
-one bounded next task. The recommended first engineering proof is durable
-catalog-based editing with synthetic data and recovery, alongside a separately
-bounded isolation experiment. Demand discovery can proceed separately. A game
-tracker is a proposed low-risk pilot; it does not replace the recorded Calendar
-two-installation acceptance case without a product decision.
+**Advice, not authorization:** the owner plans two strands next.
+
+1. **SDK session** (in `camenae-sdk`, not here): reasoning as its own event, a supported
+   skills reload, visible provider retries, and a harness-neutral message format drawing
+   on [reference projects](REFERENCE-PROJECTS.md#for-the-sdk-camenae-sdk).
+2. **This repository:** step 1 of the [first app slice](FIRST-TOOL-SLICE.md#step-1-plan-prepared-not-started)
+   (a hand-written game backlog on json-render, no assistant yet), then the
+   quality-of-life items in [reference projects](REFERENCE-PROJECTS.md#for-this-application).
+
+Ask the owner which to start; step 1 has not been authorized yet. A game backlog is the
+pilot; it does not replace the recorded Calendar two-installation acceptance case.
 
 Before changing code, state the intended observable outcome, test scope, and
 deployment authorization. Do not begin the entire roadmap merely because this
@@ -123,17 +128,25 @@ The React UI is retired: `/chat` serves the Solid build, and `src/ui/*.tsx`, the
 dev server, `tests/thread-list.tsx`, and the react/assistant-ui dependencies are gone.
 The installed stack was rebuilt on 2026-10-25 under project `camenae` with new volumes
 (fresh account; workspace files copied from the retired `bob-camenae_workspace`). It
-serves the Solid UI at `/chat`; readiness and the sign-in redirect were checked.
-Awaiting the user's sign-in, provider-key entry in Settings, and acceptance.
+serves the Solid UI at `/chat` and was redeployed on 2026-10-26 with skills and the
+Haiku route. The owner has signed in, saved a provider key and request cap, and
+chatted; the old `bob-camenae_*` volumes are untouched.
 
 ## Follow-ups noted 2026-10-26
 
+- Next build: [first slice of an app shaped by conversation](FIRST-TOOL-SLICE.md). Owner
+  decisions recorded 2026-10-26 (json-render, a `camenae` command, full entry control with
+  approvals). Step 1 is planned there and awaits the owner's go-ahead.
+
 - When the provider refuses a request, OpenCode retries silently (up to nine attempts) and
   the chat shows nothing. Surface the retry and its reason in the chat.
-- Borrow quality-of-life details from `bob-workspace` later: easy thread deletion,
-  richer detail views, and similar polish. Ideas, not code ports.
+- Borrow quality-of-life details from `bob-workspace`: easy thread deletion, richer
+  detail views, and similar polish. File pointers in [reference projects](REFERENCE-PROJECTS.md).
 - The Skills editor (a plain text box) is a stopgap; tested live by the owner 2026-10-26.
   Replace it, likely with an editor modeled on the `bob-workspace` files view.
+- [Reference projects](REFERENCE-PROJECTS.md) (wshobson/agents, cc-switch, bob-workspace)
+  read 2026-10-26: a harness-neutral message format, capability table and request fixes
+  for the SDK; a conversation reading view, thread deletion and a files view here.
 - Claude Haiku 5.5 works live on the installed stack (first real chats 2026-10-26).
 
 ## Updating this record
