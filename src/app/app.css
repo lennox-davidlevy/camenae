@@ -115,3 +115,60 @@
   .skills-table th, .skills-table td, .skills-table thead th { padding: 8px 6px; }
   .skills-table th:last-child { width: 52px; }
 }
+
+/* Apps drawn from definitions: only these semantic classes, built from the theme tokens. */
+.shell-content-app { padding: 48px; overflow-y: auto; }
+.app-screen { max-width: 1040px; margin: 0 auto; }
+.app-page { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+.app-page > header h1 { margin: 0; font: 400 72px/.95 var(--display-font); letter-spacing: -.035em; }
+.app-page > header p { margin: 10px 0 0; font-size: 17px; line-height: 1.45; max-width: 620px; }
+.app-section { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.app-section > h2 { margin: 0; font: 400 10px var(--mono-font); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.app-columns { display: grid; grid-template-columns: repeat(var(--app-columns), minmax(0, 1fr)); gap: 12px; }
+.app-stat { border: 1px solid var(--soft-line); padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+.app-stat span { font: 400 10px var(--mono-font); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.app-stat strong { font: 400 40px/1 var(--display-font); }
+.app-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: 13px; }
+.app-filters label { display: flex; align-items: center; gap: 6px; }
+.app-count { margin-left: auto; font: 400 11px var(--mono-font); color: var(--muted); }
+.app-table-wrap { position: relative; display: flex; flex-direction: column; gap: 10px; overflow-x: auto; min-width: 0; }
+.app-table { width: 100%; border: 1px solid var(--soft-line); border-collapse: collapse; font-size: 15px; line-height: 1.35; }
+.app-table th, .app-table td { padding: 8px 10px; text-align: left; vertical-align: middle; border: 1px solid var(--soft-line); overflow-wrap: break-word; }
+.app-table thead { background: rgba(35,32,27,.07); }
+.app-table thead th { overflow-wrap: normal; }
+.app-table thead button { border: 0; background: transparent; padding: 0; font-weight: 600; text-align: left; }
+.app-table th[aria-sort=ascending] button::after { content: " ↑"; }
+.app-table th[aria-sort=descending] button::after { content: " ↓"; }
+.app-table .app-group th { background: rgba(35,32,27,.04); font: 400 11px var(--mono-font); text-transform: uppercase; letter-spacing: .05em; }
+.app-table select, .app-table input { font: inherit; font-size: 14px; padding: 3px 4px; border: 1px solid var(--soft-line); background: var(--input-fill); max-width: 100%; }
+.app-table input[type=number] { width: 7em; }
+.app-row-muted td { color: var(--muted); }
+.app-row-muted td a { color: inherit; }
+.app-row-actions { white-space: nowrap; width: 1%; }
+.app-row-actions button, .app-form-actions button, .app-unavailable button { border: 0; padding: 3px 8px; font-size: 13px; background: var(--surface); }
+.app-row-actions button + button { margin-left: 4px; }
+.app-row-actions .app-danger { background: var(--accent); color: var(--on-accent); }
+.app-long-text { white-space: pre-wrap; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.app-empty { margin: 0; font-size: 14px; color: var(--muted); }
+.app-problem { margin: 0; color: var(--accent); font-size: 13px; }
+.app-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 16px; padding: 14px 0 14px 14px; border-left: 1px dashed var(--ink); }
+.app-form-field { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.app-form-longText, .app-form-multiChoice, .app-form .app-problem, .app-form-actions { grid-column: 1 / -1; }
+.app-form input, .app-form select, .app-form textarea { font: inherit; font-size: 14px; padding: 5px 8px; border: 1px solid var(--soft-line); background: var(--surface); }
+.app-form textarea { resize: vertical; }
+.app-multi { display: flex; flex-wrap: wrap; gap: 4px 12px; border: 0; padding: 0; margin: 0; }
+.app-form-actions button { background: var(--deep-ink); color: var(--surface); padding: 6px 14px; }
+.app-form-actions button:disabled { opacity: .45; }
+.app-unavailable { border: 1px solid var(--accent); padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.app-unavailable p { margin: 0; }
+.app-inspector section { display: flex; flex-direction: column; gap: 8px; }
+.app-inspector h2 { margin: 0; font: 400 10px var(--mono-font); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.app-inspector p { margin: 0; font-size: 24px; font-weight: 500; letter-spacing: -.03em; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 999px) { .shell-content-app { padding: 28px; } }
+@media (max-width: 699px) {
+  .shell-content-app { padding: 20px 16px; }
+  .app-page > header h1 { font-size: 52px; }
+  .app-columns { grid-template-columns: 1fr; }
+  .app-table { font-size: 13px; }
+}

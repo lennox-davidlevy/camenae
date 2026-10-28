@@ -7,6 +7,7 @@ import { Identity } from "./identity.js";
 import { Workspace } from "./workspace.js";
 import { Chat } from "./chat.js";
 import { OpenCodeRuntime } from "./opencode-runtime.js";
+import { Apps } from "./apps-store.js";
 
 const WorkspaceLive = Workspace.layer;
 
@@ -23,3 +24,5 @@ export const IdentityLive = Identity.layer.pipe(
 );
 
 export const ChatLive = Chat.layer.pipe(Layer.provide(IdentityLive), Layer.provide(FoundationLive), Layer.provide(DatabaseLive));
+
+export const AppsLive = Apps.layer.pipe(Layer.provide(DatabaseLive));

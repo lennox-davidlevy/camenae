@@ -9,6 +9,7 @@ import { ChatRoutes } from "./chat-routes.js";
 import { FileRoutes } from "./files.js";
 import { QuoteRoutes } from "./quote-routes.js";
 import { SkillRoutes } from "./skills-routes.js";
+import { AppRoutes } from "./apps-routes.js";
 import { ConsoleGatewayLive } from "./console-gateway.js";
 
 const Routes = HttpRouter.use(Effect.fn("Health.routes")(function* (router) {
@@ -19,8 +20,9 @@ const Routes = HttpRouter.use(Effect.fn("Health.routes")(function* (router) {
     // Only file uploads stream a large body, bounded again by their own route.
     if (request.method === "POST" && path === "/api/files/upload") return yield* handler;
 
-    // A skill is up to 64 KiB of text, and JSON escaping can multiply that; everything else stays at 16 KiB.
-    const limit = path === "/api/skills/save" ? 256 * 1024 : 16 * 1024;
+    // A skill is up to 64 KiB of text and an entry's long text up to 20,000 characters, and JSON escaping
+    // can multiply both; everything else stays at 16 KiB.
+    const limit = path === "/api/skills/save" ? 256 * 1024 : path === "/api/apps/entries/add" || path === "/api/apps/entries/update" ? 128 * 1024 : 16 * 1024;
 
     if (Number(request.headers["content-length"] ?? 0) > limit) return HttpServerResponse.empty({ status: 413 });
 
@@ -60,6 +62,6 @@ const Transport = Layer.unwrap(Effect.gen(function* () {
   });
 }));
 
-export const ServerLive = HttpRouter.serve(Layer.mergeAll(Routes, AuthRoutes, ChatRoutes, FileRoutes, SkillRoutes, QuoteRoutes, ConsoleGatewayLive), { disableLogger: true }).pipe(
+export const ServerLive = HttpRouter.serve(Layer.mergeAll(Routes, AuthRoutes, ChatRoutes, FileRoutes, SkillRoutes, AppRoutes, QuoteRoutes, ConsoleGatewayLive), { disableLogger: true }).pipe(
   Layer.provide(Transport),
 );

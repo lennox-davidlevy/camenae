@@ -5,7 +5,7 @@ import { OpenCode } from "@camenae/opencode";
 import { Effect, Layer, Schedule } from "effect";
 import { SqlClient } from "effect/sql";
 import { z } from "zod";
-import { ChatLive, FoundationLive, IdentityLive } from "../src/runtime.js";
+import { AppsLive, ChatLive, FoundationLive, IdentityLive } from "../src/runtime.js";
 import { WelcomeQuote } from "../src/quotes-contract.js";
 import { Quotes } from "../src/quotes-service.js";
 import { ServerLive } from "../src/server.js";
@@ -25,7 +25,7 @@ const fetchLocal = globalThis.fetch;
 
 let forwarded = 0;
 
-let failUpstream = false;
+let upstreamFailure: { status: number; headers?: Record<string, string> } | undefined;
 
 let expectedKey = "synthetic-console-key";
 
@@ -82,7 +82,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   const body = z.object({ model: z.string(), max_tokens: z.number().max(2048) }).parse(JSON.parse(String(init?.body)));
   forwarded++;
 
-  if (failUpstream) return new Response("upstream-private-error-synthetic-console-key", { status: 403 });
+  if (upstreamFailure) return new Response("upstream-private-error-synthetic-console-key", { status: upstreamFailure.status, headers: { "x-upstream-private": "synthetic-console-key", ...upstreamFailure.headers } });
 
   const task = z.object({ messages: z.array(z.object({ role: z.string(), content: z.unknown().optional() })), tools: z.array(z.unknown()).optional() }).parse(JSON.parse(String(init?.body)));
   providerRequests.push({ model: body.model, messages: JSON.stringify(task.messages) });
@@ -104,7 +104,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   return new Response(`data: ${JSON.stringify(delta)}\n\ndata: ${JSON.stringify(finish)}\n\ndata: [DONE]\n\n`, { headers: { "content-type": "text/event-stream", "content-encoding": "gzip" } });
 }, { preconnect: fetchLocal.preconnect });
 
-const server = ServerLive.pipe(Layer.provide(ChatLive), Layer.provide(IdentityLive), Layer.provide(FoundationLive), Layer.provide(Quotes.layer));
+const server = ServerLive.pipe(Layer.provide(ChatLive), Layer.provide(AppsLive), Layer.provide(IdentityLive), Layer.provide(FoundationLive), Layer.provide(Quotes.layer));
 
 try {
   await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
@@ -273,11 +273,6 @@ try {
       assert.equal((await gateway(completion, "/v1/responses")).status, 403);
       assert.equal((await gateway(completion, "/v1/chat/completions?model=paid")).status, 403);
       assert.equal(forwarded, before, "A negative control contacted upstream");
-      failUpstream = true;
-      const refused = await gateway(completion);
-      assert.equal(refused.status, 502);
-      assert.equal((await refused.text()).includes("upstream-private-error"), false);
-      failUpstream = false;
 
       // The paid model has its own route, and the free route never admits it.
       const paid = { model: "claude-haiku-5-5", max_tokens: 10, messages: [{ role: "user", content: "synthetic" }] };
@@ -341,7 +336,9 @@ try {
       assert.notEqual(revoked.turns.at(-1)?.status, "completed");
       assert.equal(revoked.conversation.toolCount, 1, "Tool updates must count one native call, not each status event");
       assert.equal((await bootstrap()).conversations.find((item) => item.id === opencode)?.toolCount, 1);
-      assert.equal((await gateway(completion)).status, 503);
+      const missingKey = await gateway(completion);
+      assert.equal(missingKey.status, 503);
+      assert.equal(missingKey.headers.get("x-should-retry"), "false", "A missing key must not invite retries");
       assert.equal((await bootstrap()).readiness.opencode, false);
       expectedKey = "synthetic-replacement-key";
       assert.equal((await post("/api/settings/opencode", { ...input, key: expectedKey })).status, 200);
@@ -352,6 +349,7 @@ try {
       const responses = await Promise.all(Array.from({ length: remaining + 3 }, () => gateway(completion)));
       assert.equal(responses.filter((response) => response.status === 200).length, remaining);
       assert.equal(responses.filter((response) => response.status === 503).length, 3);
+      assert.ok(responses.filter((response) => response.status === 503).every((response) => response.headers.get("x-should-retry") === "false"), "An exhausted allowance must not invite retries");
       assert.equal(forwarded, 20, "Concurrent requests exceeded the persistent budget");
       assert.equal((await settings()).used, 20);
       assert.equal((await bootstrap()).readiness.opencode, false);
@@ -385,6 +383,26 @@ try {
       assert.equal(forwarded, uncapped, "An uncapped paid request contacted upstream");
       assert.deepEqual((await bootstrap()).consoleUsage, { used: 3, limit: null, revision: 3 }, "A refused paid request must not consume allowance");
       assert.equal((await bootstrap()).readiness.opencode, true);
+
+      // Refusals a retry cannot change say so; rate limits keep only a numeric Retry-After; other failures stay retryable.
+      assert.equal((await gateway(completion, "/v1/chat/completions", "invalid")).headers.get("x-should-retry"), "false");
+      assert.equal((await gateway({ ...completion, model: "paid-model" })).headers.get("x-should-retry"), "false");
+
+      for (const [failure, status, retry, after] of [
+        [{ status: 401 }, 401, "false", null], [{ status: 402 }, 402, "false", null], [{ status: 403 }, 403, "false", null], [{ status: 400 }, 400, "false", null],
+        [{ status: 429, headers: { "retry-after": "7" } }, 429, null, "7"], [{ status: 429, headers: { "retry-after": "7, synthetic-console-key" } }, 429, null, null],
+        [{ status: 500 }, 502, null, null], [{ status: 529 }, 502, null, null], [{ status: 408 }, 502, null, null],
+      ] as const) {
+        upstreamFailure = failure;
+        const refused = await gateway(completion);
+        assert.equal(refused.status, status, `Upstream ${failure.status}`);
+        assert.equal(refused.headers.get("x-should-retry"), retry, `Upstream ${failure.status}`);
+        assert.equal(refused.headers.get("retry-after"), after, `Upstream ${failure.status}`);
+        assert.equal(refused.headers.get("x-upstream-private"), null);
+        assert.equal((await refused.text()).includes("upstream-private-error"), false);
+      }
+
+      upstreamFailure = undefined;
 
       const nativeId = () => Effect.runPromise(Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient;
@@ -421,6 +439,18 @@ try {
         assert.ok(receipt.messages.includes("synthetic greeting"), "Switching lost the existing native history");
         assert.equal(await nativeId(), originalNativeId);
       }
+
+      // A refused native turn spends one request: OpenCode must not retry what cannot change.
+      upstreamFailure = { status: 403 };
+      const beforeRefusal = forwarded;
+      assert.equal((await post(`/api/chat/${opencode}`, { prompt: "refused-upstream" })).status, 200);
+
+      const refusedTurn = await Effect.runPromise(Effect.tryPromise(() => view(opencode)).pipe(
+        Effect.repeat({ schedule: Schedule.spaced("50 millis"), while: (snapshot) => snapshot.turns.at(-1)?.status === "running" }), Effect.timeout("30 seconds")));
+
+      upstreamFailure = undefined;
+      assert.notEqual(refusedTurn.turns.at(-1)?.status, "completed");
+      assert.equal(forwarded - beforeRefusal, 1, "OpenCode retried a refusal the gateway marked final");
 
       assert.equal((await view(opencode)).harness, "opencode");
       await Effect.runPromise(Effect.gen(function* () {

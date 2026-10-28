@@ -1,6 +1,6 @@
 import { BunRuntime } from "@effect/platform-bun";
 import { Cause, Effect, Exit, Layer } from "effect";
-import { ChatLive, FoundationLive, IdentityLive } from "./runtime.js";
+import { AppsLive, ChatLive, FoundationLive, IdentityLive } from "./runtime.js";
 import { Quotes } from "./quotes-service.js";
 import { ServerLive } from "./server.js";
 
@@ -8,7 +8,7 @@ const mode = process.argv[2] ?? "serve";
 
 const program = Effect.gen(function* () {
   if (mode === "serve") return yield* Layer.launch(ServerLive.pipe(
-    Layer.provide(ChatLive), Layer.provide(IdentityLive), Layer.provide(FoundationLive), Layer.provide(Quotes.layer),
+    Layer.provide(ChatLive), Layer.provide(AppsLive), Layer.provide(IdentityLive), Layer.provide(FoundationLive), Layer.provide(Quotes.layer),
   ));
 
   return yield* Effect.fail("invalid_command");

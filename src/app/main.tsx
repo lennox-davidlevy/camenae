@@ -2,6 +2,9 @@
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import { Match } from "effect";
 import { render } from "solid-js/web";
+import type { AppSummary } from "../apps-contract.js";
+import { AppScreen } from "./app-view.js";
+import { listApps } from "./apps-api.js";
 import { ChatPane } from "./chat-pane.js";
 import { createChatSession } from "./chat-session.js";
 import { consoleExhausted } from "../console-contract.js";
@@ -21,12 +24,13 @@ const contentClass = (screen: Screen) => Match.value(screen).pipe(
   Match.when("Settings", () => "shell-content shell-content-settings"),
   Match.when("Files", () => "shell-content shell-content-files"),
   Match.when("Skills", () => "shell-content shell-content-skills"),
-  Match.orElse(() => "shell-content"),
+  Match.orElse(() => "shell-content shell-content-app"),
 );
 
 function App() {
   const session = createChatSession();
   const [screen, setScreen] = createSignal<Screen>("Chat");
+  const [apps, setApps] = createSignal<readonly AppSummary[]>([]);
   const [insertion, setInsertion] = createSignal<{ text: string; nonce: number }>();
   const files = createFiles({ csrf: () => session.bootstrap()?.csrf, active: () => screen() === "Files" });
   const skills = createSkills({ csrf: () => session.bootstrap()?.csrf, active: () => screen() === "Skills" });
@@ -47,7 +51,17 @@ function App() {
     return usage && consoleExhausted(usage) ? usage : undefined;
   });
 
-  onMount(() => void session.start());
+  const openApp = createMemo(() => {
+    const current = screen();
+
+    return apps().find((app) => current === `app:${app.id}`);
+  });
+
+  onMount(() => {
+    void session.start();
+    // Apps are optional: if the list cannot load, the shell works without them.
+    listApps().then(setApps, () => setApps([]));
+  });
 
   const inspector = <div class="active-chat-inspector">
     <SessionUsagePanel usage={session.view()?.usage} />
@@ -64,10 +78,12 @@ function App() {
     Match.when("Settings", () => <SettingsInspector />),
     Match.when("Files", () => <FileInspector files={files} onAsk={ask} />),
     Match.when("Skills", () => <SkillsInspector skills={skills} />),
-    Match.orElse(() => inspector),
+    Match.when("Chat", () => inspector),
+    Match.orElse(() => <div class="app-inspector"><section><h2>App</h2><p>{openApp()?.name}</p>
+      <small>Changes save as you make them. The assistant cannot work with apps yet.</small></section></div>),
   );
 
-  return <Shell screen={screen()} onScreen={setScreen} conversations={session.conversations()} selected={session.conversation()}
+  return <Shell screen={screen()} onScreen={setScreen} apps={apps()} conversations={session.conversations()} selected={session.conversation()}
     onSelect={(id) => { setScreen("Chat"); void session.select(id); }} onNew={() => { setScreen("Chat"); void session.create(); }}
     newDisabled={!session.idle() || !session.bootstrap()?.readiness.opencode} selectionDisabled={session.pending() || session.preparing()}
     inspector={rail()}>
@@ -79,6 +95,7 @@ function App() {
       <Show when={screen() === "Settings" ? session.bootstrap() : undefined}>{(state) =>
         <SettingsPage csrf={state().csrf} usage={state().consoleUsage} onChanged={session.refreshStatus} />}</Show>
       <Show when={screen() === "Skills"}><SkillsScreen skills={skills} /></Show>
+      <Show when={openApp()?.id} keyed>{(id) => <AppScreen id={id} csrf={() => session.bootstrap()?.csrf} onBack={() => setScreen("Chat")} />}</Show>
     </div>
   </Shell>;
 }

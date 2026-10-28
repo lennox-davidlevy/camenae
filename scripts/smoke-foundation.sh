@@ -52,6 +52,7 @@ dc exec -T app bun tests/health.ts ready
 dc exec -T app bun tests/identity.ts seed < "$auth_directory/login.txt" > "$auth_directory/session.json"
 dc exec -T app bun tests/files.ts < "$auth_directory/session.json"
 dc exec -T app bun tests/skills.ts < "$auth_directory/session.json"
+dc exec -T app bun tests/apps.ts seed < "$auth_directory/session.json"
 dc exec -T app bun tests/foundation.ts seed
 # The worker may reach only the egress proxy, which refuses every destination for it.
 dc exec -T -e HTTPS_PROXY=http://172.30.84.2:3128 opencode-worker bun tests/egress.ts
@@ -82,6 +83,8 @@ published=$(dc port ingress 8080)
 test "$(curl --fail --silent --show-error --max-time 10 "http://$published/health/ready")" = ready
 test "$old_app" != "$(dc ps -q app)"
 test "$old_db" != "$(dc ps -q postgres)"
+# Before the identity check, which ends the shared session.
+dc exec -T app bun tests/apps.ts verify < "$auth_directory/session.json"
 dc exec -T app bun tests/identity.ts verify < "$auth_directory/session.json"
 dc exec -T app bun tests/foundation.ts verify
 dc stop postgres

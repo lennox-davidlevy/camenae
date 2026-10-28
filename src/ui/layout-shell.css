@@ -54,8 +54,8 @@
   .masthead-brand, .masthead-actions { height: 46px; }
   .masthead-brand { grid-column: 1 / -1; }
   .masthead-actions { grid-column: 1 / -1; grid-row: 3; border-top: 1px solid var(--ink); justify-content: space-between; }
-  .masthead-nav { grid-row: 2; grid-column: 1 / -1; border-top: 1px solid var(--ink); border-left: 0; }
-  .masthead-nav button { flex: 1; justify-content: center; height: 40px; padding: 0 8px; }
+  .masthead-nav { grid-row: 2; grid-column: 1 / -1; border-top: 1px solid var(--ink); border-left: 0; overflow-x: auto; min-width: 0; }
+  .masthead-nav button { flex: 1 0 auto; justify-content: center; height: 40px; padding: 0 8px; white-space: nowrap; }
   .shell-columns { grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr); }
   .thread-sidebar { padding-top: 12px; border-bottom: 1px solid var(--line); max-height: 150px; }
   .panel-resizer { display: none; }

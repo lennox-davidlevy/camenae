@@ -1,16 +1,19 @@
 /** @jsxImportSource solid-js */
 import { createUniqueId, For, type JSX } from "solid-js";
+import type { AppSummary } from "../apps-contract.js";
 import type { Conversation } from "../chat-contract.js";
 import { createPanelSizes, type Side } from "./panel-sizes.js";
 import { ThreadList } from "./threads.js";
 
 export const screens = ["Chat", "Skills", "Files", "Settings"] as const;
 
-export type Screen = typeof screens[number];
+// Apps join the navigation after the built-in screens, which stay outside generated content.
+export type Screen = typeof screens[number] | `app:${string}`;
 
 interface ShellProps {
   screen: Screen;
   onScreen: (screen: Screen) => void;
+  apps: readonly AppSummary[];
   conversations: readonly Conversation[];
   selected?: string;
   onSelect: (id: string) => void;
@@ -39,6 +42,9 @@ export function Shell(props: ShellProps) {
       <nav class="masthead-nav" aria-label="Main navigation">
         <For each={screens}>{(name, index) => <button aria-current={props.screen === name ? "page" : undefined} onClick={() => props.onScreen(name)}>
           <span>{["I", "II", "III", "IV"][index()]}</span>{name}
+        </button>}</For>
+        <For each={props.apps}>{(app) => <button aria-current={props.screen === `app:${app.id}` ? "page" : undefined} onClick={() => props.onScreen(`app:${app.id}`)}>
+          <span aria-hidden="true">{app.icon}</span>{app.name}
         </button>}</For>
       </nav>
       <div class="masthead-actions"><button class="masthead-new" disabled={props.newDisabled} onClick={props.onNew}><span>+</span>New Chat</button></div>
