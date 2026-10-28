@@ -2,7 +2,7 @@
 
 Status: design proposed on 2026-10-26, owner decisions recorded the same day. Step 1 was
 built in source on 2026-10-28 (see [step 1](#step-1-built-in-source-2026-10-28)); it is
-not deployed or accepted. Steps 2 to 4 are not started, and each needs its own go-ahead. It is the first bounded step toward the
+deployed to the installed stack on 2026-10-28 (no apps seeded there) and not yet accepted. Steps 2 to 4 are not started, and each needs its own go-ahead. It is the first bounded step toward the
 [product end state](PRODUCT.md#intended-end-state) and follows the
 [target architecture](CONVERSATIONAL-PLUGINS.md) and the roadmap's
 [first bounded engineering proof](ROADMAP.md#first-bounded-engineering-proof).
