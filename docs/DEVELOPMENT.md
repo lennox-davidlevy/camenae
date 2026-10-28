@@ -2,66 +2,65 @@
 
 ## Fresh checkout
 
-The experimental [OpenCode path](OPENCODE.md) additionally requires its exact SDK
-archive. Stage both archives before installing dependencies or building images.
-`bun run smoke:opencode` uses a disposable project and a local synthetic provider;
-it does not change the running installation or use paid inference.
+The [OpenCode integration](OPENCODE.md) requires its exact SDK archive. Stage it
+before installing dependencies or building images. `bun run smoke:opencode` uses a
+disposable project and a local synthetic provider; it does not change the running
+installation or use paid inference.
 
 Use Bun **1.4.2**, Python **3.10+** (documentation/export tools), POSIX shell,
 `sha256sum`, `curl`, Linux Docker Engine (28.4+ isolation baseline), and Compose v2.
-Node 22 is supplied in images for native-runtime comparison and workspace tools;
-no globally installed TypeScript/Oxlint is required.
+Node 22 is supplied in images for workspace tools; no globally installed
+TypeScript/Oxlint is required.
 
-Obtain the exact [SDK delivery](BOB-OPERATIONS.md#sdk-dependency), then:
+Obtain the exact [SDK delivery](OPENCODE.md#exact-local-dependency), then:
 
 ```sh
-bun run sdk:stage /path/to/approved-bob-sdk.tgz
 bun run sdk:stage /path/to/camenae-opencode-0.1.0-b24e73923802.tgz
 bun install --frozen-lockfile
 bun run lint
 bun run typecheck
 bun run check:docs
-bun run build:ui
+bun run build:app
 bun run test:provisioning
 bun run test:dev-ui
 bun run test:threads
+bun run test:images
 bun run smoke:foundation
-bun run smoke:mcp
+bun run smoke:opencode
 bun run smoke:console
-bun run probe:build
-bun run probe:bun
-bun run probe:node
 ```
 
 Run Docker suites serially. They create unique projects, synthetic credentials,
 volumes, and generated env files, then remove only their own resources. Fixed
-test subnets `172.30.84.0/24`, `172.30.85.0/24` (live), `172.30.86.0/24`, host port
-48923 (foundation canary), and 5173 (dev proxy check) must be free. Do not aim these
-tests at user-owned volumes or reuse credentials. No deployment is implied by
-passing isolated checks.
+test subnets `172.30.84.0/24` (foundation), `172.30.87.0/24` (OpenCode) and
+`172.30.89.0/24` (Console), host port 48923 (foundation canary), and 5173 (dev
+proxy check) must be free. Do not aim these tests at user-owned volumes or reuse
+credentials. No deployment is implied by passing isolated checks.
 
-OpenCode native smoke uses `172.30.87.0/24`; Console setup smoke uses
-`172.30.89.0/24`. Both use only synthetic provider data.
+Test runners apply `tests/images.compose.yaml` to reuse fixed
+`camenae-test-*:latest` image tags. Rebuilding replaces the previous tags; cleanup
+prunes only dangling images labeled `app.camenae.test-image=true`, never deployment
+images or images still used by containers. Containers, volumes, networks and
+credentials still use unique disposable projects. Run suites serially because the
+image tags and test subnets are shared. All suites use only synthetic provider data.
 
 | Check | Evidence / boundary |
 | --- | --- |
-| lint/typecheck/build | Configured rules (including vendored plugins), TS/TSX contracts, production browser bundle |
+| lint/typecheck/build | Configured rules (including vendored plugins), TS/TSX contracts, production browser bundles |
 | check:docs | Relative Markdown file/anchor links throughout selected source |
 | test:provisioning | Actual init entrypoints with no pre-existing cache, private file modes, and byte-preserving refusal to overwrite |
-| test:dev-ui | Real loopback proxy, Host/Origin guards, cookies, forwarding, SSE streaming with synthetic backend |
-| test:threads | Local-calendar thread grouping across week/year/DST boundaries and safe headline/metadata rendering |
-| smoke:foundation | Real Docker/Postgres/native Bob: authentication, file boundaries, environment/network isolation, preparation, whole-worker teardown, DNS recovery, state retention, readiness and shutdown |
-| smoke:mcp | Synthetic local MCP/model fixtures, real Postgres/SDK/Bob: settings, ownership refusal, approvals/history, cancellation, native delegation and independent upstream receipts; HTTP/SSE usage consumer and rendered UI |
-| smoke:console | Real HTTP/Postgres/native OpenCode: encrypted Settings credential, new-chat harness selection, strict free-only gateway, atomic persistent request cap; synthetic provider, no egress service |
-| probe:bun / probe:node | Same packaged native runtime, non-root, network disabled: initialization/session/shutdown only |
+| test:dev-ui | `dev:app --backend` loopback proxy: Host/Origin guards, cookies, forwarding, SSE streaming with a synthetic backend |
+| test:threads | Local-calendar thread grouping across week/year/DST boundaries |
+| test:images | Resolve all smoke Compose stacks: stable test tags/cleanup labels, isolated project state, unchanged deployment images; no services started |
+| smoke:foundation | Real Docker/Postgres: authentication, file boundaries, ingress/app network isolation, worker egress denial, DNS recovery, state retention across replacement, readiness and shutdown; skill routes, guards, and harness visibility after a location reload |
+| smoke:opencode | Real Docker/Postgres/native OpenCode with a local model fixture: streaming, one-time approval, workspace tool, cancellation, failed requests, session reopening, old-worker retirement |
+| smoke:console | Real HTTP/Postgres/native OpenCode: encrypted Settings credential, strict free-only gateway, atomic persistent request cap; synthetic provider, no egress service |
 
 Tests are executable programs orchestrated by these runners, not a generic
 `bun test` suite. Container paths and service dependencies are intentional. Retain
 coverage for externally meaningful behavior; static/slow tests are not inherently
 obsolete. Diagnose fixtures and owning code instead of relaxing assertions/timeouts.
-The session-usage fixture replaces only the runtime service and consumes controlled
-SDK events through real application HTTP/SSE/Postgres/UI; it does not prove Bob's
-accounting or live billing. The fixture upstream serves only synthetic data.
+The fixture upstream serves only synthetic data.
 
 ## UI development and browser checks
 
@@ -76,7 +75,7 @@ inspector panels; focused separators also support arrow keys, Shift for larger
 steps, and Home/End. Double-click resets a panel. Width preferences stay in browser
 storage; narrow layouts retain their responsive panel visibility.
 
-Both composers provide **+ File → Upload from computer** or **Choose from workspace**.
+The composer provides **+ File → Upload from computer** or **Choose from workspace**.
 Local text uploads are saved in that chat's inbox folder and automatically selected;
 existing workspace files are selected in place, with folder navigation and preview.
 Chips show filenames, with full paths on hover. An uploading chip blocks sending;
@@ -84,74 +83,43 @@ failed uploads offer Retry or Remove, and cannot silently be omitted from a send
 Draft selections and failed uploads are isolated per conversation
 in page memory and clear after an accepted send; a rejected send retains the text
 and selection. Reloading clears unsent selections, while sent snapshots remain in
-history and the inspector. Both upload entry points allow 64 KiB text files; a chat
-message is limited to four files and 64 KiB total. Removing a chip does not delete
+history and the inspector. Removing a chip does not delete
 the workspace file. PDFs, images, drag-and-drop, and attachment-only messages
 are not supported. The picker estimates size from preview; server validation at
 send time is authoritative if a file changes.
 
-For a deliberately selected backend, `CAMENAE_DEV_BACKEND=http://127.0.0.1:3000
-bun run dev` serves `http://127.0.0.1:5173/chat`. Default backend is port 3000. This
-is **not a sandbox**: sign-in/settings/files affect that backend. Cookies are shared
-across loopback ports; separate installations need separate browser profiles.
-The proxy is loopback-only, checks Host/Origin, translates same-origin writes, and
-forwards streaming. Do not expose it through tunnels or use it in production.
-Only dev HTML uses the HMR policy; the deployed page retains its production CSP.
+### SolidJS application
 
-For no-inference browser checks, start a separate disposable Compose project with
-its own generated auth/env, unused port/subnet, and `tests/mcp.compose.yaml`. Build
-`app`; start `postgres` and `mcp-fixture`, keeping normal `app` stopped. Run:
+`bun run dev:app` serves the SolidJS UI (`src/app`) at
+`http://127.0.0.1:5174/` with hot reload, no Docker, and no image builds. By default
+it answers `GET /api/chat` with synthetic conversations, so no backend, sign-in, or
+user state is involved. `bun run dev:app -- --backend http://127.0.0.1:3000` instead
+proxies `/api`, `/auth`, and `/auth.css` to a separate loopback instance; that is not a
+sandbox, so sign-in and chat writes affect that backend. The backend must be a different
+loopback HTTP origin and must have `CAMENAE_ORIGIN` set to that exact origin, because it
+accepts writes only from its own origin. The proxy refuses any other browser origin, then
+presents the backend's origin for the page's own writes. Sign in through the proxied
+`/auth/login`; its redirect to `/chat` is a 404 here, so open `/` afterwards. The server is
+loopback-only, refuses other Host headers, and serves only `src/` and `node_modules`.
+`bun run build:app` writes a production build to `public/app/` (gitignored). The
+application serves that build at `/chat`, and the Docker image runs `build:app`.
+The shell has thread grouping, resizable panels, and a chat view: message list with
+sanitized Markdown, tool activity, approval cards, a composer with per-conversation
+drafts, stop, new chat, a per-conversation model picker, a usage panel, a server-sent-event stream with follow-the-bottom
+scrolling, and a Settings screen for the provider key and request allowance. In fixture mode the dev server simulates turns in memory: any message
+streams a reply; include `approve` to trigger an approval card and `markdown` for
+hostile Markdown. Attachments and files are not built in it; its Skills use the real storage code over a throwaway directory. Close any browser you opened and stop the server when
+finished.
 
-```sh
-# Replace these placeholders with the disposable project's own paths/name only.
-docker compose --env-file <test-env> -p <test-project> \
-  -f compose.yaml -f tests/mcp.compose.yaml run --rm --no-deps --use-aliases -T \
-  app bun tests/session-usage.tsx --serve < <test-auth-directory>/login.txt
-```
-
-In another terminal, start that project's ingress with `--no-deps`. Use its exact
-configured `CAMENAE_ORIGIN`. The fixture exercises its HTTP/SSE assertions before
-serving the production UI. Synthetic prompts `compact`, `unknown`, and `over-limit`
-exercise displayed usage without any provider. Check sign-in, Chat, Settings,
-file upload/preview/download, reload persistence, and narrow-screen layout. Stop
-and remove only that disposable project afterwards. Never present fixture-backed
-browser behavior as proof of live model behavior.
-
-For mixed-harness regression checks, add `-e CAMENAE_HARNESS=opencode` to the
-disposable `compose run` command and pass `--mixed-harness --serve` to the fixture.
-It leaves OpenCode unconfigured, creates Bob conversations plus 100 newer rows,
-and prints an older Bob deep link outside the sidebar. Verify that its composer
-is enabled. New Chat is disabled with OpenCode selected, but selecting Bob enables
-it without changing the current conversation's harness. Select the visible Bob conversation
-and save a Context7 change in Settings, then reload to verify persistence. Selecting
-an unavailable OpenCode conversation must disable both its composer and Bob Apply.
-
-## Optional paid/live checks
-
-Only with separate authorization for paid inference and public Context7 queries:
-`bun run smoke:chat:live` uses `BOB_API_KEY` from the caller's environment, piped
-through stdin into synthetic onboarding in an isolated project. Never use shell
-tracing, plaintext key files, real user inputs, or a key in image builds. It checks
-streaming, native tool outcomes, manual/automatic approvals, Stop, revocation,
-conversation switching, and retained native context across replacement.
-
-`scripts/runtime-live-probe.ts` is a separate manually invoked Bun/Node runtime
-diagnostic, not obsolete or an app smoke substitute. After `probe:build`, its opt-in
-form is:
-
-```sh
-printf '%s' "$BOB_API_KEY" | docker run --rm -i --init \
-  --cap-drop ALL --security-opt no-new-privileges \
-  --memory 2g --cpus 2 --pids-limit 256 \
-  camenae-runtime-probe:local bun scripts/runtime-live-probe.ts --allow-live
-```
-
-For Node, replace the final executable with `node --experimental-strip-types`.
-This probe uses ordinary outbound Docker networking, not the app's restricted
-proxy. It sends at most six prompts with an eight-minute deadline and requires
-actual native approval/tool effects, not model prose. Forced client termination
-may leave a test container: identify and stop only that container. These live paths
-are excluded from ordinary no-inference validation and require their own evidence.
+For browser checks against a real backend without inference, start a separate
+disposable Compose project with its own generated auth/env, an unused port and subnet,
+`CAMENAE_ORIGIN` set to that port, and the overlays
+`-f compose.yaml -f tests/opencode.compose.yaml -f tests/images.compose.yaml`. That
+overlay replaces the provider with a local synthetic fixture. Point
+`bun run dev:app -- --backend` at its published port, or use the project's own ingress.
+Check sign-in, Chat, Settings, file upload/preview/download, reload persistence, and
+narrow-screen layout. Stop and remove only that disposable project afterwards. Never
+present fixture-backed browser behavior as proof of live model behavior.
 
 ## Design/change discipline
 
@@ -178,7 +146,7 @@ This targeted scanner is not a guarantee that arbitrary secrets can be detected;
 review the file inventory before sharing.
 
 No Git history, `.env`, `.cache`, local agent tooling, dependencies, compiled
-SDK/Bob archives, generated UI, uploads, databases, credentials, or logs are copied.
+SDK archives, generated UI, uploads, databases, credentials, or logs are copied.
 Assets needed to build the UI are source inputs, not generated build output.
 The third-party notices and font licenses remain included.
 
@@ -199,3 +167,12 @@ There is no `.git` or old remote in the archive. Stage only the selected source,
 review `git status`, and make your initial commit. Create/configure the new GitHub
 remote and push only when you choose to publish. Do not copy the old checkout's
 Git directory, private backups, validation runtime state, or SDK archive.
+
+## Quotes pipeline
+
+`tools/quotes` builds `data/quotes/quotes.jsonl`, a dataset of public-domain quotations
+verified word for word against pinned Project Gutenberg editions. It runs outside the
+application and is not in the Docker images. See [its README](../tools/quotes/README.md);
+`bun run test:quotes` checks the text helpers and the committed dataset. A private,
+gitignored set of Games Workshop quotes is built the same way from locally saved pages; the
+README says how and why it stays out of the repository.

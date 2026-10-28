@@ -1,36 +1,77 @@
 # Camenae repository guidance
 
+## Start here
+
+For a new session or harness, read these repository documents in order:
+
+1. [Current status](docs/CURRENT-STATUS.md): implemented capabilities, evidence
+   limits, pending acceptance, and the next recommended decision.
+2. [Product direction](docs/PRODUCT.md): the intended end state and decision status.
+3. [Current architecture](docs/ARCHITECTURE.md): existing runtime and ownership.
+4. [Target plugin architecture](docs/CONVERSATIONAL-PLUGINS.md): proposed execution,
+   data, theming, sharing, and trust boundaries; not an implemented platform.
+5. [Roadmap](docs/ROADMAP.md): proposed phases, acceptance gates, and deferred work.
+
+Use [development](docs/DEVELOPMENT.md) for checks and [operations](docs/OPERATIONS.md)
+for the selected installation. Source, deployment evidence, and user acceptance
+are separate facts. Recheck the worktree and relevant source before acting; a
+dated status entry is not proof of current readiness. Plans and handoffs do not
+authorize implementation, paid inference, deployment, or SDK changes.
+
+Keep these documents current when a task changes capabilities or decisions.
+Keep durable product context in the repository, not solely in temporary files or
+session history. Keep private delivery evidence and session journals outside it.
+
 ## Product and ownership
 
-Camenae is a single-user assistant application, not a harness SDK. Bob is the default
-harness; the experimental OpenCode path is documented in `docs/OPENCODE.md`.
-Use Camenae branding and neutral application wording; retain
-Bob names for actual credentials, native SDK types, metrics, and integration contracts.
-Do not claim planned integrations or preview UI controls work.
+Camenae is a single-user assistant application, not a harness SDK. OpenCode is the
+only implemented harness; see `docs/OPENCODE.md`. The intended product is a blank-slate
+personal app that users create and modify through conversation, including themes,
+views, functionality, and shareable plugins. That end state is not implemented. Pi,
+Claude, Codex, a new harness, and a json-render fork are not approved implementation
+work merely because they appear in planning; other harnesses arrive through
+`camenae-sdk`. The UI is SolidJS (`src/app`); React is retired. The next build is the
+[first app slice](docs/FIRST-TOOL-SLICE.md), which uses json-render (not a fork); each of
+its steps needs the owner's go-ahead.
+Use Camenae branding and neutral application wording; retain native SDK type names
+only at integration boundaries. Do not claim planned integrations or preview UI
+controls work.
 
 Application ownership: authentication, persistence, workspace provisioning, UI,
-approval preferences, and deployment policy. The packaged SDK owns transport,
-native mode/configuration management, and MCP gate semantics; Bob owns its agent
-loop. Trace a gap to its owner before proposing changes. Do not conceal SDK defects
+and deployment policy. The packaged SDK owns transport and native
+configuration management; the harness owns its agent loop. Trace a gap to its owner
+before proposing changes. Do not conceal SDK defects
 with alternate launchers, protocol implementations, output rewrites, sibling-source
 imports, or installed-package edits. SDK changes require separate authorization.
 
 Consume the exact approved package, never an arbitrary same-version archive.
 SDK updates must use its packaging tooling and change `package.json`, `bun.lock`,
-both Dockerfile paths/checksums, `.dockerignore`, the staging script, and the
-integration guide together. Keep concrete `Bob`/`Bob*` SDK contracts at boundaries;
-do not introduce aliases claiming universal harness support.
+the Dockerfile path/checksum, `.dockerignore`, the staging script, and the
+integration guide together. Keep concrete SDK contracts at boundaries; do not
+introduce aliases claiming universal harness support.
+
+## Two repositories
+
+Camenae spans this repository and the sibling SDK repository at
+`/home/david/Projects/github/camenae-sdk`. Anything that must change for a package
+globally (a harness integration's transport, native configuration, protocol,
+packaging, or its own tests and docs) is changed in `camenae-sdk`, in a session
+started there under that repository's own `AGENTS.md`. Anything specific to the
+application (UI, authentication, persistence, workspace layout, deployment) is
+changed here. Do not edit `camenae-sdk` from a session in this repository, and do
+not work around an SDK gap here. Record it, then bring the updated archive in
+through the approved packaging path below.
 
 ## Compatibility and safety
 
-Preserve persisted identifiers, migrations, native IDs, `bob-gateway/usage`,
-`BOB_GATEWAY_*`, encryption context, ownership markers, credential paths, and the
-Compose identity `bob-camenae`. Cosmetic naming is not a data migration.
+Preserve persisted identifiers, migrations, native IDs, encryption context strings,
+credential paths, and the Compose project identity `camenae`. Cosmetic naming is not
+a data migration, and changing the project name selects different volumes.
 
-Bob workers serve one connection. The entrypoint must exit after `serveOnce()` settles;
-Docker owns whole-worker teardown before reuse. Disconnect/EOF or an old healthy
-status is not cleanup proof: require a new lifetime and healthy readiness.
-Never silently adopt, delete, or overwrite conflicting managed native files.
+A worker accepts one application owner. Docker owns whole-worker teardown before
+reuse. Disconnect/EOF or an old healthy status is not cleanup proof: require a new
+lifetime and healthy readiness. Never silently adopt, delete, or overwrite
+conflicting managed native files.
 
 Never print secrets, session tokens, generated passwords, raw provider payloads,
 or argument-containing correlation IDs. Preserve `.env`, local auth, database,
@@ -39,6 +80,15 @@ Use distinct test-owned projects, volumes, credentials, ports, and subnets for
 acceptance; do not point test fixtures at user state. `down --volumes` is for
 explicitly disposable projects only. Do not commit, push, publish, change remotes,
 or select/change licensing without explicit authorization.
+
+## Quotes and third-party text
+
+Games Workshop (Lexicanum) text is copyrighted. Keep it only in gitignored
+locations (`data/private/`, `.cache/quotes/lexicanum/`); never commit, export, or
+bake it into an image. Do not circumvent Lexicanum's bot protection; the user
+saves pages from their own browser. Public quotes must be verbatim substrings of a
+pinned Project Gutenberg edition (`tools/quotes`). Never chain `curate.ts decide`
+without reading the batch it applies to.
 
 ## Validation and delivery
 

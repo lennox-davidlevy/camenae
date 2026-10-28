@@ -31,9 +31,8 @@ packages retain their own licenses/notices. Container bases and downloaded build
 dependencies are separately licensed. Audit the contents/obligations before
 distributing images; an app source license is not a blanket image license.
 
-The approved `@camenae/bob` archive contains compiled SDK code, Bob runtime/native
-components, and IBM license/non-IBM license/notices under
-`runtime/bob/dist/ibm-licence/`. Preserve those files when consuming it. The archive,
+The approved `@camenae/opencode` archive is compiled SDK code delivered outside this
+repository. Preserve any license files it contains when consuming it. The archive,
 its runtime, dependency install output, and built images are **not** included in
 the source-only export. Obtain them through authorized delivery and assess their
 redistribution terms separately; do not infer rights from the SDK-authored code's

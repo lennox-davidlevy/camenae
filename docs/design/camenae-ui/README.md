@@ -1,12 +1,19 @@
 # Handoff: Camenae UI
 
+> **Update (2026-10-24):** this handoff predates the framework decision. The intended
+> UI framework is now **SolidJS**, not React, and `assistant-ui` is not planned for the
+> rewrite. Read the React/assistant-ui references below as structure and behavior only.
+> File paths below describe the original export; the current references are
+> `Camenae.dc.html`, `Catalog.dc.html`, and `Login.dc.html` in this directory.
+> See [product direction](../../PRODUCT.md) for decision status.
+
 **Canonical file: `source/Camenae.dc.html` / `Camenae-standalone.html`.** `Assistant.dc.html` is a superseded earlier exploration — ignore it except for structure.
 
 ## Overview
 Desktop UI for a chat assistant built on **assistant-ui** (https://github.com/assistant-ui/assistant-ui), with visible tools, skills, files, tool-approval and model settings. Visual structure was originally inspired by TypeSafe AI's editorial site: sage-grey paper, charcoal ink, flush white label chips, mono micro-labels, huge tight grotesk headlines, crop-mark frames, ruled accordions, comparison tables, dark chart panels.
 
 ## About the Design Files
-These files are **design references made in HTML**, not production code. Recreate them in the target codebase (React + assistant-ui primitives: `Thread`, `Composer`, `MessagePrimitive`, `makeAssistantToolUI`, etc.) using its own patterns.
+These files are **design references made in HTML**, not production code. Recreate them in the target codebase (originally React + assistant-ui primitives; now SolidJS with application-owned chat components) using its own patterns.
 
 - `Assistant-standalone.html`: open in any browser, offline, fully clickable. Best for visual reference.
 - `source/Assistant.dc.html` + `source/support.js`: readable source. All styles are inline; all data and state are in the `class Component` at the bottom. Serve the folder over a local server (`npx serve source`) to run it.

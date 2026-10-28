@@ -1,54 +1,22 @@
 services:
-  worker:
-    networks:
-      inference:
-        ipv4_address: ${CAMENAE_INFERENCE_PREFIX}.4
   app:
     environment:
-      CAMENAE_HARNESS: opencode
-      CAMENAE_OPENCODE_URL: http://opencode-worker:4096
-      CAMENAE_OPENCODE_PASSWORD: ${CAMENAE_OPENCODE_PASSWORD:?Isolated smoke credential required}
-    depends_on:
-      opencode-worker:
-        condition: service_healthy
+      CAMENAE_OPENCODE_CONSOLE_FREE: "false"
   opencode-worker:
-    build:
-      context: .
-      dockerfile: docker/application.Dockerfile
-    command: [bun, docker/opencode-runtime/opencode-worker.ts]
-    init: true
-    restart: unless-stopped
-    user: "1000:1000"
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    pids_limit: 256
-    mem_limit: 2g
-    cpus: 2
-    stop_grace_period: 10s
     environment:
       CAMENAE_OPENCODE_CONFIG: /app/tests/opencode.config.json
-      CAMENAE_OPENCODE_PASSWORD: ${CAMENAE_OPENCODE_PASSWORD:?Isolated smoke credential required}
-    volumes:
-      - workspace:/data/workspace
-      - opencode-state:/data/opencode-state
-    tmpfs:
-      - /tmp:uid=1000,gid=1000,mode=0700
+      CAMENAE_OPENCODE_CONSOLE_FREE: "false"
     networks:
       inference:
         ipv4_address: ${CAMENAE_INFERENCE_PREFIX}.5
-    healthcheck:
-      test: [CMD, bun, -e, "const r=await fetch('http://127.0.0.1:4096/api/info');process.exit(r.status===401?0:1)"]
-      interval: 2s
-      timeout: 5s
-      retries: 30
   opencode-fixture:
+    image: camenae-test-opencode-fixture:latest
     build:
+      labels:
+        app.camenae.test-image: "true"
       context: .
       dockerfile: docker/application.Dockerfile
     command: [bun, tests/opencode-upstream.ts]
     networks:
       inference:
         ipv4_address: ${CAMENAE_INFERENCE_PREFIX}.6
-volumes:
-  opencode-state:

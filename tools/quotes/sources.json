@@ -1,0 +1,340 @@
+[
+  {
+    "id": 2680,
+    "title": "Meditations",
+    "author": "Marcus Aurelius",
+    "work": "Meditations",
+    "translator": "Meric Casaubon",
+    "tradition": "rome",
+    "era": "2nd century AD (English of 1634)",
+    "tags": [
+      "stoic"
+    ]
+  },
+  {
+    "id": 10661,
+    "title": "Discourses of Epictetus",
+    "author": "Epictetus",
+    "work": "Discourses",
+    "translator": "George Long",
+    "tradition": "greece",
+    "era": "2nd century AD",
+    "tags": [
+      "stoic"
+    ]
+  },
+  {
+    "id": 1497,
+    "title": "Republic",
+    "author": "Plato",
+    "work": "The Republic",
+    "translator": "Benjamin Jowett",
+    "tradition": "greece",
+    "era": "4th century BC",
+    "tags": []
+  },
+  {
+    "id": 1656,
+    "title": "Apology",
+    "author": "Plato",
+    "work": "Apology",
+    "translator": "Benjamin Jowett",
+    "tradition": "greece",
+    "era": "4th century BC",
+    "tags": []
+  },
+  {
+    "id": 8438,
+    "title": "Nicomachean Ethics",
+    "author": "Aristotle",
+    "work": "Nicomachean Ethics",
+    "tradition": "greece",
+    "era": "4th century BC",
+    "tags": []
+  },
+  {
+    "id": 7142,
+    "title": "History of the Peloponnesian War",
+    "author": "Thucydides",
+    "work": "History of the Peloponnesian War",
+    "translator": "Richard Crawley",
+    "tradition": "greece",
+    "era": "5th century BC",
+    "tags": [
+      "war",
+      "grimdark"
+    ]
+  },
+  {
+    "id": 2199,
+    "title": "Iliad",
+    "author": "Homer",
+    "work": "The Iliad",
+    "translator": "Samuel Butler",
+    "tradition": "greece",
+    "era": "8th century BC",
+    "tags": [
+      "war",
+      "epic"
+    ]
+  },
+  {
+    "id": 1727,
+    "title": "Odyssey",
+    "author": "Homer",
+    "work": "The Odyssey",
+    "translator": "Samuel Butler",
+    "tradition": "greece",
+    "era": "8th century BC",
+    "tags": [
+      "epic"
+    ]
+  },
+  {
+    "id": 228,
+    "title": "Aeneid",
+    "author": "Virgil",
+    "work": "The Aeneid",
+    "translator": "John Dryden",
+    "tradition": "rome",
+    "era": "1st century BC",
+    "tags": [
+      "epic"
+    ],
+    "verse": true
+  },
+  {
+    "id": 785,
+    "title": "On the Nature of Things",
+    "author": "Lucretius",
+    "work": "On the Nature of Things",
+    "translator": "William Ellery Leonard",
+    "tradition": "rome",
+    "era": "1st century BC",
+    "tags": [
+      "epicurean"
+    ],
+    "verse": true
+  },
+  {
+    "id": 10657,
+    "title": "De Bello Gallico",
+    "author": "Julius Caesar",
+    "work": "Commentaries on the Gallic War",
+    "translator": "W. A. McDevitte",
+    "tradition": "rome",
+    "era": "1st century BC",
+    "tags": [
+      "war"
+    ]
+  },
+  {
+    "id": 132,
+    "title": "Art of War",
+    "author": "Sun Tzu",
+    "work": "The Art of War",
+    "translator": "Lionel Giles",
+    "tradition": "other",
+    "era": "5th century BC",
+    "tags": [
+      "war",
+      "grimdark"
+    ]
+  },
+  {
+    "id": 1232,
+    "title": "The Prince",
+    "author": "Niccolò Machiavelli",
+    "work": "The Prince",
+    "translator": "W. K. Marriott",
+    "tradition": "other",
+    "era": "16th century AD",
+    "tags": [
+      "war",
+      "grimdark"
+    ]
+  },
+  {
+    "id": 15877,
+    "title": "Thoughts of Marcus Aurelius",
+    "author": "Marcus Aurelius",
+    "work": "Thoughts (Meditations)",
+    "tradition": "rome",
+    "era": "2nd century AD",
+    "tags": [
+      "stoic"
+    ],
+    "translator": "George Long"
+  },
+  {
+    "id": 64576,
+    "title": "Minor Dialogues",
+    "author": "Seneca",
+    "work": "Minor Dialogues",
+    "tradition": "rome",
+    "era": "1st century AD",
+    "tags": [
+      "stoic"
+    ],
+    "translator": "Aubrey Stewart"
+  },
+  {
+    "id": 56075,
+    "title": "Seneca's Morals",
+    "author": "Seneca",
+    "work": "Morals of a Happy Life, Benefits, Anger and Clemency",
+    "tradition": "rome",
+    "era": "1st century AD",
+    "tags": [
+      "stoic"
+    ],
+    "translator": "Sir Roger L'Estrange"
+  },
+  {
+    "id": 14033,
+    "title": "Plutarch's Lives, Volume 1",
+    "author": "Plutarch",
+    "work": "Parallel Lives, Vol. 1",
+    "tradition": "greece",
+    "era": "1st-2nd century AD",
+    "tags": [],
+    "translator": "George Long and Aubrey Stewart"
+  },
+  {
+    "id": 14114,
+    "title": "Plutarch's Lives, Volume 2",
+    "author": "Plutarch",
+    "work": "Parallel Lives, Vol. 2",
+    "tradition": "greece",
+    "era": "1st-2nd century AD",
+    "tags": [],
+    "translator": "George Long and Aubrey Stewart"
+  },
+  {
+    "id": 14140,
+    "title": "Plutarch's Lives, Volume 3",
+    "author": "Plutarch",
+    "work": "Parallel Lives, Vol. 3",
+    "tradition": "greece",
+    "era": "1st-2nd century AD",
+    "tags": [],
+    "translator": "George Long and Aubrey Stewart"
+  },
+  {
+    "id": 44315,
+    "title": "Plutarch's Lives, Volume 4",
+    "author": "Plutarch",
+    "work": "Parallel Lives, Vol. 4",
+    "tradition": "greece",
+    "era": "1st-2nd century AD",
+    "tags": [],
+    "translator": "George Long and Aubrey Stewart"
+  },
+  {
+    "id": 2707,
+    "title": "The History of Herodotus",
+    "author": "Herodotus",
+    "work": "The Histories, Vol. 1",
+    "tradition": "greece",
+    "era": "5th century BC",
+    "tags": [],
+    "translator": "G. C. Macaulay"
+  },
+  {
+    "id": 2456,
+    "title": "The History of Herodotus",
+    "author": "Herodotus",
+    "work": "The Histories, Vol. 2",
+    "tradition": "greece",
+    "era": "5th century BC",
+    "tags": [],
+    "translator": "G. C. Macaulay"
+  },
+  {
+    "id": 6400,
+    "title": "The Lives of the Twelve Caesars",
+    "author": "Suetonius",
+    "work": "The Lives of the Twelve Caesars",
+    "tradition": "rome",
+    "era": "2nd century AD",
+    "tags": [],
+    "translator": "M.D. Alexander Thomson"
+  },
+  {
+    "id": 1170,
+    "title": "Anabasis",
+    "author": "Xenophon",
+    "work": "Anabasis",
+    "tradition": "greece",
+    "era": "4th century BC",
+    "tags": [
+      "war"
+    ],
+    "translator": "Henry Graham Dakyns"
+  },
+  {
+    "id": 1177,
+    "title": "The Memorabilia",
+    "author": "Xenophon",
+    "work": "Memorabilia",
+    "tradition": "greece",
+    "era": "4th century BC",
+    "tags": [],
+    "translator": "Henry Graham Dakyns"
+  },
+  {
+    "id": 2085,
+    "title": "Cyropaedia",
+    "author": "Xenophon",
+    "work": "Cyropaedia",
+    "tradition": "greece",
+    "era": "4th century BC",
+    "tags": [],
+    "translator": "Henry Graham Dakyns"
+  },
+  {
+    "id": 6762,
+    "title": "Politics",
+    "author": "Aristotle",
+    "work": "Politics",
+    "tradition": "greece",
+    "era": "4th century BC",
+    "tags": [],
+    "translator": "William Ellis"
+  },
+  {
+    "id": 14988,
+    "title": "Tusculan Disputations",
+    "author": "Cicero",
+    "work": "Tusculan Disputations",
+    "tradition": "rome",
+    "era": "1st century BC",
+    "tags": [
+      "stoic"
+    ],
+    "translator": "Charles Duke Yonge"
+  },
+  {
+    "id": 2808,
+    "title": "Treatises on Friendship and Old Age",
+    "author": "Cicero",
+    "work": "On Friendship and On Old Age",
+    "tradition": "rome",
+    "era": "1st century BC",
+    "tags": [],
+    "translator": "Evelyn S. Shuckburgh"
+  },
+  {
+    "id": 7959,
+    "title": "The Reign of Tiberius",
+    "author": "Tacitus",
+    "work": "The Reign of Tiberius (Annals I–VI), with the Germany and the Life of Agricola",
+    "tradition": "rome",
+    "era": "1st-2nd century AD",
+    "tags": [
+      "grimdark"
+    ],
+    "translator": "Thomas Gordon",
+    "locators": false
+  }
+]

@@ -10,11 +10,11 @@ Linux x64; other platforms must run the same checks before being claimed support
 Follow the [README quick start](../README.md#quick-start--new-installation), including
 the exact external SDK delivery. Bun 1.4.2 is needed on the host for provisioning
 and development; the image supplies pinned Bun and Node. PostgreSQL runs in Docker.
-Image/package downloads require network access at build time. No Bob key is needed
-for startup or synthetic runtime checks; real messages require an authorized key.
+Image/package downloads require network access at build time. No provider key is needed
+for startup or synthetic runtime checks; real messages require a Console key saved in Settings.
 
-`dev:init` creates `.env` with a random database password and port 3000, refusing
-to overwrite it. `auth:init` creates `.cache/local-auth/` and refuses to reuse an
+`dev:init` creates `.env` with a random database password, a random OpenCode worker
+password and port 3000, refusing to overwrite it. `auth:init` creates `.cache/local-auth/` and refuses to reuse an
 existing directory. Inspect partial provisioning failures rather than deleting
 credentials and retrying blindly. Store the generated login password in a password
 manager; the operator may remove `login.txt` once it is safely retained elsewhere.
@@ -41,6 +41,7 @@ or replace the credentials file; it cannot reset an initialized account.
 | Input | Default / contract |
 | --- | --- |
 | `CAMENAE_DATABASE_PASSWORD` | Required by Compose; generated in `.env`; changing it does not update an initialized database role |
+| `CAMENAE_OPENCODE_PASSWORD` | Required by Compose; generated in `.env`; shared only by the app and the worker |
 | `CAMENAE_HTTP_PORT` | Host loopback ingress port, `3000` |
 | `CAMENAE_ORIGIN` | Exact browser origin, `http://127.0.0.1:3000`; no trailing slash; must match a changed port |
 | `CAMENAE_AUTH_FILE` | Compose host secret path, `.cache/local-auth/credentials.json` |
@@ -49,13 +50,24 @@ or replace the credentials file; it cannot reset an initialized account.
 
 Compose supplies application inputs `CAMENAE_HOST=0.0.0.0`, `CAMENAE_PORT=3000`,
 database host/name/user, `CAMENAE_DATA_DIRECTORY=/data`,
-`CAMENAE_CREDENTIALS_FILE=/run/secrets/local_auth`, the private MCP gate host,
-and `HTTPS_PROXY`. Direct process configuration additionally supports
-`CAMENAE_DATABASE_PORT` (5432), `CAMENAE_MCP_HOST` (loopback outside Compose),
-and `CAMENAE_MCP_PORT` (3001). Keep the gate on its private network, never publish
-it on the host. `CAMENAE_CONTEXT7_URL` is trusted operator/test
-configuration, not a user-selectable URL. Do not point it at arbitrary services.
-Use the Compose topology rather than running a privileged host backend/worker.
+`CAMENAE_CREDENTIALS_FILE=/run/secrets/local_auth`, the private worker URL, and
+`HTTPS_PROXY`. Direct process configuration additionally supports
+`CAMENAE_DATABASE_PORT` (5432) and `CAMENAE_GATEWAY_HOST` (the address the private
+Console gateway binds, port 3003; loopback outside Compose, never published on the
+host). Use the Compose topology rather than running a
+privileged host backend/worker.
+
+### Quotes on the sign-in page
+
+The sign-in page shows a random quotation chosen on the server, and the signed-in app can
+request one from `GET /api/quote`. The image contains the committed public-domain set
+(`/app/data/quotes/quotes.jsonl`); `CAMENAE_QUOTES_DIRECTORY` (default `data`, relative to
+`/app`) names where it is read, separate from the storage directory. Files are read once at
+start-up, and missing or unreadable files just mean no quote. To also show the private
+Warhammer 40,000 set, build it locally and start with
+`docker compose -f compose.yaml -f compose.private-quotes.yaml up -d`; it is mounted
+read-only and never copied into an image. Build it first: Docker creates a directory where
+a missing bind-mount file should be.
 
 For a different local port, change both `CAMENAE_HTTP_PORT` and `CAMENAE_ORIGIN`.
 Use a separate browser profile for a separate installation: cookies on `127.0.0.1`
@@ -66,36 +78,34 @@ not evidence that production TLS/reverse-proxy deployment has been validated.
 
 1. Finish active turns and coordinate any interruption. Close clients that could
    start new work. Back up the installation before applying database migrations.
-2. Keep `.env`, `.cache/local-auth/credentials.json`, all state volumes, and the
-   existing Compose project identity. The default name is **`bob-camenae`**;
-   changing it selects different volumes, not a renamed installation.
-3. Check [managed-file ownership](BOB-OPERATIONS.md#managed-native-files) before
-   upgrading. Resolve conflicts explicitly; never delete/adopt user configuration.
+2. Keep `.env`, `.cache/local-auth/credentials.json`, and all state volumes. The
+   Compose project name selects the volumes: changing it selects different, empty
+   volumes, not a renamed installation. Add `CAMENAE_OPENCODE_PASSWORD` to an existing
+   `.env` by hand if it is missing; `dev:init` never overwrites that file.
+3. Migration 013 permanently deletes conversations that belong to a retired harness
+   and drops obsolete tables. It runs automatically on the first start and cannot be
+   undone; restore a backup if that was not intended.
 4. Validate and build with the approved dependency. Replace idle app and worker
    together, ending the complete old worker lifetime:
 
    ```sh
-   docker compose build app worker
-   docker compose stop app worker
-   docker compose up -d --no-deps --force-recreate --wait --wait-timeout 90 worker app
+   docker compose build app opencode-worker
+   docker compose stop app opencode-worker
+   docker compose up -d --no-deps --force-recreate --wait --wait-timeout 120 opencode-worker app
    curl --fail http://127.0.0.1:3000/health/ready
    ```
 
    If ingress/egress configuration changed, rebuild and replace those services too
    in the same coordinated maintenance window.
-5. Verify sign-in, preparation, preserved conversations/files, and confirmed active
-   settings. A ready database or old worker health status alone is insufficient.
+5. Verify sign-in, preparation, preserved conversations/files, and the saved provider
+   key. A ready database or old worker health status alone is insufficient.
 
 Forward-only database migrations run automatically on app startup. Do not reset
 migration IDs, rename database columns/tables, or rerun initialization. Replacing
 the credentials file is not a password-reset mechanism. Restoring old code after
 a migration is not a supported downgrade; restore a matching backup if necessary.
-
-Upgrades from installations exposing native Always approval choices must replace
-both idle app and worker to clear native in-memory approvals. Migration 006 gives
-older turns empty approval history; no decisions are inferred or backfilled.
-Protocol names, `BOB_GATEWAY_*`, encryption context, native IDs, and ownership
-markers remain compatibility contracts even when UI wording changes.
+Encryption context strings and native IDs remain compatibility contracts even when
+UI wording changes.
 
 ## Backup and recovery
 
@@ -111,13 +121,11 @@ For a consistent cold backup:
 2. Record the Compose project name, source version, exact SDK checksum/image
    versions, configuration, and volume names from `docker compose config --volumes`
    (not a full config dump containing secrets).
-3. Back up the stopped `postgres-data`, `workspace`, and `bob-state` volumes using
-   a volume-aware backup tool preserving numeric ownership/modes. Include
-   `mcp-config` as installation configuration; its contents are private and can
-   include runtime gate tokens. Do not treat the tmpfs `bob-ipc` socket as data.
+3. Back up the stopped `postgres-data`, `workspace`, and `opencode-state` volumes using
+   a volume-aware backup tool preserving numeric ownership/modes.
 4. Back up `.env` and `credentials.json` **privately, separately from the database**.
    Keep the generated login password in the password manager. A database backup
-   without its encryption key cannot recover stored inference credentials.
+   without its encryption key cannot recover the stored provider key.
 5. Restart the same installation only after copies complete. Store backups outside
    source archives and restrict access to native state and workspace contents too.
 
@@ -125,7 +133,7 @@ For recovery, provision an isolated target with the same application/SDK version
 PostgreSQL major version, project-to-volume mapping, UID/GID and file modes. Restore
 the stopped database and matching workspace/native state together with the original
 auth encryption key and configuration. Do not run `dev:init`/`auth:init` over them.
-Regenerate runtime IPC through startup, then verify readiness, authentication,
+Start the stack, then verify readiness, authentication,
 decryption, file access, settings, and native session preparation. Keep the original
 backup untouched. Provider-backed resume requires a separately authorized live
 check; stop if the native runtime or schema is incompatible rather than replaying

@@ -1,0 +1,8 @@
+# Optional: also show the private Warhammer 40,000 quotes. Use as a second file:
+#   docker compose -f compose.yaml -f compose.private-quotes.yaml up -d
+# The file is gitignored and built locally (see tools/quotes/README.md); it is mounted read-only
+# and is never copied into an image. Build it first, or Docker will create a directory in its place.
+services:
+  app:
+    volumes:
+      - ./data/private/quotes-40k.jsonl:/app/data/private/quotes-40k.jsonl:ro

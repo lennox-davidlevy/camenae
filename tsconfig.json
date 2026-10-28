@@ -9,5 +9,5 @@
     "skipLibCheck": false,
     "types": ["node", "bun"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "tests/**/*.ts", "tests/**/*.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "tests/**/*.ts", "tests/**/*.tsx", "tools/quotes/**/*.ts"]
 }

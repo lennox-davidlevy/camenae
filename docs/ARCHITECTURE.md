@@ -1,21 +1,29 @@
 # Architecture and security
 
+This guide describes the implemented application. See [current status](CURRENT-STATUS.md)
+for verification limits, [product direction](PRODUCT.md) for the intended end state,
+and [target plugin architecture](CONVERSATIONAL-PLUGINS.md) for proposed capabilities.
+
 ## Topology
 
 ```text
-browser → loopback nginx ingress → Camenae (Bun / Effect / React)
+browser → loopback nginx ingress → Camenae (Bun / Effect, SolidJS UI)
                                   ├─ PostgreSQL
-                                  ├─ trusted SDK client → Unix socket → worker → Bob
-                                  └─ trusted MCP gate → Context7
-worker → restricted Squid CONNECT proxy → Bob inference
+                                  ├─ @camenae/opencode → private HTTP → opencode-worker
+                                  └─ Console gateway → restricted Squid CONNECT proxy → provider
 ```
 
 `compose.yaml` owns deployment policy. Only ingress is published, on host loopback.
-App/database share an internal backend network. App, worker, and egress share an
+App and database share an internal backend network. App, worker, and egress share an
 isolated inference bridge; only egress has outbound networking. The application
-has a fixed inference-network address so Squid can allow Context7 only from its
-trusted gate. The worker cannot access the app/database network or arbitrary hosts.
-See [Bob integration](BOB-OPERATIONS.md) for exact endpoints and limitations.
+has a fixed inference-network address so Squid can allow the provider only from the
+app's Console gateway. The worker has no direct outbound network and cannot reach the
+app/database network or arbitrary hosts. See [OpenCode integration](OPENCODE.md) for
+the worker lifecycle, gateway, and limitations.
+
+The worker is a separate private native HTTP service. The app connects to it through
+`@camenae/opencode`; the worker shares the workspace and retains its own native-state
+volume. Provider requests use the app-owned restricted Console gateway.
 
 Ingress uses a fixed `app:3000` upstream, refreshes Docker DNS after app replacement,
 and is not a request-selected outbound proxy. Access/error logging and disk
@@ -23,7 +31,8 @@ buffering are disabled. It has no secrets, data mounts, or Docker socket. Its
 frontend network has ordinary egress: it remains trusted infrastructure.
 
 App and worker run as UID/GID 1000, with read-only roots, dropped capabilities,
-no-new-privileges, resource limits, init/reaping, and a 20-second stop grace period.
+no-new-privileges, resource limits, and init/reaping. The app has a 20-second stop grace
+period and the worker 10 seconds.
 Neither mounts the host workspace or Docker socket. This is container separation,
 not a guarantee against kernel escapes or unsafe handling of generated artifacts.
 
@@ -33,14 +42,19 @@ not a guarantee against kernel escapes or unsafe handling of generated artifacts
 | --- | --- |
 | `Configuration`, `DatabaseLive` | Validated deployment inputs, redacted secrets, scoped PostgreSQL pool and timeouts |
 | `Installation`, `src/migrations/` | Persistent installation identity and forward-only transactional migrations |
-| `Identity` | Local account, login admission, database-backed sessions, encrypted Bob/Console credentials |
+| `Identity` | Local account, login admission, database-backed sessions, encrypted Console credential |
 | `Workspace`, `Files` | Retained directories and bounded authenticated file operations |
-| `HarnessRuntime`, `worker.ts` | Packaged SDK connection, environment filtering, worker lifetime and configuration handoff |
+| `OpenCodeRuntime`, `opencode-worker.ts` | Separate packaged OpenCode connection, native worker ownership and retirement |
+| `execution-client.ts` | Narrow application chat/event adapter for the harness; not a general harness SDK |
+| `console-gateway.ts` | Restricted Console forwarding, encrypted credential use, persistent request accounting |
 | `Chat` | Conversations, turn admission, retained native sessions, snapshots, preparation, cancellation, usage |
-| `McpPermissions` | Stored settings and application-owned lifecycle of SDK authorization gates |
 | `ServerLive`, UI | Authenticated HTTP/SSE routes, presentation, shutdown |
 
-The application uses the real `@camenae/bob` contracts, not a universal client.
+The application uses the real `@camenae/opencode` contracts, not a universal client.
+`Chat` opens each conversation's native session through the application's
+`ExecutionClient`, which normalizes only the operations and events chat needs; native
+session, policy, accounting, and worker contracts remain distinct. A conversation's
+`harness` column records its harness, so a second one can be added without a schema change.
 Effect owns resource scopes/concurrency and SQL migrations; Zod owns application
 data contracts, with Effect Schema used for typed errors. Effect and its drivers
 are pinned together to v4 RC. Do not add parallel pools, agent loops, protocol
@@ -53,7 +67,7 @@ the native session without submitting a prompt or creating a turn. GET/SSE reads
 do not prepare a session. Admission and authorization are rechecked inside the
 lifecycle permit. One loaded native session/connection is retained between turns.
 Opening the active conversation leaves it alone; selecting another cannot interrupt
-active work. Switching while idle replaces the connection, MCP gate, and worker.
+active work. Switching while idle replaces the connection.
 
 Only one turn runs across tabs. Runs belong to application scope, not an HTTP
 request or browser tab. Native cancellation has five seconds to settle before
@@ -62,51 +76,47 @@ unavailable authorization, failed turns, and application shutdown retire the
 connection. Revocation is scoped to the connection checked, not a later login.
 No failed/interrupted prompt is automatically replayed.
 
-Each worker serves one SDK connection, exits after `serveOnce()` settles, and is
-restarted by Docker, which ends its remaining processes. `HarnessRuntime` waits
-up to 30 seconds for replacement socket identity before bootstrapping; this is a
-readiness check, not an ACP retry or proof from remote disconnect alone. Tests
-requiring teardown must observe a new container lifetime, not stale healthy status.
-
-The run owner persists transcript/tool snapshots. Conditional writes prevent a
-stale running snapshot from replacing a terminal row. Failed terminal writes retain
-an obligation retried by reconnect; only persistence is retried. Restarted unfinished
-turns become interrupted. Inspect partial side effects before resubmitting.
-Native context lives in retained Bob state; the app does not replay transcripts.
+A worker accepts one application owner. A replacement owner requests retirement and
+waits for a different worker lifetime before acquisition; container PID 1 teardown,
+not a successful interrupt response alone, bounds uncertain cleanup. The run owner
+persists transcript/tool snapshots. Conditional writes prevent a stale running
+snapshot from replacing a terminal row. Failed terminal writes retain an obligation
+retried by reconnect; only persistence is retried. Restarted unfinished turns become
+interrupted. Inspect partial side effects before resubmitting. Native context lives
+in retained native state; the app does not replay transcripts.
 
 ## Storage and files
 
 | Volume | Path | Content |
 | --- | --- | --- |
-| `postgres-data` | `/var/lib/postgresql/data` | Identity, conversations, turns, settings, decision history |
-| `workspace` | `/data/workspace` | Shared inputs, projects, outputs, scratch, native workspace configuration/skills |
-| `bob-state` | `/data/bob-state` | Native HOME and XDG configuration/data/state/cache |
-| `bob-ipc` | `/run/bob` | Tmpfs socket `gateway.sock` and configuration fingerprint; app read-only |
-| `mcp-config` | `/run/camenae-mcp` | App-published configuration; worker read-only |
+| `postgres-data` | `/var/lib/postgresql/data` | Identity, conversations, turns, Console credential and request allowance |
+| `workspace` | `/data/workspace` | Shared inputs, projects, outputs, scratch |
+| `skills` | `/data/skills` (app, read-write), `/data/skills` (worker, read-only) | `active/` and `disabled/` skill folders, each holding a `SKILL.md`; only `active/` is in the worker's skill configuration |
+| `opencode-state` | `/data/opencode-state` | Native OpenCode HOME and XDG configuration/data/state (worker only) |
 
+Harness-specific files stay in each harness's state volume, not the workspace (see
+[the layout proposal](CONVERSATIONAL-PLUGINS.md#workspace-layout-across-harnesses-proposal)).
 `/data/tmp` and `/tmp` are disposable tmpfs. Workspace folders are conventions,
 not conversation sandboxes. Startup rejects symbolic links in provisioned
-directories; that alone is not race-proof isolation. File APIs reject traversal,
-symlinks, and special files, with limits of 200 directory entries, 64 KiB UTF-8 text
-upload/preview, and 8 MiB attachment download. HTML/Markdown previews are text, not
-rendered active content. Files-tab uploads retain generated names in inbox. Chat
-uploads use `inbox/<conversation-id>/<filename>`, preserving readable filenames and
-adding a numeric suffix on collisions without overwriting existing files. The
-conversation must exist before upload; these folders organize files, not isolate
-them from other conversations. Both paths validate text format and content.
+directories; that alone is not race-proof isolation. `src/workspace-files.ts`
+opens every path component relative to an open directory with `O_NOFOLLOW`, so
+traversal, symlinks, and special files are refused. Limits: 1000 directory entries,
+1 MiB UTF-8 text preview/edit, 15 MiB upload, 25 MiB download. Routes: list, path
+finder, preview, download, raw `POST /api/files/upload` (octet-stream body, CSRF in
+a header, modes `fail|replace|unique`), and `POST /api/files/edit` (new folder,
+move, delete). Moves never overwrite; the top-level `inbox`, `projects`, `outputs`,
+and `scratch` folders and `.git` contents cannot be changed. Previews are text,
+not rendered active content.
 
-Chat accepts up to four selected workspace text files, 64 KiB total UTF-8 content,
-alongside a nonempty message. The authenticated server reopens files through the
-same descriptor-relative, no-symlink reader as preview, validates text, and saves
-immutable path/content snapshots with the turn before dispatch. Both harnesses
-receive those snapshots as labeled JSON text appended to the message, not as native
-binary attachments or instructions. These are provider-visible inputs subject to
-the selected model's data-use terms. Changing/deleting a workspace file does not
-change a sent snapshot. A missing, unsupported, binary, or oversized selection
-rejects the whole send without starting a turn. The HTTP body ceiling is 512 KiB to
-allow JSON escaping of bounded uploads; non-upload requests retain a 16 KiB limit,
-including chunked requests, and endpoint schemas retain their own field limits.
-Native agent access to the shared
+Chat accepts up to ten attachments per message alongside a nonempty message. The
+page saves each as a real workspace file (`inbox/<name>`, `-2` suffix on collision,
+never overwriting) when the message is sent, and the turn stores only path
+references. The harness is told the paths in the prompt and reads the files with
+its own tools; contents are not inlined. These files are provider-visible when the
+agent reads them, subject to the selected model's data-use terms. Older turns that
+stored file text keep their paths; the text is ignored. The HTTP body ceiling is
+16 MiB, applied only to the upload route; other requests retain a 16 KiB limit,
+including chunked requests. Native agent access to the shared
 workspace is unchanged; this is context selection, not a filesystem permission gate.
 
 Volumes surviving container replacement is not a backup. Retain database, workspace,
@@ -139,35 +149,32 @@ forwarded-host trust. Auth forms are scriptless, no-store, and disallow embeddin
 the deployed UI has its own restrictive CSP. Errors/logs use fixed messages, not
 secrets, raw causes, or provider payloads.
 
-Bob keys use AES-256-GCM with a fresh 96-bit nonce and authenticated context bound
-to installation ID/purpose/version (`camenae:bob-key:v1`). Only ciphertext, nonce,
-and tag enter Postgres. Wrong encryption keys fail startup rather than overwriting
-unreadable data. Deleting a credential row does not erase backups/WAL. Saving a key
-reports **saved, not verified**, and performs no inference.
+The Console key uses AES-256-GCM with a fresh 96-bit nonce and authenticated context
+bound to installation ID/purpose/version (`camenae:console-key:v1`). Only ciphertext,
+nonce, and tag enter Postgres. Wrong encryption keys fail startup rather than
+overwriting unreadable data. Deleting a credential row does not erase backups/WAL.
+Saving a key reports **saved, not verified**, and performs no inference.
 
-Optional [Console setup](OPENCODE.md#console-free-only-setup) uses a separate
-`camenae:console-key:v1` encryption context. The private inference-network gateway
-requires the worker credential rather than browser cookies/Origin. It supplies
-the Console key outside the worker, restricts endpoint/model/output, and atomically
-counts requests against a persistent safety cap. Key removal clears the live
-credential, not historical database backups or the request counter.
+The [Console setup](OPENCODE.md#console-setup) gateway on the private
+inference network requires the worker credential rather than browser cookies/Origin.
+It supplies the Console key outside the worker, restricts endpoint/model/output (paid models only while a cap is set), and
+atomically counts requests against a persistent safety cap. Key removal clears the
+live credential, not historical database backups or the request counter.
 
 The app is trusted and can read its encryption secret; same-user app processes
-can too. Worker environment is explicitly filtered before native launch. It has
-neither that secret mount nor database credentials, but Bob/tools can see their
-runtime inference key and interfere with same-UID worker processes. Environment
-filtering and Compose file-secret mounts alone are not OS isolation or credential
-surrogation. The local database password remains in container environment metadata,
+can too. The worker strips ambient credentials before native launch. It has neither that
+secret mount nor database credentials and never receives the provider key, but its
+tools can interfere with same-UID worker processes. Environment filtering and
+Compose file-secret mounts alone are not OS isolation. The local database password remains in container environment metadata,
 and its role is the bootstrap owner, not a production least-privilege role split.
 
 ## Health and unsupported deployment modes
 
 `GET /health/live` checks the HTTP process; `/health/ready` checks the database,
 not provider availability or complete worker cleanup. Responses expose no private
-configuration. Normal server startup does not perform inference. `check-runtime`
-initializes native Bob with a synthetic credential; it consumes a worker connection.
+configuration. Normal server startup does not perform inference.
 
 Only one app process, local owner, and shared workspace are supported. HA,
 multi-user isolation, cloud/TLS/SSO rollout, general internet egress, automated
 backup/restore, and cross-host native-session recovery require separate design and
-validation. Authorization is not execution evidence; see [permissions](PERMISSIONS.md).
+validation. Authorization is not execution evidence.

@@ -10,11 +10,11 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parent.parent
 ROOT_FILES = (".dockerignore", ".gitignore", ".oxlintrc.json", "AGENTS.md",
-              "README.md", "THIRD-PARTY-NOTICES.md", "bun.lock", "compose.yaml", "compose.opencode.yaml",
+              "README.md", "THIRD-PARTY-NOTICES.md", "bun.lock", "compose.yaml",
               "package.json", "tsconfig.json", "bunfig.toml")
-TREES = ("docker", "docs", "scripts", "src", "tests", "tools/oxlint")
+TREES = ("data/quotes", "docker", "docs", "scripts", "src", "tests", "tools/oxlint", "tools/quotes")
 EXTENSIONS = {".ts", ".tsx", ".js", ".py", ".sh", ".css", ".html", ".md",
-              ".json", ".yaml", ".conf", ".Dockerfile", ".ttf", ".png", ".txt"}
+              ".json", ".jsonl", ".yaml", ".conf", ".Dockerfile", ".ttf", ".png", ".txt"}
 SUSPICIOUS = (
     re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     re.compile(rb"(?:gh[pousr]_|github_pat_)[A-Za-z0-9_]{30,}"),

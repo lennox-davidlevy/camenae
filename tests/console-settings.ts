@@ -6,6 +6,8 @@ import { Effect, Layer, Schedule } from "effect";
 import { SqlClient } from "effect/sql";
 import { z } from "zod";
 import { ChatLive, FoundationLive, IdentityLive } from "../src/runtime.js";
+import { WelcomeQuote } from "../src/quotes-contract.js";
+import { Quotes } from "../src/quotes-service.js";
 import { ServerLive } from "../src/server.js";
 import { DatabaseLive } from "../src/database.js";
 import { ChatView, Conversation } from "../src/chat-contract.js";
@@ -31,6 +33,10 @@ const providerRequests: { model: string; messages: string }[] = [];
 
 let finalForwarded = 0;
 
+const paidBetas: string[] = [];
+
+let paidStreams = 0;
+
 type SettingsRequest = { provider?: string; model?: string; key?: string; csrf?: string; endpoint?: string; harness?: string; prompt?: string; attachments?: string[]; turnId?: string; permissionId?: string; optionId?: string; limit?: number | null; refresh?: boolean; revision?: number };
 
 type CompletionRequest = { model: string; max_tokens: number; max_completion_tokens?: number; store?: boolean; messages: { role: string; content: string }[]; stream?: boolean; models?: string[]; n?: number };
@@ -39,6 +45,37 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   const url = input instanceof Request ? input.url : String(input);
 
   if (!url.startsWith("https://opencode.ai/")) return fetchLocal(input, init);
+
+  // The paid route: a capped Anthropic Messages request with the key in both Console header forms.
+  if (url === "https://opencode.ai/inference/anthropic/v1/messages") {
+    const headers = new Headers(init?.headers);
+    assert.equal(init?.redirect, "error");
+    assert.equal(headers.get("x-api-key"), expectedKey);
+    assert.equal(headers.get("authorization"), `Bearer ${expectedKey}`);
+    assert.equal(headers.get("anthropic-version"), "2023-06-01");
+    paidBetas.push(headers.get("anthropic-beta") ?? "");
+    const body = z.object({ model: z.literal("claude-haiku-5-5"), max_tokens: z.number().max(2048), stream: z.boolean().optional() }).parse(JSON.parse(String(init?.body)));
+    forwarded++;
+
+    if (body.stream) {
+      paidStreams++;
+
+      const events = [
+        ["message_start", { type: "message_start", message: { id: "msg_synthetic", type: "message", role: "assistant", model: body.model, content: [], stop_reason: null, usage: { input_tokens: 1, output_tokens: 0 } } }],
+        ["content_block_start", { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }],
+        ["content_block_delta", { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Synthetic paid answer" } }],
+        ["content_block_stop", { type: "content_block_stop", index: 0 }],
+        ["message_delta", { type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 3 } }],
+        ["message_stop", { type: "message_stop" }],
+      ] as const;
+
+      return new Response(events.map(([name, data]) => `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`).join(""), { headers: { "content-type": "text/event-stream" } });
+    }
+
+    return Response.json({ id: "msg_synthetic", type: "message", role: "assistant", model: body.model, content: [{ type: "text", text: "Synthetic paid answer" }],
+      stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } });
+  }
+
   assert.equal(url, "https://opencode.ai/zen/v1/chat/completions");
   assert.equal(init?.redirect, "error");
   assert.equal(new Headers(init?.headers).get("authorization"), `Bearer ${expectedKey}`);
@@ -67,7 +104,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   return new Response(`data: ${JSON.stringify(delta)}\n\ndata: ${JSON.stringify(finish)}\n\ndata: [DONE]\n\n`, { headers: { "content-type": "text/event-stream", "content-encoding": "gzip" } });
 }, { preconnect: fetchLocal.preconnect });
 
-const server = ServerLive.pipe(Layer.provide(ChatLive), Layer.provide(IdentityLive), Layer.provide(FoundationLive));
+const server = ServerLive.pipe(Layer.provide(ChatLive), Layer.provide(IdentityLive), Layer.provide(FoundationLive), Layer.provide(Quotes.layer));
 
 try {
   await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
@@ -81,12 +118,18 @@ try {
       const cookie = login.headers.get("set-cookie")?.split(";")[0];
       assert.ok(cookie);
 
-      const bootstrap = async () => z.object({ csrf: z.string(), readiness: z.object({ bob: z.boolean(), opencode: z.boolean() }),
+      const bootstrap = async () => z.object({ csrf: z.string(), readiness: z.object({ opencode: z.boolean() }),
         conversations: z.array(Conversation),
         consoleUsage: z.object({ used: z.number(), limit: z.number().nullable(), revision: z.number() }) }).parse(
         await (await fetchLocal(base + "/api/chat", { headers: { cookie } })).json());
 
       const { csrf } = await bootstrap();
+
+      // The sign-in page carries a server-chosen quote with a source link; the app's quote route needs a session.
+      const signIn = await (await fetchLocal(base + "/auth/login")).text();
+      assert.ok(signIn.includes('class="art-quote"') && signIn.includes('rel="noopener noreferrer"'));
+      assert.equal((await fetchLocal(base + "/api/quote")).status, 401);
+      assert.ok(WelcomeQuote.parse(await (await fetchLocal(base + "/api/quote", { headers: { cookie } })).json()).href.startsWith("https://"));
 
       const post = (path: string, body: SettingsRequest, override: Record<string, string> = {}) => fetchLocal(base + path, {
         method: "POST", headers: { cookie, origin, "content-type": "application/json", ...override }, body: JSON.stringify({ csrf, ...body }),
@@ -136,7 +179,7 @@ try {
 
         const aad = `camenae:console-key:v1:${rows[0].id}`;
         assert.equal(decrypt(encrypted, aad), expectedKey);
-        assert.throws(() => decrypt(encrypted, `camenae:bob-key:v1:${rows[0].id}`));
+        assert.throws(() => decrypt(encrypted, `camenae:other-key:v1:${rows[0].id}`));
         const tampered = Buffer.from(encrypted);
         tampered[28] ^= 1;
         assert.throws(() => decrypt(tampered, aad));
@@ -144,7 +187,7 @@ try {
 
       assert.equal((await post("/api/chat", { harness: "invalid" })).status, 400);
 
-      const create = async (harness: "bob" | "opencode") => {
+      const create = async (harness: "opencode") => {
         const response = await post("/api/chat", { harness });
         assert.equal(response.status, 200);
 
@@ -155,15 +198,6 @@ try {
 
       const view = async (id: string) => ChatView.parse(await (await fetchLocal(`${base}/api/chat/${id}`, { headers: { cookie } })).json());
 
-      const bobKey = await fetchLocal(base + "/connection/bob", { method: "POST", redirect: "manual", headers: { cookie, origin },
-        body: new URLSearchParams({ csrf, key: "synthetic-bob-key" }) });
-
-      assert.equal(bobKey.status, 303);
-
-      const bob = await create("bob");
-      assert.equal((await view(bob)).harness, "bob");
-      assert.equal((await view(opencode)).harness, "opencode", "Creating Bob chat changed existing harness");
-
       assert.equal((await post(`/api/chat/${opencode}/prepare`, {})).status, 200);
       await writeFile("/data/workspace/inbox/console-attachment.txt", "Attachment receipt: quartz meadow 42");
       assert.equal((await post(`/api/chat/${opencode}`, { prompt: "synthetic greeting", attachments: ["inbox/console-attachment.txt"] })).status, 200);
@@ -173,8 +207,10 @@ try {
 
       assert.equal(completed.turns.at(-1)?.status, "completed");
       assert.equal(completed.turns.at(-1)?.answer, "Console fixture answer");
-      assert.deepEqual(completed.turns.at(-1)?.attachments, [{ path: "inbox/console-attachment.txt", text: "Attachment receipt: quartz meadow 42" }]);
-      assert.ok(providerRequests.some((request) => request.messages.includes("Attachment receipt: quartz meadow 42")), "Attachment did not reach the native OpenCode provider request");
+      assert.deepEqual(completed.turns.at(-1)?.attachments, [{ path: "inbox/console-attachment.txt", size: 36 }]);
+      // The message names the saved file for the agent to read; its contents are not inlined.
+      assert.ok(providerRequests.some((request) => request.messages.includes("inbox/console-attachment.txt")), "The attachment path did not reach the native OpenCode provider request");
+      assert.ok(!providerRequests.some((request) => request.messages.includes("quartz meadow 42")), "Attachment contents must not be inlined into the prompt");
 
       const titled = await Effect.runPromise(Effect.tryPromise(() => view(opencode)).pipe(
         Effect.repeat({ schedule: Schedule.spaced("50 millis"), while: (snapshot) => snapshot.conversation.title !== "Synthetic greeting summary" }), Effect.timeout("10 seconds")));
@@ -194,6 +230,17 @@ try {
       assert.equal((await post(`/api/chat/${opencode}/prepare`, {})).status, 200);
       assert.equal((await view(opencode)).conversation.title, "Synthetic greeting summary", "Reopening must read the existing native title");
       assert.equal(forwarded, beforeReopen, "Reading a title must not generate another provider request");
+
+      // A real native turn on the paid model: OpenCode's Anthropic provider reaches the gateway's paid route.
+      assert.equal((await post(`/api/chat/${other}/model`, { model: "claude-haiku-5-5" })).status, 200);
+      assert.equal((await post(`/api/chat/${other}`, { prompt: "synthetic paid turn" })).status, 200);
+
+      const paidTurn = await Effect.runPromise(Effect.tryPromise(() => view(other)).pipe(
+        Effect.repeat({ schedule: Schedule.spaced("50 millis"), while: (snapshot) => snapshot.turns.at(-1)?.status === "running" }), Effect.timeout("30 seconds")));
+
+      assert.equal(paidTurn.turns.at(-1)?.status, "completed");
+      assert.equal(paidTurn.turns.at(-1)?.answer, "Synthetic paid answer");
+      assert.ok(paidStreams > 0, "The paid turn did not stream through the Anthropic route");
       assert.ok(forwarded > 0, "Native request did not reach the guarded gateway");
       assert.deepEqual((await bootstrap()).consoleUsage, { used: forwarded, limit: 20, revision: 0 }, "Chat must expose actual request consumption without visiting Settings");
 
@@ -209,7 +256,7 @@ try {
         return;
       }
 
-      const gate = `http://${process.env.CAMENAE_MCP_HOST}:3003`;
+      const gate = `http://${process.env.CAMENAE_GATEWAY_HOST}:3003`;
 
       const gateway = (body: CompletionRequest, path = "/v1/chat/completions", authorization = `Bearer ${process.env.CAMENAE_OPENCODE_PASSWORD}`) => fetchLocal(gate + path, {
         method: "POST", headers: { authorization, "content-type": "application/json" }, body: JSON.stringify(body),
@@ -231,6 +278,36 @@ try {
       assert.equal(refused.status, 502);
       assert.equal((await refused.text()).includes("upstream-private-error"), false);
       failUpstream = false;
+
+      // The paid model has its own route, and the free route never admits it.
+      const paid = { model: "claude-haiku-5-5", max_tokens: 10, messages: [{ role: "user", content: "synthetic" }] };
+
+      type PaidRequest = { model: string; max_tokens: number; messages: { role: string; content: string }[]; tools?: { type?: string; name: string; input_schema?: { type: string } }[];
+        service_tier?: string; mcp_servers?: string[]; container?: string };
+
+      const messages = (body: PaidRequest, beta?: string) => {
+        const headers = new Headers({ authorization: `Bearer ${process.env.CAMENAE_OPENCODE_PASSWORD}`, "content-type": "application/json" });
+
+        if (beta !== undefined) headers.set("anthropic-beta", beta);
+
+        return fetchLocal(`${gate}/anthropic/v1/messages`, { method: "POST", body: JSON.stringify(body), headers });
+      };
+
+      const beforePaid = forwarded;
+      assert.equal((await gateway({ ...completion, model: "claude-haiku-5-5" })).status, 403, "The free route must refuse the paid model");
+
+      for (const invalid of [{ ...paid, model: "longcat-2.5-preview-free" }, { ...paid, model: "claude-opus-5-5" }, { ...paid, max_tokens: 2049 },
+        { ...paid, tools: [{ type: "web_search_20250305", name: "web_search" }] }, { ...paid, service_tier: "priority" }, { ...paid, mcp_servers: [] },
+        { ...paid, container: "x" }, { ...paid, messages: [{ role: "user", content: "x".repeat(400_001) }] }]) {
+        assert.equal((await messages(invalid)).status, 403);
+      }
+
+      assert.equal(forwarded, beforePaid, "A refused paid request contacted upstream");
+      const answered = await messages({ ...paid, tools: [{ name: "shell", input_schema: { type: "object" } }] }, "interleaved-thinking-2025-05-14, thinking-binding-controls-2026-08-01, billed-extra-2026-01-01");
+      assert.equal(answered.status, 200);
+      assert.equal(z.object({ content: z.array(z.object({ text: z.string() })) }).parse(await answered.json()).content[0]?.text, "Synthetic paid answer");
+      assert.equal(paidBetas.at(-1), "interleaved-thinking-2025-05-14,thinking-binding-controls-2026-08-01", "Known betas must pass and unknown ones must not");
+      assert.ok(paidStreams > 0 && paidBetas.some((beta) => beta.includes("thinking-binding-controls-2026-08-01")), "OpenCode's own thinking beta must reach the provider");
       const nativeSettings = z.object({ CAMENAE_OPENCODE_URL: z.string(), CAMENAE_OPENCODE_PASSWORD: z.string() }).parse(process.env);
 
       const lifetime = async () => {
@@ -280,7 +357,6 @@ try {
       assert.equal((await bootstrap()).readiness.opencode, false);
       assert.equal((await view(opencode)).harness, "opencode");
       assert.deepEqual((await bootstrap()).consoleUsage, { used: 20, limit: 20, revision: 0 }, "Unavailable chat must distinguish exhausted allowance from missing connection");
-      assert.equal((await view(bob)).harness, "bob");
 
       const budget = { limit: 0, refresh: false, revision: 0 };
       assert.equal((await post("/api/settings/opencode/budget", budget, { cookie: "" })).status, 401);
@@ -304,6 +380,10 @@ try {
       assert.deepEqual((await bootstrap()).consoleUsage, { used: 3, limit: 3, revision: 2 });
       assert.equal((await post("/api/settings/opencode/budget", { limit: null, refresh: false, revision: 2 })).status, 200);
       assert.deepEqual((await bootstrap()).consoleUsage, { used: 3, limit: null, revision: 3 });
+      const uncapped = forwarded;
+      assert.equal((await messages(paid)).status, 503, "Without a request cap a paid model must be refused");
+      assert.equal(forwarded, uncapped, "An uncapped paid request contacted upstream");
+      assert.deepEqual((await bootstrap()).consoleUsage, { used: 3, limit: null, revision: 3 }, "A refused paid request must not consume allowance");
       assert.equal((await bootstrap()).readiness.opencode, true);
 
       const nativeId = () => Effect.runPromise(Effect.gen(function* () {
@@ -313,7 +393,6 @@ try {
       }).pipe(Effect.provide(DatabaseLive)));
 
       const originalNativeId = await nativeId();
-      assert.equal((await post(`/api/chat/${bob}/model`, { model: "big-pickle" })).status, 503);
       assert.equal((await post(`/api/chat/${opencode}/model`, { model: "big-pickle", csrf: "wrong" })).status, 401);
 
       for (const model of ["paid-model", "jev-1.13-free", "muse-spark-1.3-contributor-free"]) {
@@ -343,7 +422,6 @@ try {
         assert.equal(await nativeId(), originalNativeId);
       }
 
-      assert.equal((await view(bob)).model, null);
       assert.equal((await view(opencode)).harness, "opencode");
       await Effect.runPromise(Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient;
@@ -375,7 +453,7 @@ try {
           assert.deepEqual(rows[0], { requests_used: finalForwarded, requests_baseline: 20, requests_limit: finalForwarded - 20, budget_revision: 4 });
         }).pipe(Effect.provide(DatabaseLive)));
 
-        const response = await fetchLocal(`http://${process.env.CAMENAE_MCP_HOST}:3003/v1/chat/completions`, {
+        const response = await fetchLocal(`http://${process.env.CAMENAE_GATEWAY_HOST}:3003/v1/chat/completions`, {
           method: "POST", headers: { authorization: `Bearer ${process.env.CAMENAE_OPENCODE_PASSWORD}`, "content-type": "application/json" },
           body: JSON.stringify({ model: "longcat-2.5-preview-free", max_tokens: 10, messages: [{ role: "user", content: "after restart" }] }),
         });

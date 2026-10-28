@@ -6,7 +6,6 @@ import { openCodeExecution, type ExecutionClient, type Harness } from "./executi
 import { consoleModel } from "./console-contract.js";
 
 export const openCodeSettings = Config.all({
-  harness: Config.String("CAMENAE_HARNESS").pipe(Config.withDefault("bob")),
   url: Config.String("CAMENAE_OPENCODE_URL").pipe(Config.withDefault("")),
   password: Config.Redacted("CAMENAE_OPENCODE_PASSWORD").pipe(Config.withDefault(Redacted.make(""))),
   workspace: Config.String("CAMENAE_OPENCODE_WORKSPACE").pipe(Config.withDefault("/data/workspace")),
@@ -27,7 +26,7 @@ export class OpenCodeRuntime extends Context.Service<OpenCodeRuntime, {
 }>()("camenae/OpenCodeRuntime") {
   static readonly layer = Layer.effect(OpenCodeRuntime, Effect.gen(function* () {
   const settings = yield* openCodeSettings;
-  const harness = yield* Effect.try(() => z.enum(["bob", "opencode"]).parse(settings.harness));
+  const harness: Harness = "opencode";
   const configured = Boolean(settings.url && Redacted.value(settings.password));
   const owner = randomUUID();
   let retired: string | undefined;

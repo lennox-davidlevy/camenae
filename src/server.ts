@@ -7,6 +7,8 @@ import { Workspace } from "./workspace.js";
 import { AuthRoutes } from "./auth-routes.js";
 import { ChatRoutes } from "./chat-routes.js";
 import { FileRoutes } from "./files.js";
+import { QuoteRoutes } from "./quote-routes.js";
+import { SkillRoutes } from "./skills-routes.js";
 import { ConsoleGatewayLive } from "./console-gateway.js";
 
 const Routes = HttpRouter.use(Effect.fn("Health.routes")(function* (router) {
@@ -14,9 +16,13 @@ const Routes = HttpRouter.use(Effect.fn("Health.routes")(function* (router) {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const path = new URL(request.url, "http://camenae.invalid").pathname;
 
-    if (request.method === "POST" && path === "/api/files") return yield* handler;
+    // Only file uploads stream a large body, bounded again by their own route.
+    if (request.method === "POST" && path === "/api/files/upload") return yield* handler;
 
-    if (Number(request.headers["content-length"] ?? 0) > 16 * 1024) return HttpServerResponse.empty({ status: 413 });
+    // A skill is up to 64 KiB of text, and JSON escaping can multiply that; everything else stays at 16 KiB.
+    const limit = path === "/api/skills/save" ? 256 * 1024 : 16 * 1024;
+
+    if (Number(request.headers["content-length"] ?? 0) > limit) return HttpServerResponse.empty({ status: 413 });
 
     // Bun does not expose GET/HEAD bodies to its readers. Refuse chunked
     // framing on these bodyless endpoints rather than accepting unchecked data.
@@ -27,7 +33,7 @@ const Routes = HttpRouter.use(Effect.fn("Health.routes")(function* (router) {
 
     if (text === undefined) return HttpServerResponse.empty({ status: 400 });
 
-    if (Buffer.byteLength(text) > 16 * 1024) return HttpServerResponse.empty({ status: 413 });
+    if (Buffer.byteLength(text) > limit) return HttpServerResponse.empty({ status: 413 });
 
     return yield* handler;
   }));
@@ -48,13 +54,12 @@ const Transport = Layer.unwrap(Effect.gen(function* () {
 
   return BunHttpServer.layer({
     hostname: settings.host, port: settings.port,
-    // A 64 KiB text upload can expand sixfold when JSON escapes control characters.
-    // Individual route schemas retain their own smaller input limits.
-    maxRequestBodySize: 512 * 1024,
+    // Room for the 15 MiB upload limit; every other route is held to 16 KiB by the middleware above.
+    maxRequestBodySize: 16 * 1024 * 1024,
     gracefulShutdownTimeout: "10 seconds",
   });
 }));
 
-export const ServerLive = HttpRouter.serve(Layer.mergeAll(Routes, AuthRoutes, ChatRoutes, FileRoutes, ConsoleGatewayLive), { disableLogger: true }).pipe(
+export const ServerLive = HttpRouter.serve(Layer.mergeAll(Routes, AuthRoutes, ChatRoutes, FileRoutes, SkillRoutes, QuoteRoutes, ConsoleGatewayLive), { disableLogger: true }).pipe(
   Layer.provide(Transport),
 );
