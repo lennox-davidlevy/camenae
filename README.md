@@ -27,7 +27,7 @@ published registry release and is **not included in this source repository**. Ob
 the [OpenCode archive](docs/OPENCODE.md#exact-local-dependency) before starting.
 
 ```sh
-bun run sdk:stage /path/to/camenae-opencode-0.1.0-b24e73923802.tgz
+bun run sdk:stage /path/to/camenae-opencode-0.2.0-b2c0d67d6050.tgz
 bun install --frozen-lockfile
 bun run dev:init
 bun run auth:init

@@ -28,6 +28,7 @@
 .tool-activity-details { margin: 8px 0 6px; background: var(--deep-ink); color: var(--panel-text); padding: 14px 16px; font: 400 12px/1.6 var(--mono-font); overflow-wrap: anywhere; }
 .tool-activity-details p { margin: 0; }
 .tool-activity-details p + p { margin-top: 8px; }
+.chat-reasoning-text { white-space: pre-wrap; }
 .chat-markdown { font-size: 17px; line-height: 1.45; overflow-wrap: anywhere; min-width: 0; }
 .chat-markdown > :first-child { margin-top: 0; }
 .chat-markdown > :last-child { margin-bottom: 0; }

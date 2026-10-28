@@ -5,9 +5,11 @@
     "": {
       "name": "camenae",
       "dependencies": {
-        "@camenae/opencode": "./.cache/sdk/camenae-opencode-0.1.0-b24e73923802.tgz",
+        "@camenae/opencode": "./.cache/sdk/camenae-opencode-0.2.0-b2c0d67d6050.tgz",
         "@effect/platform-bun": "4.0.0-rc.118",
         "@effect/sql-pg": "4.0.0-rc.118",
+        "@json-render/core": "0.21.3",
+        "@json-render/solid": "0.21.3",
         "@opencode/plugin": "2.0.23",
         "dompurify": "3.4.17",
         "effect": "4.0.0-rc.118",
@@ -132,7 +134,7 @@
 
     "@babel/types": ["@babel/types@7.29.11", "", { "dependencies": { "@babel/helper-string-parser": "^7.29.11", "@babel/helper-validator-identifier": "^7.29.7" } }, "sha512-WCsemW40Cpc6gouC1SrY6PBaZ+oLRlEVY9XBvZBI7il/HyUrb2nJ505wE1MHEFyDZNnrWDEuy4jL50WVHfTTSQ=="],
 
-    "@camenae/opencode": ["@camenae/opencode@./.cache/sdk/camenae-opencode-0.1.0-b24e73923802.tgz", { "dependencies": { "@opencode/client": "2.0.23", "@opencode/sdk": "2.0.23", "@opencode/server": "2.0.23", "effect": "4.0.0-rc.112" } }, "sha512-xjC24RJDAzJDj1/Ub2G+h5PNt/k9H08r7cbLhfDBQeEYy0Y5ALNjH/nljlzfr1zDqlE+5nPifbKUm/hU/E22Fg=="],
+    "@camenae/opencode": ["@camenae/opencode@./.cache/sdk/camenae-opencode-0.2.0-b2c0d67d6050.tgz", { "dependencies": { "@opencode/client": "2.0.23", "@opencode/sdk": "2.0.23", "@opencode/server": "2.0.23", "effect": "4.0.0-rc.112" } }, "sha512-RmPTMQJfhKWX/0b0S2Gk/BBkCsfAWSOMUEQ6a/Xi5U9MNYNqLPTalhQ5rVnxnzwQAZeFFqiLouMjEXsdZg2CQA=="],
 
     "@effect/opentelemetry": ["@effect/opentelemetry@4.0.0-rc.112", "", { "peerDependencies": { "@opentelemetry/api": ">=1.9.0 <2.0.0", "@opentelemetry/api-logs": ">=0.203.0 <0.300.0", "@opentelemetry/resources": ">=2.0.0 <3.0.0", "@opentelemetry/sdk-logs": ">=0.203.0 <0.300.0", "@opentelemetry/sdk-metrics": ">=2.0.0 <3.0.0", "@opentelemetry/sdk-trace-base": ">=2.0.0 <3.0.0", "@opentelemetry/sdk-trace-node": ">=2.0.0 <3.0.0", "@opentelemetry/sdk-trace-web": ">=2.0.0 <3.0.0", "@opentelemetry/semantic-conventions": ">=1.33.0 <2.0.0", "effect": "^4.0.0-rc.112" }, "optionalPeers": ["@opentelemetry/api", "@opentelemetry/api-logs", "@opentelemetry/resources", "@opentelemetry/sdk-logs", "@opentelemetry/sdk-metrics", "@opentelemetry/sdk-trace-base", "@opentelemetry/sdk-trace-node", "@opentelemetry/sdk-trace-web"] }, "sha512-OTRv1DxTHUmnakgJ6XVM8wVgF1KgZH4UXnOemwSLUwUjXO+RCikzF8oR/rlVmOGq81KtQzj1URM4M4nchlQOuQ=="],
 
@@ -191,6 +193,10 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.6.0", "", {}, "sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
+
+    "@json-render/core": ["@json-render/core@0.21.3", "", { "dependencies": { "zod": "^4.3.6" } }, "sha512-sgzPtRhRB5wkhrbLtPm9bAhna5Q0x/U0vUpb3S/VEutouWEvvZRebHhpM5XiEjRM5Shv4W70VMZ8pGcGcz7j+A=="],
+
+    "@json-render/solid": ["@json-render/solid@0.21.3", "", { "dependencies": { "@json-render/core": "0.21.3" }, "peerDependencies": { "solid-js": "^1.9.0", "zod": "^4.0.0" } }, "sha512-QgSuEOkLoVBqu1De7HWgLlo6kbCnx0b4ec9ZrMiC+ZDiheKOsfaClQZF1vYNHNOMh3MoRACkbSMlh/jprBfQ2A=="],
 
     "@lydell/node-pty": ["@lydell/node-pty@1.2.0-beta.12", "", { "optionalDependencies": { "@lydell/node-pty-darwin-arm64": "1.2.0-beta.12", "@lydell/node-pty-darwin-x64": "1.2.0-beta.12", "@lydell/node-pty-linux-arm64": "1.2.0-beta.12", "@lydell/node-pty-linux-x64": "1.2.0-beta.12", "@lydell/node-pty-win32-arm64": "1.2.0-beta.12", "@lydell/node-pty-win32-x64": "1.2.0-beta.12" } }, "sha512-qIK890UwPupoj07osVvgOIa++1mxeHbcGry4PKRHhNVNs81V2SCG34eJr46GybiOmBtc8Sj5PB1/GGM5PL549g=="],
 

@@ -15,12 +15,13 @@ TypeScript/Oxlint is required.
 Obtain the exact [SDK delivery](OPENCODE.md#exact-local-dependency), then:
 
 ```sh
-bun run sdk:stage /path/to/camenae-opencode-0.1.0-b24e73923802.tgz
+bun run sdk:stage /path/to/camenae-opencode-0.2.0-b2c0d67d6050.tgz
 bun install --frozen-lockfile
 bun run lint
 bun run typecheck
 bun run check:docs
 bun run build:app
+bun run test:apps
 bun run test:provisioning
 bun run test:dev-ui
 bun run test:threads
@@ -48,11 +49,12 @@ image tags and test subnets are shared. All suites use only synthetic provider d
 | --- | --- |
 | lint/typecheck/build | Configured rules (including vendored plugins), TS/TSX contracts, production browser bundles |
 | check:docs | Relative Markdown file/anchor links throughout selected source |
+| test:apps | App definition checks (hostile and careless definitions refused with a reason) and entry value validation; no DOM or database |
 | test:provisioning | Actual init entrypoints with no pre-existing cache, private file modes, and byte-preserving refusal to overwrite |
 | test:dev-ui | `dev:app --backend` loopback proxy: Host/Origin guards, cookies, forwarding, SSE streaming with a synthetic backend |
 | test:threads | Local-calendar thread grouping across week/year/DST boundaries |
 | test:images | Resolve all smoke Compose stacks: stable test tags/cleanup labels, isolated project state, unchanged deployment images; no services started |
-| smoke:foundation | Real Docker/Postgres: authentication, file boundaries, ingress/app network isolation, worker egress denial, DNS recovery, state retention across replacement, readiness and shutdown; skill routes, guards, and harness visibility after a location reload |
+| smoke:foundation | Real Docker/Postgres: authentication, file boundaries, ingress/app network isolation, worker egress denial, DNS recovery, state retention across replacement, readiness and shutdown; skill routes, guards, and harness visibility after a location reload; app routes, guards, value checks, an entry round trip, and entries surviving stack replacement |
 | smoke:opencode | Real Docker/Postgres/native OpenCode with a local model fixture: streaming, one-time approval, workspace tool, cancellation, failed requests, session reopening, old-worker retirement |
 | smoke:console | Real HTTP/Postgres/native OpenCode: encrypted Settings credential, strict free-only gateway, atomic persistent request cap; synthetic provider, no egress service |
 
@@ -107,8 +109,9 @@ The shell has thread grouping, resizable panels, and a chat view: message list w
 sanitized Markdown, tool activity, approval cards, a composer with per-conversation
 drafts, stop, new chat, a per-conversation model picker, a usage panel, a server-sent-event stream with follow-the-bottom
 scrolling, and a Settings screen for the provider key and request allowance. In fixture mode the dev server simulates turns in memory: any message
-streams a reply; include `approve` to trigger an approval card and `markdown` for
-hostile Markdown. Attachments and files are not built in it; its Skills use the real storage code over a throwaway directory. Close any browser you opened and stop the server when
+streams a short "Thinking" block and then a reply; include `approve` to trigger an
+approval card, `retry` to show the provider-retry notice for three seconds, and
+`markdown` for hostile Markdown. Attachments and files are not built in it; its Skills use the real storage code over a throwaway directory. It also serves the seeded game backlog under **Backlog** in the navigation, using the application's own definition and value checks over entries held in memory (they reset when the server restarts). Close any browser you opened and stop the server when
 finished.
 
 For browser checks against a real backend without inference, start a separate

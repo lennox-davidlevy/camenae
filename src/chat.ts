@@ -45,6 +45,8 @@ interface LiveConnection {
   usage: Map<string, SessionUsage>;
   title?: { session: string; value: string };
   titleRevision: number;
+  /** Skills changed while this connection was open; the harness reloads them before the next turn. */
+  skillsStale: boolean;
 }
 
 interface Initialization {
@@ -65,6 +67,7 @@ export class Chat extends Context.Service<Chat, {
   readonly start: (token: string, csrf: string, id: string, prompt: string, attachments?: string[]) => Effect.Effect<void, ChatFailure>;
   readonly cancel: (token: string, csrf: string, id: string) => Effect.Effect<void, ChatFailure>;
   readonly approve: (token: string, csrf: string, id: string, permissionId: string, optionId: string | null) => Effect.Effect<void, ChatFailure>;
+  readonly skillsChanged: Effect.Effect<void>;
 }>()("camenae/Chat") {
   static readonly layer = Layer.effect(Chat, Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -180,7 +183,7 @@ export class Chat extends Context.Service<Chat, {
         }).pipe(Scope.provide(connectionScope),
           Effect.onError(() => Scope.close(connectionScope, Exit.void)));
 
-        const connection: LiveConnection = { scope: connectionScope, client, token, csrf, key, healthy: true, usage: new Map(), titleRevision: 0 };
+        const connection: LiveConnection = { scope: connectionScope, client, token, csrf, key, healthy: true, usage: new Map(), titleRevision: 0, skillsStale: false };
         live = connection;
 
         const unsubscribe = client.subscribe((event) => {
@@ -252,7 +255,7 @@ export class Chat extends Context.Service<Chat, {
     yield* sql`UPDATE turn SET status = 'interrupted', permission = NULL WHERE status = 'running'`;
 
     const save = Effect.fn("Chat.save")(function* (turn: Turn) {
-      yield* sql`UPDATE turn SET answer = ${turn.answer}, activity = ${JSON.stringify(turn.activity)}::jsonb,
+      yield* sql`UPDATE turn SET answer = ${turn.answer}, reasoning = ${turn.reasoning}, retry = ${turn.retry ? JSON.stringify(turn.retry) : null}::jsonb, activity = ${JSON.stringify(turn.activity)}::jsonb,
         permission = ${turn.permission ? JSON.stringify(turn.permission) : null}::jsonb, status = ${turn.status},
         stop_reason = ${turn.stop_reason} WHERE id = ${turn.id} AND status = 'running'`;
     }, Effect.mapError(() => new ChatError()));
@@ -305,7 +308,7 @@ export class Chat extends Context.Service<Chat, {
       if (!conversation) return yield* new ChatError();
       const harness = conversation.harness;
 
-      const turns = yield* sql`SELECT id, ordinal, prompt, answer, activity, permission, status, stop_reason, attachments
+      const turns = yield* sql`SELECT id, ordinal, prompt, answer, reasoning, retry, activity, permission, status, stop_reason, attachments
         FROM turn WHERE conversation_id = ${id} ORDER BY ordinal`
         .pipe(Effect.mapError(() => new ChatError()));
 
@@ -383,11 +386,18 @@ export class Chat extends Context.Service<Chat, {
       task: ActiveTurn, token: string, csrf: string, conversation: string,
     ) {
       let overflow = false;
+      let reasoningBlock: string | undefined;
       const turn = task.turn;
 
       const work = Effect.scoped(Effect.gen(function* () {
         const { connection, sessionId: promptSessionId } = yield* loadSession(task, token, csrf, conversation);
         const client = connection.client;
+
+        // A new connection already reads the current skills. Reload only between turns: it cancels pending approvals.
+        if (connection.skillsStale) {
+          connection.skillsStale = false;
+          yield* Effect.tryPromise(() => client.reload());
+        }
 
         const unsubscribe = client.subscribe((event) => {
           if (event.type === "unavailable" || event.session !== promptSessionId) return;
@@ -408,6 +418,22 @@ export class Chat extends Context.Service<Chat, {
           if (event.type === "text") {
             if (Buffer.byteLength(turn.answer) + Buffer.byteLength(event.text) > 256 * 1024) overflow = true;
             else turn.answer += event.text;
+            turn.retry = null;
+            task.dirty = true;
+          }
+
+          // Reasoning past the limit is dropped rather than failing the answer.
+          if (event.type === "reasoning") {
+            const text = turn.reasoning && reasoningBlock !== event.block ? `\n\n${event.text}` : event.text;
+            reasoningBlock = event.block;
+
+            if (Buffer.byteLength(turn.reasoning) + Buffer.byteLength(text) <= 256 * 1024) turn.reasoning += text;
+            turn.retry = null;
+            task.dirty = true;
+          }
+
+          if (event.type === "retry") {
+            turn.retry = event.retry;
             task.dirty = true;
           }
 
@@ -454,6 +480,7 @@ export class Chat extends Context.Service<Chat, {
         Effect.ensuring(Effect.gen(function* () {
           if (turn.status === "running") turn.status = task.cancelled ? "cancelled" : "interrupted";
           turn.permission = null;
+          turn.retry = null;
           // Retain the terminal persistence obligation if the database is down.
           // The next admission retries only this write, never the harness prompt.
           yield* save(turn).pipe(
@@ -472,7 +499,7 @@ export class Chat extends Context.Service<Chat, {
       if (active) return yield* new ChatBusy();
 
       const task: ActiveTurn = { conversation: id, cancelled: false, dirty: false, persistenceFailed: false, permissions: [], turn: {
-        id: randomUUID(), ordinal: 0, prompt, answer: "", activity: [], attachments: [], permission: null, status: "running", stop_reason: null,
+        id: randomUUID(), ordinal: 0, prompt, answer: "", reasoning: "", retry: null, activity: [], attachments: [], permission: null, status: "running", stop_reason: null,
       } };
 
       active = task;
@@ -549,6 +576,8 @@ export class Chat extends Context.Service<Chat, {
       task.dirty = true;
     });
 
-    return Chat.of({ list, connectionStatus, create, prepare, selectModel, view, start, cancel, approve });
+    const skillsChanged = Effect.sync(() => { if (live) live.skillsStale = true; });
+
+    return Chat.of({ list, connectionStatus, create, prepare, selectModel, view, start, cancel, approve, skillsChanged });
   }).pipe(Effect.mapError(() => new ChatError())));
 }

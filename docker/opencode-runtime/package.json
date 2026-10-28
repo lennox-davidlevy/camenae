@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@camenae/opencode": "file:../../.cache/sdk/camenae-opencode-0.1.0-b24e73923802.tgz",
+    "@camenae/opencode": "file:../../.cache/sdk/camenae-opencode-0.2.0-b2c0d67d6050.tgz",
     "@opencode/plugin": "2.0.23",
     "zod": "4.6.5"
   },

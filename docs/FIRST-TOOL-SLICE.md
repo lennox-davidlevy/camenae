@@ -1,8 +1,8 @@
 # First slice: an app shaped by conversation
 
-Status: design proposed on 2026-10-26, owner decisions recorded the same day. Nothing
-here is implemented. Step 1 is prepared but not started; each step needs its own
-go-ahead. It is the first bounded step toward the
+Status: design proposed on 2026-10-26, owner decisions recorded the same day. Step 1 was
+built in source on 2026-10-28 (see [step 1](#step-1-built-in-source-2026-10-28)); it is
+not deployed or accepted. Steps 2 to 4 are not started, and each needs its own go-ahead. It is the first bounded step toward the
 [product end state](PRODUCT.md#intended-end-state) and follows the
 [target architecture](CONVERSATIONAL-PLUGINS.md) and the roadmap's
 [first bounded engineering proof](ROADMAP.md#first-bounded-engineering-proof).
@@ -211,7 +211,35 @@ the command. It needs a small, separately approved spend.
 
 Each step ends usable and tested; step 1 alone already gives a working app.
 
-## Step 1 plan (prepared, not started)
+## Step 1 (built in source, 2026-10-28)
+
+What exists: `@json-render/core` and `@json-render/solid` 0.21.3, pinned exactly (the
+0.21.2 and 0.21.3 release notes are bug fixes only, nothing about repeats or filters).
+Also built: the contract, migration 014, store and routes; the hand-written backlog
+seed; the catalog (Page, Section, Columns, Table, EntryForm, Stat); and the app screen.
+Apps sit in the navigation after the built-in screens. Checked by `test:apps`, by
+`tests/apps.ts` in `smoke:foundation` on a disposable stack (guards, validation, round
+trip, entries kept across stack replacement), and in a headless browser against the dev
+fixture (add, filter, inline edit, muted rows, delete with confirmation, phone width).
+Not checked: a browser against a disposable stack, the installed stack, or the owner.
+
+Differences from the plan below:
+
+- Data components call the entry routes directly, and only for actions the definition
+  declares. They do not go through json-render actions, so a definition cannot build
+  arbitrary requests. The spec subset allows no `visible`, `repeat`, `on`, `watch` or
+  state expressions yet.
+- Filtering, sorting and grouping are props of Table, done in the browser (the plan's
+  default). Card grid, list, tabs and a standalone button are not in the catalog yet.
+- Tables are named `app` and `app_entry`, singular like the existing tables.
+- The dev fixture keeps entries in memory using the real definition and value checks,
+  so `dev:app` stays Docker-free. Postgres is covered by `tests/apps.ts`.
+- The renderer test covers the props check and refuses unknown components without a
+  DOM. It does not draw json-render, so the filtered-row case was not re-run: that needs
+  a DOM test library, which is not an approved dependency.
+- The seed exists in development and tests only (the plan's default).
+
+### The plan as prepared
 
 Goal: a backlog app you use by hand, drawn by json-render from a hand-written
 definition, with entries that survive restarts.

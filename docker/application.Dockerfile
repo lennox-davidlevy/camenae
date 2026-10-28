@@ -5,8 +5,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 COPY package.json bun.lock bunfig.toml ./
-COPY .cache/sdk/camenae-opencode-0.1.0-b24e73923802.tgz .cache/sdk/camenae-opencode-0.1.0-b24e73923802.tgz
-RUN echo 'b24e7392380263b72f1db9cdcb266b677dbd3ceddcc9bfe35dafc1d8f7839e22  .cache/sdk/camenae-opencode-0.1.0-b24e73923802.tgz' | sha256sum -c -
+COPY .cache/sdk/camenae-opencode-0.2.0-b2c0d67d6050.tgz .cache/sdk/camenae-opencode-0.2.0-b2c0d67d6050.tgz
+RUN echo 'b2c0d67d6050055115dcbda4bb1f7b94ef57417ba90b42d9f7afa21c6c49fa03  .cache/sdk/camenae-opencode-0.2.0-b2c0d67d6050.tgz' | sha256sum -c -
 RUN bun install --frozen-lockfile
 COPY docker/opencode-runtime/package.json docker/opencode-runtime/bun.lock docker/opencode-runtime/
 RUN cd docker/opencode-runtime && bun install --frozen-lockfile

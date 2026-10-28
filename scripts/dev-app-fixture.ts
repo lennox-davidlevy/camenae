@@ -3,6 +3,7 @@ import type { Plugin } from "vite";
 import { AttachmentPaths } from "../src/file-contract.js";
 import { filesRoute, fixtureFileSize } from "./dev-app-files.js";
 import { skillsRoute } from "./dev-app-skills.js";
+import { appsRoute } from "./dev-app-apps.js";
 import { z } from "zod";
 import type { ChatView, Conversation, Turn } from "../src/chat-contract.js";
 import { ConsoleModel, consoleExhausted, consoleModel, SaveConsoleBudget, SaveConsoleSettings } from "../src/console-contract.js";
@@ -49,7 +50,7 @@ const conversation = (id: string, title: string, harness: "opencode", age: numbe
 });
 
 const finished = (ordinal: number, prompt: string, answer: string): Turn => ({
-  id: crypto.randomUUID(), ordinal, prompt, answer, activity: [{ id: `seed-${ordinal}`, title: "Read file · notes.md", status: "completed" }],
+  id: crypto.randomUUID(), ordinal, prompt, answer, reasoning: "The user wants a reply; keep it short.", retry: null, activity: [{ id: `seed-${ordinal}`, title: "Read file · notes.md", status: "completed" }],
   permission: null, attachments: [], status: "completed", stop_reason: "end_turn",
 });
 
@@ -91,6 +92,21 @@ const words = (prompt: string) => (prompt.includes("markdown") ? hostile : `You 
 
 const run = async (chat: Chat, turn: Turn) => {
   const live = () => turn.status === "running";
+
+  // A prompt containing "retry" shows the notice for a provider that asked the harness to wait.
+  if (turn.prompt.includes("retry")) {
+    turn.retry = { attempt: 2, at: Date.now() + 3000, category: "rate-limit", status: 429 };
+    push(chat);
+    await sleep(3000);
+    turn.retry = null;
+  }
+
+  for (const word of "Working out what was asked before answering.".split(/(\s+)/)) {
+    if (!live()) return;
+    turn.reasoning += word;
+    push(chat);
+    await sleep(40);
+  }
 
   await sleep(250);
   turn.activity.push({ id: `${turn.id}-read`, title: "Read file · notes.md", status: "completed" });
@@ -281,7 +297,7 @@ const route = async (request: IncomingMessage, response: ServerResponse, path: s
     if (attached.some((file) => file.size === undefined)) return json(response, { error: "Attachment unavailable" }, 400);
     provider.used += 1;
 
-    const turn: Turn = { id: crypto.randomUUID(), ordinal: chat.turns.length + 1, prompt: start.prompt, answer: "", activity: [], permission: null,
+    const turn: Turn = { id: crypto.randomUUID(), ordinal: chat.turns.length + 1, prompt: start.prompt, answer: "", reasoning: "", retry: null, activity: [], permission: null,
       attachments: attached.flatMap((file) => file.size === undefined ? [] : [{ path: file.path, size: file.size }]), status: "running", stop_reason: null };
 
     chat.turns.push(turn);
@@ -314,6 +330,12 @@ export const fixtureBackend: Plugin = {
 
       if (path === "/api/quote") {
         void quoteRoute(response);
+
+        return undefined;
+      }
+
+      if (path.startsWith("/api/apps")) {
+        void appsRoute(request, response, path);
 
         return undefined;
       }

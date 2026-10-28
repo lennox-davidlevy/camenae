@@ -22,6 +22,7 @@
     "quotes:lore": "bun tools/quotes/lexicanum.ts",
     "quotes:build-lore": "bun tools/quotes/lore-build.ts",
     "test:quotes": "bun tools/quotes/test.ts",
+    "test:apps": "bun tests/apps-catalog.ts",
     "test:threads": "TZ=America/New_York bun tests/thread-groups.ts",
     "test:dev-ui": "bun tests/dev-ui.ts",
     "test:provisioning": "bun tests/provisioning.ts",
@@ -31,9 +32,11 @@
     "smoke:console": "sh scripts/smoke-console.sh"
   },
   "dependencies": {
-    "@camenae/opencode": "./.cache/sdk/camenae-opencode-0.1.0-b24e73923802.tgz",
+    "@camenae/opencode": "./.cache/sdk/camenae-opencode-0.2.0-b2c0d67d6050.tgz",
     "@effect/platform-bun": "4.0.0-rc.118",
     "@effect/sql-pg": "4.0.0-rc.118",
+    "@json-render/core": "0.21.3",
+    "@json-render/solid": "0.21.3",
     "@opencode/plugin": "2.0.23",
     "dompurify": "3.4.17",
     "effect": "4.0.0-rc.118",

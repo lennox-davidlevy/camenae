@@ -8,8 +8,8 @@ require the worker-root overrides in `docker/opencode-runtime/package.json`.
 
 ## Exact local dependency
 
-Stage `camenae-opencode-0.1.0-b24e73923802.tgz` using `bun run sdk:stage <archive>`.
-SHA-256: `b24e7392380263b72f1db9cdcb266b677dbd3ceddcc9bfe35dafc1d8f7839e22`.
+Stage `camenae-opencode-0.2.0-b2c0d67d6050.tgz` using `bun run sdk:stage <archive>`.
+SHA-256: `b2c0d67d6050055115dcbda4bb1f7b94ef57417ba90b42d9f7afa21c6c49fa03`.
 The archive is required for a fresh application image and does not belong in source
 exports.
 
@@ -56,6 +56,17 @@ the SDK archive's native lifecycle path has separately passed under Node 24.
   cause native approval prompts.
 - USD/token usage is native OpenCode accounting, not context occupancy or a
   provider invoice. Native sessions persist independently of worker lifetime.
+- Answer text, reasoning and provider retries come from the SDK's typed `stream`.
+  Reasoning is stored apart from the answer (turn column `reasoning`, capped at
+  256 KiB and then dropped, never failing the answer) and shown as plain text in a
+  collapsed "Thinking" box. A `retry.scheduled` event is stored as the turn's
+  `retry` (attempt, time, closed category, HTTP status) and shown while the turn
+  waits; it clears when text arrives or the turn ends. The provider's message and
+  body never reach the application.
+- The worker runs without a file watcher. A skills write marks the open connection
+  stale, and Chat calls `reload()` on it just before that connection's next prompt,
+  so a reload never runs during a turn (it would cancel pending approvals). A new
+  connection needs no reload: acquiring one starts a new worker lifetime.
 
 Full task sandbox orchestration, dynamic skills/capability management and a
 mandatory cross-harness SDK API remain out of scope.

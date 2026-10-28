@@ -84,7 +84,9 @@ not evidence that production TLS/reverse-proxy deployment has been validated.
    `.env` by hand if it is missing; `dev:init` never overwrites that file.
 3. Migration 013 permanently deletes conversations that belong to a retired harness
    and drops obsolete tables. It runs automatically on the first start and cannot be
-   undone; restore a backup if that was not intended.
+   undone; restore a backup if that was not intended. Migration 014 only adds the empty
+   `app` and `app_entry` tables. Migration 015 adds the `reasoning` and `retry` columns
+   to `turn`; existing turns get empty reasoning and no retry.
 4. Validate and build with the approved dependency. Replace idle app and worker
    together, ending the complete old worker lifetime:
 

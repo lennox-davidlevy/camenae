@@ -45,9 +45,9 @@ const client = await OpenCode.connect({ baseUrl: settings.CAMENAE_OPENCODE_URL, 
   workspace: "/data/workspace", model: { providerID: "camenae", id: "big-pickle" } });
 
 // The SDK's worker runs OpenCode without a file watcher, so the harness reads skills when it loads the
-// workspace location. Evicting the location (as the ownership test does) forces that reload.
+// workspace location; reload() rebuilds it. The chat itself reloads before its next turn (tests/opencode-chat.ts).
 const visible = async (expected: boolean) => {
-  await client.native.debug.location.evict({ location: { directory: "/data/workspace" } });
+  await client.reload();
 
   for (let attempt = 0; attempt < 30; attempt++) {
     const listed = await client.native.skill.list({ location: { directory: "/data/workspace" } });

@@ -11,6 +11,8 @@ import consoleBudgetModelMigration from "./migrations/010-console-budget-model.j
 import threadActivityMigration from "./migrations/011-thread-activity.js";
 import turnAttachmentsMigration from "./migrations/012-turn-attachments.js";
 import retireLegacyHarnessMigration from "./migrations/013-retire-legacy-harness.js";
+import appsMigration from "./migrations/014-apps.js";
+import turnReasoningMigration from "./migrations/015-turn-reasoning.js";
 
 export class DatabaseError extends Schema.TaggedError<DatabaseError>()("DatabaseError", {}) {}
 
@@ -32,6 +34,8 @@ export class Installation extends Context.Service<Installation, {
       "011_thread_activity": threadActivityMigration,
       "012_turn_attachments": turnAttachmentsMigration,
       "013_retire_legacy_harness": retireLegacyHarnessMigration,
+      "014_apps": appsMigration,
+      "015_turn_reasoning": turnReasoningMigration,
     }) });
     const parsed = InstallationRows.safeParse(yield* sql`SELECT id FROM installation WHERE singleton = true`);
     const row = parsed.success ? parsed.data[0] : undefined;

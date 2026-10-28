@@ -11,8 +11,16 @@ export const Permission = z.object({
   options: z.array(z.object({ optionId: z.string(), name: z.string(), kind: z.string() })),
 });
 
+// A closed set from the harness integration; provider messages and bodies are never stored.
+export const RetryCategory = z.enum(["rate-limit", "provider-internal", "transport", "timeout", "invalid-output", "auth", "quota", "content-filter", "invalid-request", "unknown"]);
+
+export const Retry = z.object({
+  attempt: z.number().int().min(2), at: z.number().nonnegative(), category: RetryCategory, status: z.number().int().min(100).max(599).optional(),
+});
+
 export const Turn = z.object({
-  id: z.uuid(), ordinal: z.number().int(), prompt: z.string(), answer: z.string(),
+  id: z.uuid(), ordinal: z.number().int(), prompt: z.string(), answer: z.string(), reasoning: z.string().default(""),
+  retry: Retry.nullable().default(null),
   activity: z.array(Activity), permission: Permission.nullable(),
   attachments: z.array(FileAttachment).default([]),
   status: z.enum(["running", "completed", "cancelled", "failed", "interrupted"]),
@@ -48,3 +56,5 @@ export type ChatView = z.infer<typeof ChatView>;
 export type Permission = z.infer<typeof Permission>;
 
 export type Activity = z.infer<typeof Activity>;
+
+export type Retry = z.infer<typeof Retry>;

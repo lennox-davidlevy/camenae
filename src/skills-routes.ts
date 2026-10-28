@@ -1,6 +1,7 @@
 import { Effect, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import type { z } from "zod";
+import { Chat } from "./chat.js";
 import { AccessDenied, Identity, IdentityError } from "./identity.js";
 import { EnableSkill, FailureCode, failureMessages, RemoveSkill, SaveSkill } from "./skills-contract.js";
 import { enableSkill, listSkills, removeSkill, saveSkill, SkillProblem } from "./skills-store.js";
@@ -12,6 +13,7 @@ const statuses = { INVALID: 400, NOT_FOUND: 404, EXISTS: 409, TOO_MANY: 409 } sa
 
 export const SkillRoutes = HttpRouter.use(Effect.fn("Skills.routes")(function* (router) {
   const identity = yield* Identity;
+  const chat = yield* Chat;
   const { skills } = yield* Workspace;
   const headers = { "cache-control": "no-store", "x-content-type-options": "nosniff" };
   const cookie = identity.secureCookie ? "__Host-camenae" : "camenae-local";
@@ -56,6 +58,8 @@ export const SkillRoutes = HttpRouter.use(Effect.fn("Skills.routes")(function* (
     if (!parsed.success) return yield* new SkillFailure({ code: "INVALID" });
     yield* identity.authorize(token, parsed.data.csrf);
     yield* run(() => apply(parsed.data));
+    // The harness picks the change up before its next turn, never during one.
+    yield* chat.skillsChanged;
 
     return json({ ok: true });
   });

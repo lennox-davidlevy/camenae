@@ -8,11 +8,15 @@ const receipts: { toolResult: boolean; resumed: boolean }[] = [];
 
 let failures = 0;
 
-function stream(delta: { content?: string; tool_calls?: { index: number; id: string; type: string; function: { name: string; arguments: string } }[] }, finish: string) {
-  const id = randomUUID();
-  const chunk = (value: typeof delta, reason: string | null) => `data: ${JSON.stringify({ id, object: "chat.completion.chunk", created: 1, model: "assistant", choices: [{ index: 0, delta: value, finish_reason: reason }] })}\n\n`;
+let rateLimited = false;
 
-  return new Response(chunk(delta, null) + chunk({}, finish) + "data: [DONE]\n\n", { headers: { "content-type": "text/event-stream" } });
+interface Delta { content?: string; reasoning_content?: string; tool_calls?: { index: number; id: string; type: string; function: { name: string; arguments: string } }[] }
+
+function stream(delta: Delta | Delta[], finish: string) {
+  const id = randomUUID();
+  const chunk = (value: Delta, reason: string | null) => `data: ${JSON.stringify({ id, object: "chat.completion.chunk", created: 1, model: "assistant", choices: [{ index: 0, delta: value, finish_reason: reason }] })}\n\n`;
+
+  return new Response([delta].flat().map((value) => chunk(value, null)).join("") + chunk({}, finish) + "data: [DONE]\n\n", { headers: { "content-type": "text/event-stream" } });
 }
 
 Bun.serve({ hostname: "0.0.0.0", port: 3003, async fetch(request) {
@@ -29,6 +33,22 @@ Bun.serve({ hostname: "0.0.0.0", port: 3003, async fetch(request) {
 
     return new Response("Synthetic refusal", { status: 400 });
   }
+
+  if (prompt.includes("reasoning-task") && body.tools) return stream([{ reasoning_content: "plan A" }, { reasoning_content: " step" }, { content: "Reasoned answer" }], "stop");
+
+  // The first attempt is rate limited with a provider message that must never reach the application.
+  if (prompt.includes("retry-task") && body.tools) {
+    if (!rateLimited) {
+      rateLimited = true;
+
+      return new Response(JSON.stringify({ error: { message: "synthetic-provider-secret" } }), { status: 429, headers: { "content-type": "application/json", "retry-after": "1" } });
+    }
+
+    return stream({ content: "Retried answer" }, "stop");
+  }
+
+  // Whether the harness offered the skill the application enabled before this turn.
+  if (prompt.includes("skill-check") && body.tools) return stream({ content: JSON.stringify(body).includes("chat-probe-skill") ? "Skill visible" : "Skill missing" }, "stop");
 
   if (prompt.includes("oversized-task") && !tool) return stream({ tool_calls: [{ index: 0, id: `call_${randomUUID()}`, type: "function",
     function: { name: "shell", arguments: JSON.stringify({ command: `echo ${"x".repeat(4100)}` }) } }] }, "tool_calls");

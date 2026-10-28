@@ -12,7 +12,7 @@ const base = "http://127.0.0.1:3000";
 
 const bootstrap = z.object({ csrf: z.string(), harness: z.literal("opencode"), stored: z.literal(true) }).parse(await (await fetch(`${base}/api/chat`, { headers: { cookie: saved.cookie } })).json());
 
-async function post(path: string, input: { prompt?: string; turnId?: string; permissionId?: string; optionId?: string }) {
+async function post(path: string, input: { prompt?: string; turnId?: string; permissionId?: string; optionId?: string; name?: string; content?: string; enabled?: boolean }) {
   const response = await fetch(base + path, { method: "POST", headers: { cookie: saved.cookie, origin: base, "content-type": "application/json" },
     body: JSON.stringify({ ...input, csrf: bootstrap.csrf }), signal: AbortSignal.timeout(40_000) });
 
@@ -70,6 +70,31 @@ if (process.argv[2] === "failure") {
   await post(`/api/chat/${conversation}`, { prompt: "capability" });
   const capability = await wait(conversation, (snapshot) => snapshot.turns.at(-1)?.status !== "running");
   assert.equal(capability.turns.at(-1)?.answer, "Capability saw capability-marker.txt");
+
+  // Reasoning is kept apart from the answer.
+  await post(`/api/chat/${conversation}`, { prompt: "reasoning-task" });
+  const reasoned = (await wait(conversation, (snapshot) => snapshot.turns.at(-1)?.status !== "running")).turns.at(-1);
+  assert.equal(reasoned?.answer, "Reasoned answer");
+  assert.equal(reasoned.reasoning, "plan A step");
+
+  // A provider retry is shown while it waits, without the provider's message, and cleared afterwards.
+  await post(`/api/chat/${conversation}`, { prompt: "retry-task" });
+  const waiting = (await wait(conversation, (snapshot) => Boolean(snapshot.turns.at(-1)?.retry) || snapshot.turns.at(-1)?.status !== "running")).turns.at(-1);
+  assert.deepEqual(waiting?.retry && { attempt: waiting.retry.attempt, category: waiting.retry.category, status: waiting.retry.status }, { attempt: 2, category: "rate-limit", status: 429 });
+  assert.ok(!JSON.stringify(waiting).includes("synthetic-provider-secret"));
+  const retried = (await wait(conversation, (snapshot) => snapshot.turns.at(-1)?.status !== "running")).turns.at(-1);
+  assert.equal(retried?.answer, "Retried answer");
+  assert.equal(retried.retry, null);
+
+  // A skill enabled between turns reaches the next turn on the same connection, without a restart.
+  const skill = "chat-probe-skill";
+  await post(`/api/chat/${conversation}`, { prompt: "skill-check" });
+  assert.equal((await wait(conversation, (snapshot) => snapshot.turns.at(-1)?.status !== "running")).turns.at(-1)?.answer, "Skill missing");
+  await post("/api/skills/save", { name: skill, content: `---\nname: ${skill}\ndescription: Synthetic probe skill\n---\nSynthetic instructions.\n` });
+  await post("/api/skills/enable", { name: skill, enabled: true });
+  await post(`/api/chat/${conversation}`, { prompt: "skill-check" });
+  assert.equal((await wait(conversation, (snapshot) => snapshot.turns.at(-1)?.status !== "running")).turns.at(-1)?.answer, "Skill visible");
+  await post("/api/skills/remove", { name: skill });
   await post(`/api/chat/${conversation}`, { prompt: "approval-task" });
   const pending = await wait(conversation, (snapshot) => Boolean(snapshot.turns.at(-1)?.permission) || snapshot.turns.at(-1)?.status !== "running");
   const turn = pending.turns.at(-1);

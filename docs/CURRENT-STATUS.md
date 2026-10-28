@@ -1,6 +1,6 @@
 # Current status and session pickup
 
-Last source/document inspection: **2026-10-26**. This page records capability
+Last source/document inspection: **2026-10-28** (Console gateway retry signals, first-slice step 1 and SDK 0.2.0 adoption; other rows as of 2026-10-26). This page records capability
 status, not a fresh deployment or user-acceptance certificate.
 
 ## Read this first
@@ -36,7 +36,8 @@ determine what work is authorized.
 | Workspace files, uploads, and attachment paths | `src/files.ts`, `src/workspace-files.ts`, `src/file-contract.ts`, and chat path persistence. Shared workspace, not per-conversation isolation. |
 | Conversation sidebar and adjustable panels | `src/app/threads.tsx`, `src/app/panel-sizes.ts`, and migration 011. Native headline display, activity metadata, collapsible groups, remembered widths. |
 | SolidJS application (the chat UI) | `src/app`, built by `bun run build:app` into the image and served at `/chat` behind the session check (`src/chat-routes.ts`); `scripts/dev-app.ts` is the fast no-Docker loop. Source and local browser checks only: masthead, thread list, resizable panels, and a chat view (streaming, sanitized Markdown, tool activity, approvals, drafts, stop, new chat, per-conversation model picker, usage panel), and Settings (provider key, request cap, refresh, request-limit notice) against synthetic data, and once against an isolated OpenCode stack with a synthetic provider (new chat, streaming, approval, cancel, failure, reload). Served by the application and built into the Docker image since the React UI was retired; sign-in, a first turn, and the shell were checked in a browser on a disposable stack with a synthetic provider. Deployed to the installed stack on 2026-10-25 and in daily use by the owner since (live chats with Claude Haiku 5.5 on 2026-10-26); not yet formally accepted. An empty conversation shows a welcome screen (banner, headline, quote), Skills is a real library (see the next row), not the earlier example preview. |
-| Skills library | `src/skills-*.ts`, `src/app/skills*.ts(x)`. Skills are `SKILL.md` folders in a dedicated application-owned `skills` volume (`/data/skills`, outside the workspace): `active/` is exposed read-only to the OpenCode worker through its `skills` configuration entry, `disabled/` is not. The Skills screen lists, creates (starting switched off), edits, switches on/off, and deletes them; routes are authenticated, Origin- and CSRF-guarded, and bounded. Verified in `smoke:foundation` on a disposable stack (guards, validation, and that OpenCode lists an active skill and not a disabled one after reloading its workspace location) and in a browser against the dev fixture. **Not live:** the SDK starts OpenCode with its file watcher off, so a change reaches the assistant only when OpenCode reloads the workspace location, in practice after the worker restarts; a native `skill.list` is empty of new skills until then. Whether a model chooses to use a skill was not checked. No import, sharing, or other harness yet. Deployed to the installed stack and tried by the owner on 2026-10-26; the text-box editor is a stopgap (see follow-ups). |
+| Skills library | `src/skills-*.ts`, `src/app/skills*.ts(x)`. Skills are `SKILL.md` folders in a dedicated application-owned `skills` volume (`/data/skills`, outside the workspace): `active/` is exposed read-only to the OpenCode worker through its `skills` configuration entry, `disabled/` is not. The Skills screen lists, creates (starting switched off), edits, switches on/off, and deletes them; routes are authenticated, Origin- and CSRF-guarded, and bounded. Verified in `smoke:foundation` on a disposable stack (guards, validation, and that OpenCode lists an active skill and not a disabled one after `reload()`) and in a browser against the dev fixture. **In source 2026-10-28, not deployed:** a change reaches the assistant on its next turn without a restart; Chat reloads the harness just before that turn, never during one (`smoke:opencode` checks a skill enabled between two turns of one conversation). Whether a model chooses to use a skill was not checked. No import, sharing, or other harness yet. Deployed to the installed stack and tried by the owner on 2026-10-26; the text-box editor is a stopgap (see follow-ups). |
+| Apps (first slice, step 1) | `src/apps-*.ts`, `src/app/app-view.tsx`, `src/app/catalog/`, migration 014. Hand-written definitions drawn by `@json-render/solid` 0.21.3 from an application-owned catalog (page, section, columns, table with filters, sort, grouping, inline edit, delete and muted rows, add form, count/sum/average tiles). Entries in Postgres, checked against the definition. The backlog pilot is seeded only by the dev fixture and tests; an installation has no apps and no way to create one yet. No versions, drafts, assistant access or approvals. Verified by `test:apps`, `smoke:foundation` on a disposable stack (guards, validation, round trip, entries kept across replacement), and a headless browser against the dev fixture. Not deployed, not tried by the owner. See [step 1](FIRST-TOOL-SLICE.md#step-1-built-in-source-2026-10-28). |
 | Quotes dataset pipeline | `tools/quotes`, `data/quotes`. 179 curated quotes from 17 authors, each verified against a pinned Project Gutenberg edition. A separate private set of 871 Warhammer 40,000 quotes (from locally saved Lexicanum pages) lives in gitignored `data/private/`. The sign-in page and `GET /api/quote` (session required) serve a random quote with a link to its source: `src/quotes.ts`, `src/quotes-service.ts`, `src/quote-routes.ts`. The image holds only the public set; the private set is an optional read-only mount (`compose.private-quotes.yaml`). The Solid welcome screen uses the same route. Verified on an isolated stack only, not yet on the installed deployment. |
 | Fixed visual styling | `src/ui/theme.css` contains CSS tokens (`src/ui` now holds only shared CSS, fonts, and artwork). No user-authored theme package/import engine or conversation-driven shell editor. |
 
@@ -54,11 +55,11 @@ server routes and tests passed on isolated stacks.
 - A general plugin package registry, installer, update/fork lifecycle, or sharing.
 - A backend capability catalog, connector broker, or sandboxed extension runtime.
 - General workflow scheduling and an installed-plugin activity/recovery system.
-- json-render integration, Jev composition, or portable semantic theme packages.
+- Assistant-authored or conversation-shaped apps, app versions and drafts, Jev composition, or portable semantic theme packages.
 - Pi integration or a newly owned agent harness.
 - Shared live plugin data, collaboration, multi-tenant hosting, or a marketplace.
 
-`package.json` has no json-render dependency. The harness discriminant currently
+json-render is used only to draw hand-written app definitions. The harness discriminant currently
 contains OpenCode only. The trusted OpenCode application plugin is an
 integration detail, not the proposed user-installable plugin system. Skill changes that apply live, additional connections, and preview controls must not be described as working
 management features.
@@ -108,14 +109,17 @@ Compose project name. Do not reprovision or send model requests to check readine
 
 **Advice, not authorization:** the owner plans two strands next.
 
-1. **SDK session** (in `camenae-sdk`, not here): reasoning as its own event, a supported
-   skills reload, visible provider retries, and a harness-neutral message format drawing
-   on [reference projects](REFERENCE-PROJECTS.md#for-the-sdk-camenae-sdk).
-2. **This repository:** step 1 of the [first app slice](FIRST-TOOL-SLICE.md#step-1-plan-prepared-not-started)
-   (a hand-written game backlog on json-render, no assistant yet), then the
-   quality-of-life items in [reference projects](REFERENCE-PROJECTS.md#for-this-application).
+1. **SDK:** archive `0.2.0-b2c0d67d6050` (typed stream and `reload()`) is adopted in
+   source (2026-10-28, not deployed; see follow-ups). Still open for an SDK session: a
+   harness-neutral message format drawing on
+   [reference projects](REFERENCE-PROJECTS.md#for-the-sdk-camenae-sdk).
+2. **This repository:** step 1 of the [first app slice](FIRST-TOOL-SLICE.md#step-1-built-in-source-2026-10-28)
+   is built in source (2026-10-28) and awaits the owner's look and a deploy decision.
+   Step 2 (versions, draft preview, activation, history) needs its own go-ahead. The
+   quality-of-life items in [reference projects](REFERENCE-PROJECTS.md#for-this-application)
+   are also open.
 
-Ask the owner which to start; step 1 has not been authorized yet. A game backlog is the
+Ask the owner which to start. A game backlog is the
 pilot; it does not replace the recorded Calendar two-installation acceptance case.
 
 Before changing code, state the intended observable outcome, test scope, and
@@ -136,10 +140,40 @@ chatted; the old `bob-camenae_*` volumes are untouched.
 
 - Next build: [first slice of an app shaped by conversation](FIRST-TOOL-SLICE.md). Owner
   decisions recorded 2026-10-26 (json-render, a `camenae` command, full entry control with
-  approvals). Step 1 is planned there and awaits the owner's go-ahead.
+  approvals). Step 1 is built in source (2026-10-28); a test that draws json-render in a DOM
+  (the filtered-row case) needs a DOM library the owner has not approved.
 
-- When the provider refuses a request, OpenCode retries silently (up to nine attempts) and
-  the chat shows nothing. Surface the retry and its reason in the chat.
+- **Built in source 2026-10-28, not deployed:** SDK archive `0.2.0-b2c0d67d6050` replaces
+  `0.1.0-b24e73923802` (it also carries SDK commit `7f8242b`: `OpenCodeError` with a `code`,
+  isolated throwing subscribers, refused new sessions removed). The chat now shows the
+  model's reasoning in a collapsed "Thinking" box apart from the answer, and a notice while
+  the provider has asked OpenCode to wait and retry (reason, status, time, attempt; never the
+  provider's message). Skill changes apply on the next turn (see the Skills row). Migration
+  015 adds the turn columns. `smoke:opencode` checks reasoning, a 429 retry whose body holds
+  a fake secret, and the skill reload with the local fixture; the UI was checked in a browser
+  against the dev fixture only. No real inference. The app's own code never branched on SDK
+  error messages, so the new error type needed no change.
+- **Fixed in source 2026-10-28, not deployed:** the Console gateway made every refusal look
+  retryable, so OpenCode retried and spent more of the allowance. `src/console-gateway.ts` now
+  passes 429 through with a numeric `Retry-After` only. Other upstream 4xx (except 408/409)
+  keep their status with a fixed body and `x-should-retry: false`. Its own refusals
+  (credential, endpoint, policy, missing key or used-up allowance) also send
+  `x-should-retry: false`. 5xx, 408, 409 and transport failures stay retryable as 502.
+  Upstream bodies and headers are never forwarded. `smoke:console` checks each case and that
+  a native turn refused upstream makes exactly one request. It was not checked that the old
+  code fails that last check.
+- **Unexplained, seen 2026-10-28:** in 2 of 4 runs of the Docker suites
+  (`smoke:foundation`, `smoke:opencode`), the app container exited with status 1 on its
+  first start, then passed on rerun. Eleven separate cold starts on disposable stacks did not
+  reproduce it. The app deliberately logs no failure cause, so the reason is unknown, and it
+  is not known whether it predates migration 014.
+- **SDK findings (2026-10-28).** The SDK's `docs/design.md` has a candidate message
+  contract, not yet built. The typed stream and `reload()` are adopted (above).
+  - The `</think>` cause is upstream: big-pickle sometimes returns reasoning inline, and
+    OpenCode stores and replays it as plain text, so one bad turn persists. OpenCode
+    replays `reasoning_content` correctly. A possible fix is
+    `compatibility: { requireReasoning: true }` in `console-free.json`, untested.
+  Each SDK change arrives as a new archive through the packaging path in AGENTS.md.
 - Borrow quality-of-life details from `bob-workspace`: easy thread deletion, richer
   detail views, and similar polish. File pointers in [reference projects](REFERENCE-PROJECTS.md).
 - The Skills editor (a plain text box) is a stopgap; tested live by the owner 2026-10-26.

@@ -1,5 +1,5 @@
 import type { OpenCodeConnection } from "@camenae/opencode";
-import type { SessionUsage, Permission } from "./chat-contract.js";
+import type { SessionUsage, Permission, Retry } from "./chat-contract.js";
 import { Match } from "effect";
 import { type ConsoleModel, consoleProvider } from "./console-contract.js";
 
@@ -8,7 +8,8 @@ export type Harness = "opencode";
 export type ExecutionEvent =
   | { type: "unavailable" }
   | { type: "title"; session: string; title: string }
-  | { type: "text"; session: string; text: string }
+  | { type: "text" | "reasoning"; session: string; block: string; text: string }
+  | { type: "retry"; session: string; retry: Retry }
   | { type: "activity"; session: string; id: string; title?: string; status?: string }
   | { type: "permission"; session: string; permission: Permission }
   | { type: "permission-settled"; session: string; id: string }
@@ -24,6 +25,8 @@ export interface ExecutionClient {
   run(session: string, prompt: string): Promise<string>;
   cancel(session: string): Promise<void>;
   approve(session: string, id: string, option: string | null): Promise<void>;
+  /** Applies skill changes; only between turns, because it cancels pending approvals. */
+  reload(): Promise<void>;
 }
 
 export function openCodeExecution(client: OpenCodeConnection): ExecutionClient {
@@ -47,10 +50,20 @@ export function openCodeExecution(client: OpenCodeConnection): ExecutionClient {
     subscribe: (listener) => {
       const disconnect = client.onDisconnect(() => listener({ type: "unavailable" }));
 
+      // Text, reasoning and retries come from the typed stream; blocks of either kind can overlap.
+      const unstream = client.stream((event) => {
+        if (event.type === "block.delta") {
+          listener({ type: event.kind, session: event.sessionId, block: `${event.messageId}:${event.index}`, text: event.text });
+        }
+
+        if (event.type === "retry.scheduled") {
+          listener({ type: "retry", session: event.sessionId,
+            retry: { attempt: event.attempt, at: event.nextAttemptAt, category: event.category, status: event.status } });
+        }
+      });
+
       const unsubscribe = client.subscribe((event) => {
       if (event.type === "session.renamed") listener({ type: "title", session: event.data.sessionID, title: event.data.title });
-
-      if (event.type === "session.text.delta") listener({ type: "text", session: event.data.sessionID, text: event.data.delta });
 
       if (event.type === "session.tool.called" || event.type === "session.tool.success" || event.type === "session.tool.failed") {
         listener({ type: "activity", session: event.data.sessionID, id: event.data.id,
@@ -74,8 +87,9 @@ export function openCodeExecution(client: OpenCodeConnection): ExecutionClient {
         usage: { harness: "opencode", costUSD: event.data.cost, inputTokens: event.data.tokens.input, outputTokens: event.data.tokens.output } });
       });
 
-      return () => { disconnect(); unsubscribe(); };
+      return () => { disconnect(); unstream(); unsubscribe(); };
     },
+    reload: () => client.reload(),
     run: (session, prompt) => client.run(session, prompt),
     cancel: (session) => client.cancel(session),
     approve: (session, id, option) => client.approve(session, id, option === "once" ? "once" : "reject"),

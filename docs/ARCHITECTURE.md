@@ -48,6 +48,7 @@ not a guarantee against kernel escapes or unsafe handling of generated artifacts
 | `execution-client.ts` | Narrow application chat/event adapter for the harness; not a general harness SDK |
 | `console-gateway.ts` | Restricted Console forwarding, encrypted credential use, persistent request accounting |
 | `Chat` | Conversations, turn admission, retained native sessions, snapshots, preparation, cancellation, usage |
+| `Apps`, `apps-contract.ts` | App definitions (checked before storage and before drawing), entry storage and value checks; `src/app/catalog` draws definitions with json-render |
 | `ServerLive`, UI | Authenticated HTTP/SSE routes, presentation, shutdown |
 
 The application uses the real `@camenae/opencode` contracts, not a universal client.
@@ -85,11 +86,32 @@ retried by reconnect; only persistence is retried. Restarted unfinished turns be
 interrupted. Inspect partial side effects before resubmitting. Native context lives
 in retained native state; the app does not replay transcripts.
 
+## Apps
+
+An app is an application-owned definition (`src/apps-contract.ts`): collections whose
+fields have ids generated once, a json-render spec built from the Camenae catalog, and the
+entry actions it declares. Migration 014 adds `app` (id, name, icon, one definition) and
+`app_entry` (id, app, collection, `values` keyed by field id, created and updated times).
+Versions and drafts are not built yet. The definition check runs before a definition is
+stored and again in the browser before it is drawn. It refuses unknown components, wrong
+or extra props, markup-like labels, broken trees, references to missing fields, and
+components needing actions the definition does not declare. The browser's own catalog
+check in json-render is not relied on.
+
+Routes need a session: `GET /api/apps` and `GET /api/apps/:id` (definition plus entries).
+`POST /api/apps/entries/add`, `/update` and `/remove` also need the exact Origin, a JSON
+body and the CSRF token. Every write is checked against the stored definition: values by
+field type, required fields, unknown fields refused, at most 2000 entries per app. An
+update keeps values for fields the definition no longer lists. Catalog components call
+these routes only for actions the definition declares. The pilot backlog
+(`src/apps-seed.ts`) is created by the development fixture and tests only. An
+installation starts with no apps, and nothing in the application creates one yet.
+
 ## Storage and files
 
 | Volume | Path | Content |
 | --- | --- | --- |
-| `postgres-data` | `/var/lib/postgresql/data` | Identity, conversations, turns, Console credential and request allowance |
+| `postgres-data` | `/var/lib/postgresql/data` | Identity, conversations, turns, Console credential and request allowance, apps and their entries |
 | `workspace` | `/data/workspace` | Shared inputs, projects, outputs, scratch |
 | `skills` | `/data/skills` (app, read-write), `/data/skills` (worker, read-only) | `active/` and `disabled/` skill folders, each holding a `SKILL.md`; only `active/` is in the worker's skill configuration |
 | `opencode-state` | `/data/opencode-state` | Native OpenCode HOME and XDG configuration/data/state (worker only) |
