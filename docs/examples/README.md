@@ -1,13 +1,12 @@
 # Attachment examples
 
 These small documents contain **fictional test data**, not real customers, budgets,
-or business plans. Each fits within the 64 KiB text-upload limit.
+or business plans. Each is a small text file, far below the 15 MiB attachment limit.
 
-1. Open a chat and use **+ File → Upload from computer** to add
-   [project-brief.md](project-brief.md), [budget.md](budget.md), and
-   [meeting-notes.txt](meeting-notes.txt), one at a time.
-2. Each upload is saved in the chat's inbox folder and automatically attached.
-   Alternatively, use **Choose from workspace** for copies already there.
+1. Open a chat and attach [project-brief.md](project-brief.md), [budget.md](budget.md),
+   and [meeting-notes.txt](meeting-notes.txt) with the composer's attach button.
+2. Each is saved into the workspace `inbox/` folder when the message is sent, and the
+   message names the paths. Files already in the workspace can be referenced with `@`.
 3. Send the questions below. The repository documents are not automatically added
    to your running workspace.
 

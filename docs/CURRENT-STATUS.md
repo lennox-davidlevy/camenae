@@ -1,6 +1,7 @@
 # Current status and session pickup
 
-Last source/document inspection: **2026-10-28** (Console gateway retry signals, first-slice step 1 and SDK 0.2.0 adoption; other rows as of 2026-10-26). This page records capability
+Last source/document inspection: **2026-10-30** (full source, test, script, Docker and
+documentation review; see [the review](#review-2026-10-30)). This page records capability
 status, not a fresh deployment or user-acceptance certificate.
 
 ## Read this first
@@ -105,9 +106,66 @@ services. The earlier conversation distinguished the normal installation from a
 retained isolated delivery. Do not infer the active target from an old port or
 Compose project name. Do not reprovision or send model requests to check readiness.
 
+## Review 2026-10-30
+
+A full read of the source, tests, scripts, Docker files and documentation, with the
+local checks run on this worktree (no Docker suite, no deployment, no inference).
+
+| Check | Result |
+| --- | --- |
+| `bun run lint` | Passed, no warnings |
+| `bun run typecheck` | Passed |
+| `bun run check:docs` | Passed (87 local links in 19 files, before this review's edits; rerun after them) |
+| `bun run build:app` | Passed |
+| `bun run test:apps`, `test:threads`, `test:provisioning`, `test:quotes`, `test:dev-ui`, `test:images` | Passed. `test:dev-ui` exits 0 but prints a Vite "Failed to run dependency scan" stack trace after its own pass line, because the test kills the dev server while Vite's background scan is still running; cosmetic, not a failure. |
+| `smoke:foundation`, `smoke:opencode`, `smoke:console` | Not run in this review |
+
+**Verdict.** The codebase is well built for its size: ownership is clear per file,
+every contract is a zod schema, every write is bounded and guarded, secrets never reach
+logs or responses, and the tests exercise real stacks rather than mocks. The documents
+describe what exists with unusual honesty. The direction is right; the review sharpened
+it in [product direction](PRODUCT.md#what-makes-camenae-strong-review-2026-10-30) and
+reordered the near term in the [roadmap](ROADMAP.md#revised-sequence-review-2026-10-30).
+
+**Structure findings, for the consolidation step (no behavior change):**
+
+- The harness name is restated as `z.enum(["opencode"])` in six places
+  (`src/chat.ts`, `src/chat-contract.ts`, `src/chat-routes.ts`, `src/bootstrap-contract.ts`)
+  and `readiness: { opencode: boolean }` in two; a second harness means editing all of
+  them. One `Harness` schema in a contract file is the fix.
+- The route guards (cookie name, session lookup, exact Origin, JSON content type, CSRF)
+  are copied across `src/files.ts`, `src/skills-routes.ts`, `src/apps-routes.ts` and
+  `src/chat-routes.ts`, and the cookie-name expression appears six times. The broker
+  will be a fifth copy unless a shared module comes first.
+- `src/chat.ts` (583 lines) holds connection lifetime, the authority loop, turn
+  execution, persistence and titles. Coherent, but it should split before grants and
+  the broker add to it.
+- Static assets (fonts, artwork, the built UI) are served from `src/chat-routes.ts` and
+  read with paths relative to the working directory.
+- The event stream re-sends the full snapshot every 250 ms whether or not it changed,
+  each delivery re-checking the session with a row lock. Fine for one user; sending only
+  on change is a small fix.
+- Three error styles for one idea: `FileProblem`/`SkillProblem` as plain errors wrapped
+  into tagged errors, `AppProblem` as a tagged error directly. Apps is the model to keep.
+
+**Text corrected in this review (source, not deployed):** the attachment error in
+`src/chat-routes.ts` still described the retired four-file, 64 KiB limit; the Skills
+screen said changes apply "after the next restart" although they apply on the next turn;
+two comments referred to the React UI; README called Skills a preview and omitted the
+paid model and apps; the development guide and the examples README described the retired
+composer. The installed stack still shows the old strings until the app is rebuilt.
+
+**Open reliability items unchanged by this review:** the unexplained first-start exit
+in 2 of 4 Docker suite runs (the app logs no cause by design; a fixed, cause-classified
+stage in the failure event would help without leaking anything), and the 50-turn cap
+per conversation, now recorded in [architecture](ARCHITECTURE.md#conversations-and-worker-lifetime).
+
 ## Recommended next action
 
-**Advice, not authorization:** the owner plans two strands next.
+**Advice, not authorization.** The [revised sequence](ROADMAP.md#revised-sequence-review-2026-10-30)
+is the recommended order; its first item is a minimal apps step 2, its second the broker
+with hardening built in. The owner has not yet confirmed that sequence. The two strands
+recorded on 2026-10-28 remain:
 
 1. **SDK:** archive `0.2.0-b2c0d67d6050` (typed stream and `reload()`) is adopted in
    source and deployed to the installed stack (2026-10-28; see follow-ups). Still open for an SDK session: a

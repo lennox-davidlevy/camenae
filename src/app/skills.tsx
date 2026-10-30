@@ -97,7 +97,7 @@ export function createSkills(props: { csrf: () => string | undefined; active: ()
   };
 
   const toggle = (name: string, enabled: boolean) => change((csrf) => enableSkill(csrf, name, enabled),
-    enabled ? "Switched on. The assistant picks it up when its worker next restarts." : "Switched off. The assistant drops it when its worker next restarts.");
+    enabled ? "Switched on. The assistant sees it from its next turn." : "Switched off. The assistant stops seeing it from its next turn.");
 
   const remove = async () => {
     const name = selectedName();
@@ -151,7 +151,7 @@ export function SkillsScreen(props: { skills: Skills }) {
     <span class="skills-library-label">Library</span>
     <h1>Skills</h1>
     <p class="skills-intro">Instructions the assistant can follow for a kind of task. Switch a skill on to let it see it.</p>
-    <p class="skills-disclosure">Skills are files the assistant reads, and they shape how it works. New skills start switched off; read one before you switch it on. They are stored apart from your workspace files. The assistant reads them when its worker starts, so a change takes effect after the next restart.</p>
+    <p class="skills-disclosure">Skills are files the assistant reads, and they shape how it works. New skills start switched off; read one before you switch it on. They are stored apart from your workspace files. The assistant reads them before each turn, so a change takes effect on its next turn.</p>
     <Show when={props.skills.loaded()} fallback={<p role="status">Loading skills…</p>}>
       <Show when={props.skills.skills().length > 0} fallback={<p>No skills yet. Create one below.</p>}>
         <table class="skills-table">

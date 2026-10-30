@@ -10,7 +10,11 @@ that can use tools and work with your files.
 - Approve or reject each tool request the agent makes, one at a time.
 - Browse a shared workspace; upload small text files, preview text, and download files.
 - Attach files to chat messages; they are saved in the workspace and referenced by path.
-- Choose among approved free Console models per conversation, under a local request cap.
+- Choose among approved Console models per conversation (free models, plus Claude Haiku 5.5
+  only while a request cap is set), under a local request cap.
+- Keep a library of skills the assistant reads before each turn, and switch each on or off.
+- Use the first hand-written app (a game backlog) when one is seeded; the assistant cannot
+  create or change apps yet.
 - Sign in locally and store an encrypted provider key.
 
 Camenae owns the application, identity, persistence, workspace, UI, and worker
@@ -52,7 +56,8 @@ access. Approvals only govern requests the harness actually asks about; they are
 a sandbox. The application reaches the provider only through a restricted egress
 proxy. General browsing, package downloads, and Git network operations are blocked.
 
-The Skills screen is a preview, not a working management control. Arbitrary model
+Apps are hand-written definitions for now: there is no conversational creation, no
+versions or drafts, and the assistant has no access to them. Arbitrary model
 selection, editable custom instructions, arbitrary connectors, SSO, multi-user
 isolation, and production/cloud deployment are not implemented. Effect v4 RC is a
 pinned pre-release dependency. Backup restoration and cross-host native-session

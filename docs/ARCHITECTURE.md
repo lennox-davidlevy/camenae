@@ -71,7 +71,9 @@ Opening the active conversation leaves it alone; selecting another cannot interr
 active work. Switching while idle replaces the connection.
 
 Only one turn runs across tabs. Runs belong to application scope, not an HTTP
-request or browser tab. Native cancellation has five seconds to settle before
+request or browser tab. A conversation holds at most 50 turns; the sidebar lists the
+100 most recently active conversations; a login session lasts eight hours. The event
+stream re-sends the whole conversation snapshot every 250 ms while a tab has it open. Native cancellation has five seconds to settle before
 forced disconnect/worker teardown. Expiry, logout, changed/removed credentials,
 unavailable authorization, failed turns, and application shutdown retire the
 connection. Revocation is scoped to the connection checked, not a later login.

@@ -1,8 +1,10 @@
 # Product direction
 
 Decision baseline: October 2026 product discussion, recorded in the repository on
-2026-10-24. This is the intended product, not a list of implemented features.
-Read [current status](CURRENT-STATUS.md) for what exists today.
+2026-10-24; strengthened by the 2026-10-30 review (see
+[what makes Camenae strong](#what-makes-camenae-strong-review-2026-10-30)). This is the
+intended product, not a list of implemented features. Read
+[current status](CURRENT-STATUS.md) for what exists today.
 
 ## Intended end state
 
@@ -27,6 +29,40 @@ share personal records, credentials, or authoring conversations.
 The long-term ambition is broader than templates or a fixed component menu.
 Catalogs should make common requests reliable and efficient without ruling out
 genuinely new frontend or backend behavior.
+
+## What makes Camenae strong (review, 2026-10-30)
+
+Camenae's strongest form is not a better app generator. Generation is now a commodity:
+Claude Artifacts, Replit, Base44 and Cindy all produce working software from a prompt.
+What none of them offers together, and what this codebase already enforces in its chat,
+files and skills, is an application the owner can trust more than the model:
+
+1. **Owned and durable.** Data outlives the model, the provider, the harness and the
+   definition that displays it. Entries keep values for fields a later version drops;
+   definitions are versioned and reversible; backup and restore are product features,
+   not an operator's chore.
+2. **Bounded authority.** The assistant acts only through typed operations the
+   application checks against stored contracts. Destructive actions need recorded,
+   revocable, bounded grants. Every assistant action is logged where the owner can read
+   and undo it. No generated definition can widen its own permissions or hide the way
+   back to home, history and recovery.
+3. **Harness-neutral by construction.** Whatever the assistant needs (apps, skills,
+   files) is reached through an application-owned path every harness has: a shell
+   command backed by an application broker, skills exposed in native form, one
+   workspace. Switching model or harness loses nothing the owner made.
+4. **Honest and used daily.** No control that pretends to work. Evidence levels are
+   recorded. The measure of success is that the owner reaches for Camenae every day,
+   from a phone as well as a desk, for things that are not chat.
+
+These four properties are the asset. Every increment is judged by whether it keeps all
+four, and a feature that needs one of them weakened is deferred, not shipped weaker.
+
+**Horizon for the next months:** one owner, one installation, a handful of apps the
+owner really uses, created and changed by conversation, reachable from a phone, backed
+up. Sharing, themes as packages, custom code, schedules, external connectors,
+multi-user hosting and commercial validation remain the end state below; they are
+deferred, not dropped. The [roadmap](ROADMAP.md#revised-sequence-review-2026-10-30)
+records the order.
 
 ## What a complete experience means
 
@@ -59,6 +95,8 @@ clear save state, and predictable error recovery are part of usefulness.
 | Per-project isolation, language toolchains, egress control, and rendered previews | User-stated wish (2026-10-25), deferred behind the personal assistant (2026-10-26), carried over from the earlier `bob-workspace` project (design and code map in its `docs/TOOLCHAINS.md`, `docs/NETWORK_ACCESS.md`, `docs/OPENSHIFT_CODE.md`; outside this repository). Not implemented here. The provisioner model is undecided; see the [roadmap](ROADMAP.md#project-isolation-toolchains-and-previews-proposed-port). |
 | Multi-harness through `camenae-sdk` | User decision (2026-10-26): the SDK is the one entry point for any harness; the personal assistant is its first application. |
 | How to judge readiness | User decision (2026-10-26): build to the owner's taste; user interviews and demand tests are not a gate for now. A reliable model for testing is needed, since the free models made live checks ambiguous. |
+| Focus for the next horizon: the owner's own daily use (apps by conversation, bounded assistant authority, backup, phone access); demand and commercial tests deferred | Review recommendation (2026-10-30), consistent with the 2026-10-26 decision. Recorded in [what makes Camenae strong](#what-makes-camenae-strong-review-2026-10-30); the owner has not yet confirmed it. |
+| Assistant actions on apps are logged durably and grants are bounded (count, expiry, per app and kind) from the first version of the broker | Review recommendation (2026-10-30) for [step 3 of the first slice](FIRST-TOOL-SLICE.md#review-notes-2026-10-30); not implemented, not yet confirmed. |
 | Jev or other decision models for bounded choices | Desired technical direction; exact placement and measurable benefit remain unproven. |
 | Themes inspired by Omarchy theme packages and OpenCode semantic tokens | User-selected direction; not an implemented theme-import system. |
 | New executable code, scoped connections, no-write previews, explicit activation | Preserved requirements from the earlier plugin design discussion; see [target architecture](CONVERSATIONAL-PLUGINS.md). |
@@ -135,6 +173,9 @@ the user. They show strong demand for one setup across harnesses, and they suppl
 designs for the SDK's message format and capability table.
 
 ## Value and viability hypotheses
+
+These hypotheses are kept for a future commercial decision. They do not gate current
+work (owner decision, 2026-10-26; see the decision table).
 
 The proposed advantage is software people keep using and safely modifying,
 without becoming its developer. Initial generation, persistence, and remixing

@@ -21,7 +21,7 @@ const stored = () => {
   catch { return defaults; }
 };
 
-// Shares the React shell's storage key and limits, so both shells remember one width.
+// The storage key and limits predate the Solid shell, so a remembered width survives upgrades.
 export function createPanelSizes() {
   const [container, setContainer] = createSignal<HTMLDivElement>();
   const [width, setWidth] = createSignal(window.innerWidth);

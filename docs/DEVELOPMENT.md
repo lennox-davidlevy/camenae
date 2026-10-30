@@ -77,18 +77,13 @@ inspector panels; focused separators also support arrow keys, Shift for larger
 steps, and Home/End. Double-click resets a panel. Width preferences stay in browser
 storage; narrow layouts retain their responsive panel visibility.
 
-The composer provides **+ File → Upload from computer** or **Choose from workspace**.
-Local text uploads are saved in that chat's inbox folder and automatically selected;
-existing workspace files are selected in place, with folder navigation and preview.
-Chips show filenames, with full paths on hover. An uploading chip blocks sending;
-failed uploads offer Retry or Remove, and cannot silently be omitted from a send.
-Draft selections and failed uploads are isolated per conversation
-in page memory and clear after an accepted send; a rejected send retains the text
-and selection. Reloading clears unsent selections, while sent snapshots remain in
-history and the inspector. Removing a chip does not delete
-the workspace file. PDFs, images, drag-and-drop, and attachment-only messages
-are not supported. The picker estimates size from preview; server validation at
-send time is authoritative if a file changes.
+The composer attaches files from the computer (any type, up to 10 per message, 15 MiB
+each) and references workspace files with `@` mentions. Attachments are saved into
+`inbox/` when the message is sent, never earlier, under a name no existing file has;
+the turn stores only paths, and the message tells the agent where they are. A file
+that cannot be saved keeps the message in the box. Drafts live in page memory, one
+per conversation, and clear after an accepted send. Removing a chip does not delete a
+saved file. A message needs text; attachment-only messages are not supported.
 
 ### SolidJS application
 

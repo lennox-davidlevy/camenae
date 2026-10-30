@@ -8,8 +8,8 @@ import { request } from "./api.js";
 
 const loadBootstrap = async () => Bootstrap.parse(await (await request("/api/chat")).json());
 
-// One conversation at a time, with the same request, stream, and recovery
-// behavior as the React UI. Attachments, model choice, and usage are not included yet.
+// One conversation at a time: bootstrap, open, prepare, send, and the event stream, with
+// recovery when the stream drops. Attachments are saved by the composer before send.
 export function createChatSession() {
   const [bootstrap, setBootstrap] = createSignal<Bootstrap>();
   const [conversation, setConversation] = createSignal<string>();

@@ -5,6 +5,71 @@ recommended sequence, not implementation authorization, a delivery deadline, or
 proof of commercial viability. See [current status](CURRENT-STATUS.md) before
 starting and [product direction](PRODUCT.md) for the full end-state ambition.
 
+## Revised sequence (review, 2026-10-30)
+
+A full source and documentation review on 2026-10-30 (recorded in
+[current status](CURRENT-STATUS.md#review-2026-10-30)) found the codebase sound and the
+direction right, and recommended this order for the next horizon. It follows the owner's
+2026-10-26 decisions (build to the owner's taste; json-render; a `camenae` command; full
+entry control with approvals) and the four properties in
+[what makes Camenae strong](PRODUCT.md#what-makes-camenae-strong-review-2026-10-30). Each
+numbered item is its own task and needs its own go-ahead; nothing here is started. The
+phase table further down is the longer platform sequence and is unchanged.
+
+**Now: an app shaped by conversation, safely.**
+
+1. **Apps step 2, kept minimal.** Versions, one draft per app, a preview beside the live
+   app, activate (refused when stale), discard. History and going back move after step 3.
+   Reason: whether a real model can author a definition is the largest unknown left, and
+   step 3 is where it is met; the fewer things built before that answer, the better.
+2. **Apps step 3, hardened from day one.** The broker, the `camenae` command, approvals
+   and grants, with the hardening the slice document deferred brought forward: a durable
+   action log (who acted, which operation and parameters, outcome, time) that also feeds
+   undo for recent deletes; grants bounded by count and expiry as well as app and kind; a
+   per-call limit on how many entries one delete may remove. The assistant then creates
+   the backlog on the installed stack. Details in the
+   [slice's review notes](FIRST-TOOL-SLICE.md#review-notes-2026-10-30).
+3. **Apps step 4.** The synthetic acceptance run, then one live run with Claude Haiku 5.5
+   under a small approved spend.
+4. **Consolidation before more routes.** No behavior change, covered by the existing
+   suites: one `Harness` schema instead of six `z.enum(["opencode"])` sites; one module
+   for the route guards every write repeats (cookie name, session, exact Origin, JSON
+   content type, CSRF); `src/chat.ts` split into connection lifetime and turn execution;
+   static asset routes out of the chat routes; the event stream sending a snapshot only
+   when it changed. The broker in item 2 is the first consumer of the shared guards, so
+   this can also be done as its first step.
+
+**Next: make it something used every day.**
+
+5. **Daily-use polish.** Thread deletion and renaming; the 50-turn cap per conversation
+   either raised with paging or surfaced before it bites; conversation search; a run
+   detail view and a files-style Skills editor (see
+   [reference projects](REFERENCE-PROJECTS.md#for-this-application)); a phone-width pass
+   for apps.
+6. **Backup and restore as a command.** A documented, tested path that saves the
+   database, the workspace, the skills and the native state together with guidance for
+   the credentials file, and restores them on a disposable stack. This underpins "data
+   survives every change" and comes before any feature that creates more data to lose.
+7. **A validated remote-access path.** HTTPS behind a reverse proxy (the Secure
+   `__Host-` cookie path exists in code but is unvalidated), so the apps are reachable
+   from a phone. "Mobile" counts only once this exists.
+8. **Apps step 2, the rest.** Version history, going back, removing a field without
+   losing its values, type changes where every value converts.
+9. **Second harness through the SDK.** When `camenae-sdk` has a second package: the
+   harness-neutral message contract rendered once in the UI, common skills exposed to
+   each harness in its native form, conversation handover designed as an application
+   feature. Not before the SDK side exists.
+
+**Later (the end state, unchanged):** sharing by export and import, theme packages,
+custom code containment, schedules and the activity view, the Calendar acceptance case,
+toolchains and previews, the Context7 and Playwright bundle, and any demand or
+commercial test.
+
+Rules that hold across the sequence: every step ends usable and tested; one dependency
+decision at a time; a feature that would weaken one of the four properties waits rather
+than shipping weaker; json-render stays while the spec vocabulary is expected to grow
+(visibility, repeats, state), and that expectation is reviewed after step 3.
+
 ## Delivery strategy
 
 Prove that a useful tool survives repeated modifications before expanding the
@@ -82,6 +147,9 @@ are disabled in preview. Installing a plugin or enabling a schedule is not
 blanket permission for external writes. See [target architecture](CONVERSATIONAL-PLUGINS.md).
 
 ## Demand and commercial tests
+
+Deferred. The owner decided on 2026-10-26 to build to their own taste, so nothing in
+this section gates current work; it is kept for a later commercial decision.
 
 Proposed discovery size is roughly 8 to 12 people with an existing recurring
 workaround. Compare the same task with their current tool and a capable alternative.

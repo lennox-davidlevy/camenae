@@ -211,6 +211,37 @@ the command. It needs a small, separately approved spend.
 
 Each step ends usable and tested; step 1 alone already gives a working app.
 
+## Review notes (2026-10-30)
+
+From the full review recorded in [current status](CURRENT-STATUS.md#review-2026-10-30).
+Recommendations, not decisions; the owner's 2026-10-26 decisions stand.
+
+- **Order.** Keep step 2 minimal (versions, one draft, preview, activate, discard) and
+  move history and going back after step 3. Step 3 is where the largest unknown is met:
+  whether a model can author a valid definition and use the command. See the
+  [revised sequence](ROADMAP.md#revised-sequence-review-2026-10-30).
+- **Step 3 hardening, brought forward.** The slice above defers limits, undo and
+  expiring grants. Build them in from the first version, because they are cheap now and
+  expensive once the assistant is in daily use:
+  - A durable action log table: actor (you or the assistant, with the conversation and
+    turn), operation, parameters as checked, outcome, time. It is what the approval card
+    cites, what Settings lists under each grant, and what undo reads from.
+  - Grants bounded by app and kind (as planned) and also by count and expiry, with
+    defaults the owner can change. A grant that runs out asks again.
+  - A per-call ceiling on entries one delete may remove, so "delete the finished ones"
+    cannot become "delete everything" from one misread.
+  - Undo for recent deletes, from the log, within a window.
+- **Authoring model.** Treat Claude Haiku 5.5 as the baseline for authoring definitions;
+  the free models made live checks ambiguous. Keep the acceptance run's live part small
+  and separately approved, as written.
+- **json-render's place.** Step 1 uses json-render only to walk the tree; data components
+  call the entry routes directly and the catalog declares no actions. That is the right
+  trust boundary. The dependency earns its place once definitions may use visibility,
+  repeats and state expressions; review that after step 3.
+- **The command's output.** Every refusal the command prints should be the same precise
+  problem list the routes return today (`definitionProblems`, `checkValues`), so a model
+  can fix and retry within the turn. No new message wording.
+
 ## Step 1 (built in source, 2026-10-28)
 
 What exists: `@json-render/core` and `@json-render/solid` 0.21.3, pinned exactly (the

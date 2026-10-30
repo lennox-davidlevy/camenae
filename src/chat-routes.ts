@@ -21,7 +21,7 @@ const respond = (handler: Effect.Effect<HttpServerResponse.HttpServerResponse, C
   IdentityError: () => Effect.succeed(HttpServerResponse.text("Save a valid provider key in connection settings", { status: 503, headers })),
   ChatBusy: () => Effect.succeed(HttpServerResponse.text("Another turn is still running", { status: 409, headers })),
   ChatError: () => Effect.succeed(HttpServerResponse.text("Chat unavailable; check the connection or start a new conversation", { status: 503, headers })),
-  AttachmentError: () => Effect.succeed(HttpServerResponse.text("Attachment unavailable or too large. Choose up to four supported UTF-8 text files, 64 KiB total; remove or reselect changed files and try again.", { status: 400, headers })),
+  AttachmentError: () => Effect.succeed(HttpServerResponse.text("Attachment unavailable or too large. Attach up to 10 workspace files of at most 15 MB each; remove or reselect changed files and try again.", { status: 400, headers })),
   InvalidChatRequest: () => Effect.succeed(HttpServerResponse.text("Invalid request", { status: 400, headers })),
 }));
 
