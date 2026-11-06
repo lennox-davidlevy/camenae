@@ -16,6 +16,14 @@ entry control with approvals) and the four properties in
 numbered item is its own task and needs its own go-ahead; nothing here is started. The
 phase table further down is the longer platform sequence and is unchanged.
 
+**Done 2026-11-06: the stack survives a reboot.** Only the worker had a restart policy,
+so the installed stack had been down since the host shut down on 2026-10-31 (see
+[current status](CURRENT-STATUS.md#review-2026-11-06)). Every service now has
+`restart: unless-stopped` (owner decision, including restart after the app's own failure
+exit) and the stack was brought back the same day; see
+[operations](OPERATIONS.md#after-a-host-reboot). **The owner confirmed the sequence
+below on 2026-11-06.**
+
 **Now: an app shaped by conversation, safely.**
 
 1. **Apps step 2, kept minimal.** Versions, one draft per app, a preview beside the live
@@ -43,9 +51,11 @@ phase table further down is the longer platform sequence and is unchanged.
 
 5. **Daily-use polish.** Thread deletion and renaming; the 50-turn cap per conversation
    either raised with paging or surfaced before it bites; conversation search; a run
-   detail view and a files-style Skills editor (see
-   [reference projects](REFERENCE-PROJECTS.md#for-this-application)); a phone-width pass
-   for apps.
+   detail view (see [reference projects](REFERENCE-PROJECTS.md#for-this-application)); a
+   phone-width pass for apps. *Done early, 2026-11-06:* the full-column editor for files
+   and skills (the Skills text box is gone); still open from the files-view lead: a
+   tree with search, a changes view per turn, and a warning when a file changed while
+   being edited.
 6. **Backup and restore as a command.** A documented, tested path that saves the
    database, the workspace, the skills and the native state together with guidance for
    the credentials file, and restores them on a disposable stack. This underpins "data
@@ -55,10 +65,18 @@ phase table further down is the longer platform sequence and is unchanged.
    from a phone. "Mobile" counts only once this exists.
 8. **Apps step 2, the rest.** Version history, going back, removing a field without
    losing its values, type changes where every value converts.
-9. **Second harness through the SDK.** When `camenae-sdk` has a second package: the
-   harness-neutral message contract rendered once in the UI, common skills exposed to
-   each harness in its native form, conversation handover designed as an application
-   feature. Not before the SDK side exists.
+9. **SDK adoption, in two halves, each when the SDK side exists.**
+   - *When `@camenae/opencode` 0.3.x lands* (the SDK roadmap's milestone 1: typed
+     `tool.*`, `approval.*` and `turn.*` events, categorised run failures, a capability
+     object): `src/execution-client.ts` stops pairing raw `session.tool.*` and
+     `permission.*` events itself and consumes the typed stream, the way it already does
+     for text, reasoning and retries. A new archive through the packaging path, covered
+     by `smoke:opencode`; no UI change expected.
+   - *When `camenae-sdk` has a second package*: the harness-neutral message contract
+     rendered once in the UI, common skills exposed to each harness in its native form,
+     conversation handover designed as an application feature. Owner decision
+     (2026-11-06): Claude Code only if a Claude subscription sign-in can drive it,
+     otherwise Pi; see the [product decision table](PRODUCT.md#decision-status).
 
 **Later (the end state, unchanged):** sharing by export and import, theme packages,
 custom code containment, schedules and the activity view, the Calendar acceptance case,

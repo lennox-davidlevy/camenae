@@ -75,7 +75,9 @@ Planned after step 1 of the [first app slice](FIRST-TOOL-SLICE.md).
 3. **A files view for the Skills editor.** `bob-workspace/web/files.tsx`: tree with
    breadcrumbs and search, a changes mode showing each turn's diffs with restore, drag and
    drop, rendered or source Markdown, download, and warnings when a name exists or a file
-   changed while being edited. Replaces the Skills text box.
+   changed while being edited. *2026-11-06:* the text box is replaced by a full-column
+   editor shared with Files (`src/app/editor.tsx`); the tree, search, changes mode, drag
+   and drop and the stale-edit warning are still open.
 4. **Run detail panels.** `bob-workspace/web/details.tsx` and `run-outline.tsx`: a run
    overview, saved events with filters, and an outline grouping tool calls under plan
    items.

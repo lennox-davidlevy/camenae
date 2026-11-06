@@ -8,11 +8,13 @@ that can use tools and work with your files.
 
 - Keep conversations, stream replies, inspect tool activity, and stop a running turn.
 - Approve or reject each tool request the agent makes, one at a time.
-- Browse a shared workspace; upload small text files, preview text, and download files.
+- Browse a shared workspace; upload files, open a text file in a full-size editor (Markdown
+  rendered or as source, Ctrl+S saves), rename, move, delete and download.
 - Attach files to chat messages; they are saved in the workspace and referenced by path.
 - Choose among approved Console models per conversation (free models, plus Claude Haiku 5.5
   only while a request cap is set), under a local request cap.
-- Keep a library of skills the assistant reads before each turn, and switch each on or off.
+- Keep a library of skills the assistant reads before each turn, edit each in the same
+  editor, and switch each on or off.
 - Use the first hand-written app (a game backlog) when one is seeded; the assistant cannot
   create or change apps yet.
 - Sign in locally and store an encrypted provider key.

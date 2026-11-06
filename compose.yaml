@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: docker/ingress.Dockerfile
+    restart: unless-stopped
     init: true
     user: "1000:1000"
     read_only: true
@@ -31,6 +32,7 @@ services:
 
   postgres:
     image: postgres:16.15-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: camenae
       POSTGRES_USER: camenae
@@ -50,6 +52,7 @@ services:
       dockerfile: docker/application.Dockerfile
     init: true
     user: "1000:1000"
+    restart: unless-stopped
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
@@ -135,6 +138,7 @@ services:
     build:
       context: .
       dockerfile: docker/egress.Dockerfile
+    restart: unless-stopped
     init: true
     read_only: true
     cap_drop: [ALL]

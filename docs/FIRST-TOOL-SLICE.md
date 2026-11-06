@@ -245,7 +245,9 @@ Recommendations, not decisions; the owner's 2026-10-26 decisions stand.
 ## Step 1 (built in source, 2026-10-28)
 
 What exists: `@json-render/core` and `@json-render/solid` 0.21.3, pinned exactly (the
-0.21.2 and 0.21.3 release notes are bug fixes only, nothing about repeats or filters).
+0.21.2 and 0.21.3 release notes are bug fixes only, nothing about repeats or filters;
+0.21.4 of 2026-11-01 is documentation and 0.22.0 of 2026-11-04 adds a Chat SDK renderer,
+checked 2026-11-06, so the pin stays).
 Also built: the contract, migration 014, store and routes; the hand-written backlog
 seed; the catalog (Page, Section, Columns, Table, EntryForm, Stat); and the app screen.
 Apps sit in the navigation after the built-in screens. Checked by `test:apps`, by

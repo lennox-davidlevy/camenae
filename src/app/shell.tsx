@@ -36,7 +36,7 @@ export function Shell(props: ShellProps) {
     onPointerDown={(event) => panels.pointerDown(side, event)} onPointerMove={panels.pointerMove}
     onPointerUp={panels.endDrag} onPointerCancel={panels.endDrag} onLostPointerCapture={panels.endDrag} />;
 
-  return <div class={panels.dragging() ? "app-shell app-shell-resizing" : "app-shell"}>
+  return <div class={panels.dragging() ? "app-shell app-shell-resizing" : "app-shell"} data-screen={props.screen === "Chat" ? "chat" : "other"}>
     <header class="masthead">
       <div class="masthead-brand"><span class="masthead-wordmark">Camenae</span><span class="masthead-motto"><i />Fons · Consilium</span></div>
       <nav class="masthead-nav" aria-label="Main navigation">

@@ -1,0 +1,63 @@
+/* An open file or skill: the header, then an editor that takes the rest of the column. */
+.shell-content.shell-content-open { height: 100%; display: flex; flex-direction: column; padding: 26px 40px 28px; }
+.editor-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
+.editor-header { display: flex; flex-direction: column; gap: 10px; flex: none; }
+.editor-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font: 400 12px var(--mono-font); }
+.editor-crumbs > span { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.editor-crumbs button { border: 0; padding: 3px 6px; overflow-wrap: anywhere; text-align: left; background: transparent; }
+.editor-crumbs button:hover { background: var(--input-fill); }
+.editor-crumbs .editor-crumb-label { background: var(--secondary-ink); color: var(--panel-text); padding: 3px 6px; }
+.editor-title-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+.editor-title { margin: 0; font: 400 44px/1 var(--display-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
+.editor-detail { font: 400 12px var(--mono-font); color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.editor-detail .editor-state { padding: 2px 6px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); }
+.editor-detail .editor-state[data-on=true] { background: var(--deep-ink); color: var(--surface); border-color: var(--deep-ink); }
+.editor-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.editor-actions a, .editor-actions button { border: 0; padding: 6px 10px; font-size: 13px; text-decoration: none; background: var(--surface); color: var(--ink); }
+.editor-actions a:hover, .editor-actions button:hover { background: var(--input-fill); }
+.editor-actions .editor-primary { background: var(--deep-ink); color: var(--surface); }
+.editor-actions .editor-primary:hover { background: var(--ink); }
+.editor-actions .editor-primary:disabled { background: var(--deep-ink); }
+.editor-actions .editor-danger:hover { background: var(--accent); color: var(--on-accent); }
+.editor-actions .editor-gap { width: 10px; flex: none; }
+.editor-actions .editor-close { margin-left: auto; background: transparent; font: 400 12px var(--mono-font); }
+.editor-actions a:disabled, .editor-actions button:disabled { opacity: .45; }
+.editor-screen > [role=alert], .editor-screen > [role=status] { margin: 0; font-size: 13px; flex: none; }
+.editor-screen > [role=alert] { color: var(--accent); }
+.editor-unavailable { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; text-align: center; border: 1px dashed var(--ink); padding: 40px; }
+.editor-unavailable p { margin: 0; font-size: 15px; max-width: 460px; line-height: 1.5; }
+
+.text-editor { flex: 1; min-height: 320px; display: flex; flex-direction: column; border: 1px solid var(--ink); background: var(--deep-ink); color: var(--panel-text); }
+.text-editor-bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 10px 6px 14px; border-bottom: 1px solid rgba(233,225,211,.18); font: 400 11px var(--mono-font); color: rgba(233,225,211,.7); }
+.text-editor-modes { display: flex; gap: 2px; }
+.text-editor-modes button { border: 0; padding: 3px 9px; background: transparent; color: inherit; font: inherit; }
+.text-editor-modes button:hover { background: rgba(233,225,211,.1); }
+.text-editor-modes button[aria-selected=true] { background: var(--panel-text); color: var(--deep-ink); }
+.text-editor-modes button:focus-visible { outline: 2px solid var(--panel-text); outline-offset: -2px; }
+.text-editor-meta { margin-left: auto; white-space: nowrap; }
+.text-editor-meta em { font-style: normal; color: #e9b58a; }
+.text-editor-area { flex: 1; min-height: 0; width: 100%; margin: 0; padding: 16px 18px 40px; border: 0; border-radius: 0; resize: none; background: transparent; color: inherit; font: 400 13px/1.65 var(--mono-font); tab-size: 4; white-space: pre-wrap; overflow: auto; overscroll-behavior: contain; }
+.text-editor-area[wrap=off] { white-space: pre; }
+.text-editor-area:focus-visible { outline: 2px solid var(--panel-text); outline-offset: -2px; }
+.text-editor-preview { flex: 1; min-height: 0; overflow: auto; padding: 22px 26px 40px; background: var(--surface); color: var(--ink); }
+.text-editor-preview .chat-markdown { max-width: 720px; font-size: 16px; }
+.text-editor-front { margin: 0 0 22px; max-width: 720px; padding: 12px 14px; border-left: 1px solid var(--ink); background: var(--input-fill); font: 400 12px/1.6 var(--mono-font); white-space: pre-wrap; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 6px; }
+.text-editor-front span { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.text-editor-preview .chat-markdown pre { background: var(--deep-ink); }
+
+/* The rail beside an open file or skill lists its neighbours, so moving between them is one click. */
+.editor-siblings { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; border-left: 1px solid var(--ink); }
+.editor-siblings button { width: 100%; border: 0; background: transparent; padding: 5px 10px; text-align: left; font-size: 13px; overflow-wrap: anywhere; display: flex; justify-content: space-between; gap: 8px; }
+.editor-siblings button:hover { background: var(--input-fill); }
+.editor-siblings button[aria-current=true] { background: var(--deep-ink); color: var(--on-accent); }
+.editor-siblings button small { font: 400 10px var(--mono-font); opacity: .7; white-space: nowrap; }
+.editor-siblings button[aria-current=true] small { opacity: .8; }
+
+@media (max-width: 999px) { .shell-content.shell-content-open { padding: 22px 28px 24px; } }
+@media (max-width: 699px) {
+  .shell-content.shell-content-open { padding: 16px; }
+  .editor-title { font-size: 32px; }
+  .text-editor { min-height: 55dvh; }
+  .text-editor-area, .text-editor-preview { padding: 12px 14px 30px; }
+  .editor-actions .editor-close { margin-left: 0; }
+}

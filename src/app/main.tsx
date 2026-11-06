@@ -19,11 +19,12 @@ import "../ui/theme.css";
 import "../ui/layout-shell.css";
 import "./app.css";
 
-const contentClass = (screen: Screen) => Match.value(screen).pipe(
+// An open file or skill takes the whole column, so its wrapper fills the height instead of padding a page.
+const contentClass = (screen: Screen, open: boolean) => Match.value(screen).pipe(
   Match.when("Chat", () => "shell-content shell-content-active"),
   Match.when("Settings", () => "shell-content shell-content-settings"),
-  Match.when("Files", () => "shell-content shell-content-files"),
-  Match.when("Skills", () => "shell-content shell-content-skills"),
+  Match.when("Files", () => open ? "shell-content shell-content-files shell-content-open" : "shell-content shell-content-files"),
+  Match.when("Skills", () => open ? "shell-content shell-content-skills shell-content-open" : "shell-content shell-content-skills"),
   Match.orElse(() => "shell-content shell-content-app"),
 );
 
@@ -51,6 +52,8 @@ function App() {
     return usage && consoleExhausted(usage) ? usage : undefined;
   });
 
+  const editing = createMemo(() => (screen() === "Files" && files.selected() !== undefined) || (screen() === "Skills" && skills.selected() !== undefined));
+
   const openApp = createMemo(() => {
     const current = screen();
 
@@ -76,7 +79,7 @@ function App() {
 
   const rail = () => Match.value(screen()).pipe(
     Match.when("Settings", () => <SettingsInspector />),
-    Match.when("Files", () => <FileInspector files={files} onAsk={ask} />),
+    Match.when("Files", () => <FileInspector files={files} />),
     Match.when("Skills", () => <SkillsInspector skills={skills} />),
     Match.when("Chat", () => inspector),
     Match.orElse(() => <div class="app-inspector"><section><h2>App</h2><p>{openApp()?.name}</p>
@@ -87,11 +90,11 @@ function App() {
     onSelect={(id) => { setScreen("Chat"); void session.select(id); }} onNew={() => { setScreen("Chat"); void session.create(); }}
     newDisabled={!session.idle() || !session.bootstrap()?.readiness.opencode} selectionDisabled={session.pending() || session.preparing()}
     inspector={rail()}>
-    <div class={contentClass(screen())}>
+    <div class={contentClass(screen(), editing())}>
       <Show when={session.error()}><p role="alert" class="app-error">{session.error()}</p></Show>
       <Show when={screen() === "Chat" ? exhausted() : undefined}>{(usage) => <RequestLimitNotice usage={usage()}><button onClick={() => setScreen("Settings")}>Open Settings</button></RequestLimitNotice>}</Show>
       <div hidden={screen() !== "Chat"} class="chat-screen-wrap"><ChatPane session={session} insertion={insertion()} /></div>
-      <Show when={screen() === "Files"}><FilesScreen files={files} /></Show>
+      <Show when={screen() === "Files"}><FilesScreen files={files} onAsk={ask} /></Show>
       <Show when={screen() === "Settings" ? session.bootstrap() : undefined}>{(state) =>
         <SettingsPage csrf={state().csrf} usage={state().consoleUsage} onChanged={session.refreshStatus} />}</Show>
       <Show when={screen() === "Skills"}><SkillsScreen skills={skills} /></Show>

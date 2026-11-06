@@ -109,6 +109,28 @@ a migration is not a supported downgrade; restore a matching backup if necessary
 Encryption context strings and native IDs remain compatibility contracts even when
 UI wording changes.
 
+## After a host reboot
+
+Every service has `restart: unless-stopped` (since 2026-11-06), so a reboot brings the
+whole stack back, and a service that exits on its own is restarted. A stack stopped on
+purpose (`docker compose stop`) stays stopped. Before that date only the worker had the
+policy: after the host shut down on 2026-10-31 the ingress, database, app and egress
+stayed down for a week while the worker waited, healthy, for an application owner; the
+state volumes, `.env` and the credentials file were intact. If a stack is ever found
+down, bring it back by hand:
+
+```sh
+docker compose up -d --wait --wait-timeout 120
+curl --fail http://127.0.0.1:${CAMENAE_HTTP_PORT:-3000}/health/ready
+```
+
+This reuses the existing images and volumes and runs no initialization. Add `--build`
+only as a deliberate redeploy of changed source. Then sign in and check a conversation
+loads. The owner's installation listens on **3100** (`CAMENAE_HTTP_PORT` and
+`CAMENAE_ORIGIN` in `.env`, set 2026-11-06) because another project's container holds
+loopback port 3000 on this host; both must change together, and a changed origin takes
+effect when the app is recreated.
+
 ## Backup and recovery
 
 There is no automated backup/restore command or established cross-host native

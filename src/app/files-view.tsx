@@ -1,6 +1,7 @@
 /** @jsxImportSource solid-js */
-import { createEffect, createSignal, For, on, Show, type JSX } from "solid-js";
+import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { protectedFolders, uploadLimit } from "../file-contract.js";
+import { EditorHeader, isMarkdown, TextEditor } from "./editor.js";
 import { downloadHref } from "./files-api.js";
 import type { Files } from "./files-state.js";
 import "../ui/files.css";
@@ -10,6 +11,8 @@ const sizeLabel = (bytes: number | null) => bytes === null ? "" : bytes < 1024 ?
 const typeLabel = (name: string, directory: boolean) => directory ? "Folder" : name.includes(".") ? name.split(".").at(-1)?.toUpperCase() ?? "File" : "File";
 
 const isProtected = (path: string) => protectedFolders.some((folder) => folder === path);
+
+const nameOf = (path: string) => path.split("/").at(-1) ?? path;
 
 interface NameFormProps {
   label: string;
@@ -35,7 +38,8 @@ function NameForm(props: NameFormProps) {
   </form>;
 }
 
-export function FilesScreen(props: { files: Files }) {
+// Browsing: the folder you are in, what it holds, and the ways to add to it.
+function Browse(props: { files: Files }) {
   const files = () => props.files;
   const [creating, setCreating] = createSignal<"file" | "folder" | "rename">();
   const parts = () => files().path() ? files().path().split("/") : [];
@@ -49,7 +53,7 @@ export function FilesScreen(props: { files: Files }) {
 
   return <section aria-label="Workspace files" class="workspace-files"
     onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); choose(event.dataTransfer?.files ?? null); }}>
-    <span class="files-workspace-label">Workspace</span>
+    <span class="files-workspace-label">Shared workspace</span>
     <h1>Files</h1>
     <nav class="files-breadcrumb" aria-label="Workspace folder">
       <button disabled={files().busy()} aria-current={!files().path() ? "location" : undefined} onClick={() => files().navigate("")}>Workspace</button>
@@ -89,9 +93,9 @@ export function FilesScreen(props: { files: Files }) {
         <tbody><For each={files().listing()?.entries}>{(entry) => {
           const child = () => files().join(files().path(), entry.name);
 
-          return <tr data-selected={files().selected() === child() ? "true" : undefined} data-hidden={entry.hidden ? "true" : undefined}>
-            <th scope="row"><button disabled={files().busy()} aria-pressed={entry.directory ? undefined : files().selected() === child()}
-              onClick={() => entry.directory ? files().navigate(child()) : files().setSelected(child())}>{entry.name}{entry.directory ? <span aria-hidden="true"> ›</span> : null}</button></th>
+          return <tr data-hidden={entry.hidden ? "true" : undefined}>
+            <th scope="row"><button disabled={files().busy()}
+              onClick={() => entry.directory ? files().navigate(child()) : files().open(child())}>{entry.name}{entry.directory ? <span aria-hidden="true"> ›</span> : null}</button></th>
             <td class="files-size">{sizeLabel(entry.size)}</td>
             <td>{typeLabel(entry.name, entry.directory)}</td>
           </tr>;
@@ -107,63 +111,91 @@ export function FilesScreen(props: { files: Files }) {
   </section>;
 }
 
-interface InspectorProps {
-  files: Files;
-  onAsk: (path: string) => void;
-}
-
-export function FileInspector(props: InspectorProps) {
+// An open file takes the whole column: where it lives, what you can do with it, and its text.
+function OpenFile(props: { files: Files; path: string; onAsk: (path: string) => void }) {
   const files = () => props.files;
-  const [draft, setDraft] = createSignal("");
   const [moving, setMoving] = createSignal(false);
+  const parts = () => props.path.split("/");
+  const name = () => nameOf(props.path);
+  const folders = () => parts().slice(0, -1);
 
-  const original = () => {
+  createEffect(on(() => props.path, () => setMoving(false)));
+
+  // A folder crumb goes back to browsing it; the current folder just closes the file.
+  const go = (folder: string) => { if (folder === files().path()) files().close(); else files().navigate(folder); };
+
+  const body = () => {
     const current = files().preview();
 
-    return current?.kind === "text" ? current.text : undefined;
-  };
-
-  createEffect(on([files().selected, files().preview], () => setDraft(original() ?? "")));
-  createEffect(on(files().selected, () => setMoving(false)));
-
-  const dirty = () => original() !== undefined && draft() !== original();
-
-  const status = (): JSX.Element => {
-    const current = files().preview();
-
-    if (!current) return <p role="status">Loading preview…</p>;
+    if (!current) return <p role="status">Loading…</p>;
 
     if (current.kind === "error") return <p role="alert">{current.message}</p>;
 
-    if (current.kind === "unavailable") return <p>{current.reason === "too-large" ? "This file exceeds the 1 MiB text limit. Download it to open it elsewhere." : "This file is not UTF-8 text. Download it to open it in a suitable application."}</p>;
+    if (current.kind === "unavailable") {
+      return <div class="editor-unavailable">
+        <p>{current.reason === "too-large" ? "This file is larger than the 1 MiB text limit, so it cannot be edited here." : "This file is not UTF-8 text, so it cannot be edited here."}</p>
+        <p>Download it to open it in a suitable application.</p>
+      </div>;
+    }
 
-    return null;
+    return <TextEditor label={`Contents of ${name()}`} value={files().draft()} original={current.text} markdown={isMarkdown(name())} busy={files().busy()}
+      onInput={files().setDraft} onSave={() => void files().save(props.path, files().draft())} />;
   };
 
-  return <section class="file-inspector">
-    <h2>Selected file</h2>
-    <Show when={files().selected()} fallback={<p>Select a file to preview it, edit it, download it, or ask about it.</p>}>{(path) => <>
-      <p class="file-selected-name">{path().split("/").at(-1)}</p>
-      <div class="file-preview">
-        <h3>Contents</h3>
-        {status()}
-        <Show when={original() !== undefined}>
-          <textarea class="file-editor" aria-label="File contents" spellcheck={false} value={draft()} onInput={(event) => setDraft(event.currentTarget.value)} />
-          <div class="file-actions">
-            <button disabled={!dirty() || files().busy()} onClick={() => void files().save(path(), draft())}>Save changes</button>
-            <button disabled={!dirty() || files().busy()} onClick={() => setDraft(original() ?? "")}>Revert</button>
-          </div>
-        </Show>
-      </div>
-      <div class="file-path"><span>Workspace-relative path</span><code>{path()}</code></div>
-      <div class="file-actions">
-        <a href={downloadHref(path())} download="">Download</a>
-        <button onClick={() => props.onAsk(path())}>Ask about this file</button>
+  return <section class="editor-screen" aria-label={`Open file ${name()}`}>
+    <EditorHeader title={name()}
+      crumbs={<><span class="editor-crumb-label">Files</span>
+        <span><span aria-hidden="true">›</span><button onClick={() => go("")}>Workspace</button></span>
+        <For each={folders()}>{(part, index) => <span><span aria-hidden="true">›</span><button onClick={() => go(folders().slice(0, index() + 1).join("/"))}>{part}</button></span>}</For></>}
+      detail={<><span>{typeLabel(name(), false)}</span><code>{props.path}</code></>}
+      actions={<>
+        <button class="editor-primary" disabled={!files().dirty() || files().busy()} onClick={() => void files().save(props.path, files().draft())}>Save</button>
+        <button disabled={!files().dirty() || files().busy()} onClick={() => files().setDraft(files().original() ?? "")}>Revert</button>
+        <span class="editor-gap" />
+        <a href={downloadHref(props.path)} download="">Download</a>
+        <button onClick={() => props.onAsk(props.path)}>Ask about this file</button>
         <button disabled={files().busy()} onClick={() => setMoving((value) => !value)}>Rename or move</button>
-        <button disabled={files().busy()} onClick={() => { if (window.confirm(`Delete ${path()}? This cannot be undone.`)) void files().remove(path()); }}>Delete</button>
-      </div>
-      <Show when={moving()}><NameForm label="New path" initial={path()} action="Move" disabled={files().busy()}
-        onSubmit={(name) => files().move(path(), name)} onCancel={() => setMoving(false)} /></Show>
+        <button class="editor-danger" disabled={files().busy()} onClick={() => { if (window.confirm(`Delete ${props.path}? This cannot be undone.`)) void files().remove(props.path); }}>Delete</button>
+        <button class="editor-close" onClick={() => files().close()}>Close ×</button>
+      </>} />
+    <Show when={moving()}><NameForm label="New path" initial={props.path} action="Move" disabled={files().busy()}
+      onSubmit={(name) => files().move(props.path, name)} onCancel={() => setMoving(false)} /></Show>
+    <Show when={files().error()}><p role="alert">{files().error()}</p></Show>
+    <Show when={files().notice()}><p role="status">{files().notice()}</p></Show>
+    {body()}
+  </section>;
+}
+
+export function FilesScreen(props: { files: Files; onAsk: (path: string) => void }) {
+  return <Show when={props.files.selected()} fallback={<Browse files={props.files} />}>
+    {(path) => <OpenFile files={props.files} path={path()} onAsk={props.onAsk} />}
+  </Show>;
+}
+
+// The rail: while browsing, what this screen is for; with a file open, its neighbours and its path.
+export function FileInspector(props: { files: Files }) {
+  const files = () => props.files;
+  const siblings = () => files().listing()?.entries.filter((entry) => !entry.directory) ?? [];
+
+  return <section class="file-inspector">
+    <Show when={files().selected()} fallback={<>
+      <h2>Files</h2>
+      <p>Open a file to edit it here. Folders you are in: <code>{files().path() || "the workspace root"}</code>.</p>
+      <small>The assistant works in the same workspace. The inbox folder holds files you attach to messages.</small>
+    </>}>{(path) => <>
+      <h2>Open file</h2>
+      <p class="file-selected-name">{nameOf(path())}</p>
+      <small>{files().dirty() ? "Unsaved changes. Ctrl+S or Cmd+S saves." : "Ctrl+S or Cmd+S saves."}</small>
+      <Show when={siblings().length > 1}>
+        <h2>In this folder</h2>
+        <ul class="editor-siblings"><For each={siblings()}>{(entry) => {
+          const child = () => files().join(files().path(), entry.name);
+
+          return <li><button aria-current={child() === path() ? "true" : undefined} onClick={() => files().open(child())}>
+            <span>{entry.name}</span><small>{sizeLabel(entry.size)}</small></button></li>;
+        }}</For></ul>
+      </Show>
+      <div class="file-path"><span>Workspace-relative path</span><code>{path()}</code></div>
     </>}</Show>
   </section>;
 }

@@ -106,7 +106,7 @@ drafts, stop, new chat, a per-conversation model picker, a usage panel, a server
 scrolling, and a Settings screen for the provider key and request allowance. In fixture mode the dev server simulates turns in memory: any message
 streams a short "Thinking" block and then a reply; include `approve` to trigger an
 approval card, `retry` to show the provider-retry notice for three seconds, and
-`markdown` for hostile Markdown. Attachments and files are not built in it; its Skills use the real storage code over a throwaway directory. It also serves the seeded game backlog under **Backlog** in the navigation, using the application's own definition and value checks over entries held in memory (they reset when the server restarts). Close any browser you opened and stop the server when
+`markdown` for hostile Markdown. Its Files and Skills use the real validation code over throwaway directories; opening a file or a skill replaces the page with a full-column editor (`src/app/editor.tsx`: source or rendered Markdown, Ctrl+S saves, unsaved edits ask before they are dropped). It also serves the seeded game backlog under **Backlog** in the navigation, using the application's own definition and value checks over entries held in memory (they reset when the server restarts). Close any browser you opened and stop the server when
 finished.
 
 For browser checks against a real backend without inference, start a separate

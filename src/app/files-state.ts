@@ -20,16 +20,20 @@ const join = (folder: string, name: string) => folder ? `${folder}/${name}` : na
 
 const parentOf = (path: string) => path.split("/").slice(0, -1).join("/");
 
+const nameOf = (path: string) => path.split("/").at(-1) ?? path;
+
 const reason = (error: Error | string) => error instanceof FileRequestError ? error.message : "The request failed. Nothing was changed.";
 
 // Everything the Files screen and its inspector share: where you are, what is
-// selected, and the changes in flight. All writes go through the safe server routes.
+// open, the edit in progress, and the changes in flight. All writes go through
+// the safe server routes.
 export function createFiles(props: { csrf: () => string | undefined; active: () => boolean }) {
   const [path, setPath] = createSignal("");
   const [listing, setListing] = createSignal<FileListing>();
   const [showHidden, setShowHidden] = createSignal(false);
   const [selected, setSelected] = createSignal<string>();
   const [preview, setPreview] = createSignal<Preview>();
+  const [draft, setDraft] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
@@ -80,8 +84,35 @@ export function createFiles(props: { csrf: () => string | undefined; active: () 
     if (file && props.active()) void loadPreview(file);
   }));
 
+  // The text of the open file as the server has it, when it is editable text.
+  const original = () => {
+    const current = preview();
+
+    return current?.kind === "text" ? current.text : undefined;
+  };
+
+  // The editor follows the saved text whenever a file is opened or reloaded.
+  createEffect(on([selected, preview], () => setDraft(original() ?? "")));
+
+  const dirty = () => original() !== undefined && draft() !== original();
+
+  // An unsaved edit is only dropped when you say so.
+  const discardable = () => !dirty() || window.confirm(`Discard unsaved changes to ${nameOf(selected() ?? "")}?`);
+
+  const open = (file: string) => {
+    if (file === selected() || !discardable()) return;
+    setSelected(file);
+    setNotice("");
+  };
+
+  const close = () => {
+    if (selected() === undefined || !discardable()) return;
+    setSelected(undefined);
+    setNotice("");
+  };
+
   const navigate = (next: string) => {
-    if (busy() || next === path()) return;
+    if (busy() || next === path() || !discardable()) return;
     setPath(next);
     setSelected(undefined);
     setNotice("");
@@ -193,7 +224,8 @@ export function createFiles(props: { csrf: () => string | undefined; active: () 
     return `Deleted ${target}.`;
   });
 
-  return { path, listing, showHidden, setShowHidden, selected, setSelected, preview, loading, busy, error, notice, clash, navigate, refresh, upload, resolveClash, create, createFolder, save, move, remove, join };
+  return { path, listing, showHidden, setShowHidden, selected, open, close, preview, draft, setDraft, original, dirty, loading, busy, error, notice, clash,
+    navigate, refresh, upload, resolveClash, create, createFolder, save, move, remove, join };
 }
 
 export type Files = ReturnType<typeof createFiles>;

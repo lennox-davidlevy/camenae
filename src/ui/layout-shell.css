@@ -64,4 +64,6 @@
   .thread-sidebar-footer a { font-size: 11px; }
   .shell-center { border: 0; }
   .shell-content { padding: 20px; }
+  .app-shell[data-screen=other] .thread-sidebar { display: none; }
+  .app-shell[data-screen=other] .shell-columns { grid-template-rows: minmax(0,1fr); }
 }
