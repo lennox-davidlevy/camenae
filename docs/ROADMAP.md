@@ -76,7 +76,18 @@ below on 2026-11-06.**
      rendered once in the UI, common skills exposed to each harness in its native form,
      conversation handover designed as an application feature. Owner decision
      (2026-11-06): Claude Code only if a Claude subscription sign-in can drive it,
-     otherwise Pi; see the [product decision table](PRODUCT.md#decision-status).
+     otherwise Pi; the SDK session's reading of Anthropic's pages says it can, for the
+     owner's own use, with the constraints in the
+     [product decision table](PRODUCT.md#decision-status). Application design needed
+     before that slice: a way for the owner to run the sign-in inside the worker so
+     the credential lives in the worker's state and never passes through the app.
+   - *Effect, a cross-repository dependency decision.* OpenCode 2.0.24 is the last
+     release on Effect rc.112; from 2.0.28 upstream uses stable Effect 4.0.x. The SDK
+     recommends taking that bump as a separate 0.3.x after this application adopts
+     the milestone 1 events. The separate worker dependency root exists only because
+     the app (rc.118) and OpenCode (rc.112) disagree; it goes away only if the app
+     moves to stable 4.0.x in the same window. Plan the app's Effect upgrade with the
+     SDK's bump, one dependency decision at a time.
 
 **Later (the end state, unchanged):** sharing by export and import, theme packages,
 custom code containment, schedules and the activity view, the Calendar acceptance case,
